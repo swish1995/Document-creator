@@ -38,6 +38,12 @@ class PreviewWidget(QWidget):
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(True)
         self._scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._scroll_area.setStyleSheet("""
+            QScrollArea {
+                background-color: #3a3a3a;
+                border: none;
+            }
+        """)
 
         # 컨텐츠 레이블
         self._content_label = QLabel()
@@ -60,8 +66,8 @@ class PreviewWidget(QWidget):
         self._content_label.setText("템플릿을 선택하세요")
         self._content_label.setStyleSheet("""
             QLabel {
-                background-color: #f5f5f5;
-                color: #888;
+                background-color: #3a3a3a;
+                color: #666666;
                 font-size: 14px;
                 padding: 20px;
             }

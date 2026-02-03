@@ -174,10 +174,48 @@ class ExcelViewer(QWidget):
     selection_changed = pyqtSignal(list)   # 선택 변경 (행 인덱스 리스트)
     file_loaded = pyqtSignal(str, int)     # 파일 로드 완료 (파일명, 행 수)
 
+    # 버튼 색상 정의 (스켈레톤 분석기와 동일)
+    BUTTON_COLORS = {
+        'open': ('#b8a25a', '#a8924a', '#c8b26a'),      # 골드/노란색
+        'select': ('#5a7ab8', '#4a6aa8', '#6a8ac8'),    # 파란색
+        'deselect': ('#7a7a7a', '#6a6a6a', '#8a8a8a'),  # 회색
+        'export': ('#5ab87a', '#4aa86a', '#6ac88a'),    # 초록색
+    }
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._loader: Optional[ExcelLoader] = None
         self._setup_ui()
+
+    def _get_button_style(self, color_key: str) -> str:
+        """버튼 스타일 생성 (스켈레톤 분석기와 동일)"""
+        colors = self.BUTTON_COLORS.get(color_key, self.BUTTON_COLORS['open'])
+        base, dark, light = colors
+
+        return f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {base}, stop:1 {dark});
+                color: white;
+                border: none;
+                padding: 5px 12px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {light}, stop:1 {base});
+            }}
+            QPushButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {dark}, stop:1 {base});
+            }}
+            QPushButton:disabled {{
+                background: #444444;
+                color: #666666;
+            }}
+        """
 
     def _setup_ui(self):
         """UI 초기화"""
@@ -188,19 +226,25 @@ class ExcelViewer(QWidget):
         toolbar = QHBoxLayout()
 
         # 파일 열기 버튼
-        self._open_button = QPushButton("📂 파일 열기")
+        self._open_button = QPushButton(" 파일 열기")
+        self._open_button.setFixedHeight(28)
+        self._open_button.setStyleSheet(self._get_button_style('open'))
         self._open_button.clicked.connect(self._on_open_clicked)
         toolbar.addWidget(self._open_button)
 
         toolbar.addStretch()
 
         # 전체 선택 / 해제 버튼
-        self._select_all_button = QPushButton("☑ 전체 선택")
+        self._select_all_button = QPushButton(" 전체 선택")
+        self._select_all_button.setFixedHeight(28)
+        self._select_all_button.setStyleSheet(self._get_button_style('select'))
         self._select_all_button.clicked.connect(self.select_all)
         self._select_all_button.setEnabled(False)
         toolbar.addWidget(self._select_all_button)
 
-        self._deselect_all_button = QPushButton("☐ 선택 해제")
+        self._deselect_all_button = QPushButton(" 선택 해제")
+        self._deselect_all_button.setFixedHeight(28)
+        self._deselect_all_button.setStyleSheet(self._get_button_style('deselect'))
         self._deselect_all_button.clicked.connect(self.deselect_all)
         self._deselect_all_button.setEnabled(False)
         toolbar.addWidget(self._deselect_all_button)
@@ -208,15 +252,31 @@ class ExcelViewer(QWidget):
         toolbar.addSpacing(20)
 
         # 미리보기 행 선택
-        toolbar.addWidget(QLabel("미리보기 행:"))
+        preview_label = QLabel("미리보기 행:")
+        preview_label.setStyleSheet("color: #888888;")
+        toolbar.addWidget(preview_label)
         self._preview_row_spinbox = QSpinBox()
         self._preview_row_spinbox.setMinimum(1)
         self._preview_row_spinbox.setMaximum(1)
         self._preview_row_spinbox.setEnabled(False)
+        self._preview_row_spinbox.setStyleSheet("""
+            QSpinBox {
+                background-color: #3a3a3a;
+                color: #ffffff;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                padding: 2px 4px;
+            }
+            QSpinBox:disabled {
+                background-color: #2a2a2a;
+                color: #666666;
+            }
+        """)
         self._preview_row_spinbox.valueChanged.connect(self._on_preview_row_changed)
         toolbar.addWidget(self._preview_row_spinbox)
 
         self._row_count_label = QLabel("/ 0")
+        self._row_count_label.setStyleSheet("color: #888888;")
         toolbar.addWidget(self._row_count_label)
 
         layout.addLayout(toolbar)
@@ -231,6 +291,39 @@ class ExcelViewer(QWidget):
         self._table_view.horizontalHeader().setStretchLastSection(True)
         self._table_view.clicked.connect(self._on_table_clicked)
 
+        # 테이블 스타일 (스켈레톤 분석기와 동일한 다크 테마)
+        self._table_view.setStyleSheet("""
+            QTableView {
+                background-color: #2b2b2b;
+                alternate-background-color: #333333;
+                color: #ffffff;
+                gridline-color: #444444;
+                border: none;
+            }
+            QTableView::item {
+                padding: 4px;
+            }
+            QTableView::item:selected {
+                background-color: #0d47a1;
+                color: #ffffff;
+            }
+            QHeaderView::section {
+                background-color: #1a237e;
+                color: #ffffff;
+                padding: 6px;
+                border: none;
+                border-right: 1px solid #444444;
+                border-bottom: 1px solid #444444;
+                font-weight: bold;
+            }
+            QHeaderView::section:horizontal {
+                background-color: #1a237e;
+            }
+            QHeaderView::section:vertical {
+                background-color: #333333;
+            }
+        """)
+
         # 모델 데이터 변경 시 선택 상태 업데이트
         self._model.dataChanged.connect(self._on_model_data_changed)
 
@@ -239,6 +332,7 @@ class ExcelViewer(QWidget):
         # 하단 상태바
         status_bar = QHBoxLayout()
         self._selection_count_label = QLabel("선택됨: 0행")
+        self._selection_count_label.setStyleSheet("color: #888888;")
         status_bar.addWidget(self._selection_count_label)
         status_bar.addStretch()
 

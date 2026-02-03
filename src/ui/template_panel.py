@@ -44,6 +44,13 @@ class TemplatePanel(QFrame):
         """UI 초기화"""
         self.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         self.setLineWidth(1)
+        self.setStyleSheet("""
+            QFrame {
+                background-color: #2b2b2b;
+                border: 1px solid #444444;
+                border-radius: 4px;
+            }
+        """)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
@@ -57,6 +64,36 @@ class TemplatePanel(QFrame):
         self._template_combo.addItem("템플릿 선택...")
         for name in self._template_manager.template_names:
             self._template_combo.addItem(name)
+        self._template_combo.setStyleSheet("""
+            QComboBox {
+                background-color: #3a3a3a;
+                color: #ffffff;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                padding: 4px 8px;
+                min-height: 20px;
+            }
+            QComboBox:hover {
+                border-color: #666666;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid #888888;
+                margin-right: 5px;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #3a3a3a;
+                color: #ffffff;
+                selection-background-color: #0d47a1;
+                border: 1px solid #555555;
+            }
+        """)
         self._template_combo.currentTextChanged.connect(self._on_template_changed)
         toolbar.addWidget(self._template_combo, 1)
 

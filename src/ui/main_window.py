@@ -36,6 +36,12 @@ class MainWindow(QMainWindow):
 
     MAX_TEMPLATE_PANELS = 5
 
+    # 버튼 색상 정의 (스켈레톤 분석기와 동일)
+    BUTTON_COLORS = {
+        'export': ('#5ab87a', '#4aa86a', '#6ac88a'),    # 초록색
+        'add': ('#5a7ab8', '#4a6aa8', '#6a8ac8'),       # 파란색
+    }
+
     def __init__(self, templates_dir: Optional[Path] = None):
         super().__init__()
         self._settings = QSettings("SafetyDoc", "DocumentCreator")
@@ -57,10 +63,102 @@ class MainWindow(QMainWindow):
         self._setup_status_bar()
         self._restore_geometry()
 
+    def _get_button_style(self, color_key: str) -> str:
+        """버튼 스타일 생성 (스켈레톤 분석기와 동일)"""
+        colors = self.BUTTON_COLORS.get(color_key, self.BUTTON_COLORS['export'])
+        base, dark, light = colors
+
+        return f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {base}, stop:1 {dark});
+                color: white;
+                border: none;
+                padding: 5px 12px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {light}, stop:1 {base});
+            }}
+            QPushButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {dark}, stop:1 {base});
+            }}
+            QPushButton:disabled {{
+                background: #444444;
+                color: #666666;
+            }}
+        """
+
     def _setup_ui(self):
         """UI 초기화"""
         self.setWindowTitle("Document Creator")
         self.setMinimumSize(1200, 800)
+
+        # 전체 앱 다크 테마 스타일 (스켈레톤 분석기와 동일)
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #2b2b2b;
+            }
+            QWidget {
+                background-color: #2b2b2b;
+                color: #ffffff;
+            }
+            QMenuBar {
+                background-color: #333333;
+                color: #ffffff;
+            }
+            QMenuBar::item:selected {
+                background-color: #0d47a1;
+            }
+            QMenu {
+                background-color: #3a3a3a;
+                color: #ffffff;
+                border: 1px solid #555555;
+            }
+            QMenu::item:selected {
+                background-color: #0d47a1;
+            }
+            QScrollArea {
+                background-color: #2b2b2b;
+                border: none;
+            }
+            QScrollBar:vertical {
+                background-color: #2b2b2b;
+                width: 12px;
+                border: none;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #555555;
+                border-radius: 4px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #666666;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar:horizontal {
+                background-color: #2b2b2b;
+                height: 12px;
+                border: none;
+            }
+            QScrollBar::handle:horizontal {
+                background-color: #555555;
+                border-radius: 4px;
+                min-width: 20px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background-color: #666666;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0px;
+            }
+        """)
 
         # 중앙 위젯
         central_widget = QWidget()
@@ -71,6 +169,23 @@ class MainWindow(QMainWindow):
 
         # 상단/하단 스플리터
         self._splitter = QSplitter(Qt.Orientation.Vertical)
+        self._splitter.setObjectName("mainSplitter")
+        self._splitter.setHandleWidth(8)
+        self._splitter.setStyleSheet("""
+            QSplitter#mainSplitter::handle:vertical {
+                height: 2px;
+                margin-top: 1px;
+                margin-bottom: 5px;
+                background: qlineargradient(
+                    x1: 0.25, y1: 0,
+                    x2: 0.75, y2: 0,
+                    stop: 0 transparent,
+                    stop: 0.001 #888888,
+                    stop: 0.999 #888888,
+                    stop: 1 transparent
+                );
+            }
+        """)
         main_layout.addWidget(self._splitter)
 
         # 상단 영역 - 템플릿 패널 컨테이너 (스크롤 가능)
@@ -91,13 +206,15 @@ class MainWindow(QMainWindow):
         self._add_panel_button.setStyleSheet("""
             QPushButton {
                 font-size: 24px;
-                border: 2px dashed #ccc;
+                border: 2px dashed #666666;
                 border-radius: 8px;
-                background-color: #f8f8f8;
+                background-color: #3a3a3a;
+                color: #888888;
             }
             QPushButton:hover {
-                background-color: #e8e8e8;
-                border-color: #999;
+                background-color: #4a4a4a;
+                border-color: #888888;
+                color: #aaaaaa;
             }
         """)
         self._add_panel_button.clicked.connect(self._on_add_panel)
@@ -129,6 +246,8 @@ class MainWindow(QMainWindow):
         self._export_button = QPushButton("내보내기")
         self._export_button.setEnabled(False)
         self._export_button.setMinimumWidth(150)
+        self._export_button.setFixedHeight(28)
+        self._export_button.setStyleSheet(self._get_button_style('export'))
         self._export_button.clicked.connect(self._on_export_clicked)
         button_layout.addWidget(self._export_button)
 
@@ -232,9 +351,20 @@ class MainWindow(QMainWindow):
         """상태바 설정"""
         status_bar = self.statusBar()
         status_bar.showMessage("준비")
+        status_bar.setStyleSheet("""
+            QStatusBar {
+                background-color: #2b2b2b;
+                color: #888888;
+                border-top: 1px solid #444444;
+            }
+            QStatusBar::item {
+                border: none;
+            }
+        """)
 
         # 버전 레이블
         version_label = QLabel("v1.0.0")
+        version_label.setStyleSheet("color: #666666;")
         status_bar.addPermanentWidget(version_label)
 
     def _restore_geometry(self):
