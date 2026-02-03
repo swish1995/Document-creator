@@ -267,13 +267,55 @@ template/
 }
 ```
 
-## 기술 스택 (예정)
+## 로깅 시스템
 
-- **Language**: Python 3.11+
+애플리케이션 동작을 기록하는 로깅 시스템을 제공합니다.
+
+### 설정
+| 항목 | 값 |
+|------|-----|
+| **로그 위치** | `logs/document_creator.log` |
+| **파일 크기** | 최대 2MB |
+| **로테이션** | 최대 10개 파일 (현재 + 백업 9개) |
+| **로그 형식** | `[날짜시간] [레벨] [모듈] 메시지` |
+
+### 로그 레벨
+| 레벨 | 설명 |
+|------|------|
+| `DEBUG` | 상세 디버그 정보 (파일만 기록) |
+| `INFO` | 일반 정보 (콘솔 + 파일) |
+| `WARNING` | 경고 |
+| `ERROR` | 오류 |
+| `CRITICAL` | 심각한 오류 |
+
+### 사용법
+```python
+from src.core.logger import get_logger
+
+logger = get_logger("module_name")
+logger.debug("디버그 메시지")
+logger.info("정보 메시지")
+logger.warning("경고 메시지")
+logger.error("에러 메시지")
+```
+
+### 로그 예시
+```
+[2026-02-03 15:31:33] [INFO    ] [document_creator.main_window] MainWindow 초기화 시작
+[2026-02-03 15:31:34] [INFO    ] [document_creator.main_window] 파일 로드 시작: /path/to/file.xlsx
+[2026-02-03 15:31:35] [INFO    ] [document_creator.main_window] 파일 로드 완료: /path/to/file.xlsx
+[2026-02-03 15:32:00] [INFO    ] [document_creator.main_window] 내보내기 시작: 10행, 3개 템플릿
+[2026-02-03 15:33:00] [INFO    ] [document_creator.main_window] 앱 종료
+```
+
+## 기술 스택
+
+- **Language**: Python 3.9+
 - **UI Framework**: PyQt6
 - **Excel 처리**: openpyxl
 - **PDF 생성**: reportlab / weasyprint
 - **이미지 처리**: Pillow
+- **로깅**: Python logging (RotatingFileHandler)
 
 ## 관련 프로젝트
 
