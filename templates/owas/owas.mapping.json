@@ -1,16 +1,14 @@
 {
   "name": "OWAS",
-  "version": "1.0",
+  "version": "2.0",
   "type": "html",
   "description": "Ovako Working Posture Analysis System",
   "fields": [
-    {"id": "frame", "label": "프레임", "excel_column": "Frame"},
-    {"id": "time", "label": "시간", "excel_column": "Time"},
-    {"id": "back", "label": "등", "excel_column": "Back"},
-    {"id": "arms", "label": "팔", "excel_column": "Arms"},
-    {"id": "legs", "label": "다리", "excel_column": "Legs"},
-    {"id": "load", "label": "하중", "excel_column": "Load"},
-    {"id": "code", "label": "코드", "excel_column": "Code"},
-    {"id": "ac", "label": "조치 범주", "excel_column": "AC"}
+    {"id": "back", "label": "허리", "excel_column": "Back"},
+    {"id": "arms", "label": "상지", "excel_column": "Arms"},
+    {"id": "legs", "label": "하지", "excel_column": "Legs"},
+    {"id": "load", "label": "무게", "excel_column": "Load"},
+    {"id": "ac", "label": "AC값", "excel_column": "AC"},
+    {"id": "result", "label": "평가결과", "excel_column": "Result"}
   ]
 }
