@@ -1,0 +1,21 @@
+{
+  "name": "RULA",
+  "version": "1.0",
+  "type": "html",
+  "description": "Rapid Upper Limb Assessment",
+  "fields": [
+    {"id": "frame", "label": "프레임", "excel_column": "Frame"},
+    {"id": "time", "label": "시간", "excel_column": "Time"},
+    {"id": "upper_arm", "label": "상완", "excel_column": "Upper Arm"},
+    {"id": "lower_arm", "label": "전완", "excel_column": "Lower Arm"},
+    {"id": "wrist", "label": "손목", "excel_column": "Wrist"},
+    {"id": "wrist_twist", "label": "손목 비틀림", "excel_column": "Wrist Twist"},
+    {"id": "neck", "label": "목", "excel_column": "Neck"},
+    {"id": "trunk", "label": "몸통", "excel_column": "Trunk"},
+    {"id": "leg", "label": "다리", "excel_column": "Leg"},
+    {"id": "score_a", "label": "점수 A", "excel_column": "Score A"},
+    {"id": "score_b", "label": "점수 B", "excel_column": "Score B"},
+    {"id": "score", "label": "최종 점수", "excel_column": "Score"},
+    {"id": "risk", "label": "위험 수준", "excel_column": "Risk"}
+  ]
+}

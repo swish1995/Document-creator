@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>OWAS Assessment</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1 { color: #333; border-bottom: 2px solid #9c27b0; padding-bottom: 10px; }
+        .info { margin: 10px 0; }
+        .label { font-weight: bold; color: #555; }
+        table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #f3e5f5; }
+        .code-box {
+            font-size: 36px;
+            font-weight: bold;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .ac-box {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .ac-1 { background-color: #28a745; color: white; }
+        .ac-2 { background-color: #ffc107; color: black; }
+        .ac-3 { background-color: #ff9800; color: white; }
+        .ac-4 { background-color: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h1>OWAS 평가 결과</h1>
+
+    <div class="info">
+        <span class="label">프레임:</span> {{ frame | default('-') }}
+        &nbsp;&nbsp;
+        <span class="label">시간:</span> {{ time | default('-') }}
+    </div>
+
+    <h2>자세 코드</h2>
+    <div class="code-box">{{ code | default('----') }}</div>
+
+    <h2>자세 요소</h2>
+    <table>
+        <tr>
+            <th>등</th>
+            <th>팔</th>
+            <th>다리</th>
+            <th>하중</th>
+        </tr>
+        <tr>
+            <td>{{ back | default('-') }}</td>
+            <td>{{ arms | default('-') }}</td>
+            <td>{{ legs | default('-') }}</td>
+            <td>{{ load | default('-') }}</td>
+        </tr>
+    </table>
+
+    <h2>조치 범주 (Action Category)</h2>
+    <div class="ac-box {% if ac == 1 %}ac-1{% elif ac == 2 %}ac-2{% elif ac == 3 %}ac-3{% else %}ac-4{% endif %}">
+        AC {{ ac | default('-') }}
+    </div>
+
+    <table>
+        <tr>
+            <th>범주</th>
+            <th>설명</th>
+        </tr>
+        <tr>
+            <td>AC 1</td>
+            <td>정상 자세, 교정 불필요</td>
+        </tr>
+        <tr>
+            <td>AC 2</td>
+            <td>약간 해로운 자세, 가까운 시일 내 교정 필요</td>
+        </tr>
+        <tr>
+            <td>AC 3</td>
+            <td>해로운 자세, 가능한 빨리 교정 필요</td>
+        </tr>
+        <tr>
+            <td>AC 4</td>
+            <td>매우 해로운 자세, 즉시 교정 필요</td>
+        </tr>
+    </table>
+</body>
+</html>

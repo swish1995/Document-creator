@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RULA Assessment</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .info { margin: 10px 0; }
+        .label { font-weight: bold; color: #555; }
+        .value { color: #333; }
+        table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #f8f9fa; }
+        .score-box {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 24px;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .risk-low { background-color: #28a745; color: white; }
+        .risk-medium { background-color: #ffc107; color: black; }
+        .risk-high { background-color: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h1>RULA 평가 결과</h1>
+
+    <div class="info">
+        <span class="label">프레임:</span>
+        <span class="value">{{ frame | default('-') }}</span>
+        &nbsp;&nbsp;
+        <span class="label">시간:</span>
+        <span class="value">{{ time | default('-') }}</span>
+    </div>
+
+    <h2>상지 평가 (Group A)</h2>
+    <table>
+        <tr>
+            <th>상완</th>
+            <th>전완</th>
+            <th>손목</th>
+            <th>손목 비틀림</th>
+        </tr>
+        <tr>
+            <td>{{ upper_arm | default('-') }}</td>
+            <td>{{ lower_arm | default('-') }}</td>
+            <td>{{ wrist | default('-') }}</td>
+            <td>{{ wrist_twist | default('-') }}</td>
+        </tr>
+    </table>
+
+    <h2>목/몸통/다리 (Group B)</h2>
+    <table>
+        <tr>
+            <th>목</th>
+            <th>몸통</th>
+            <th>다리</th>
+        </tr>
+        <tr>
+            <td>{{ neck | default('-') }}</td>
+            <td>{{ trunk | default('-') }}</td>
+            <td>{{ leg | default('-') }}</td>
+        </tr>
+    </table>
+
+    <h2>점수 계산</h2>
+    <table>
+        <tr>
+            <th>점수 A</th>
+            <th>점수 B</th>
+            <th>최종 점수</th>
+        </tr>
+        <tr>
+            <td>{{ score_a | default('-') }}</td>
+            <td>{{ score_b | default('-') }}</td>
+            <td><strong>{{ score | default('-') }}</strong></td>
+        </tr>
+    </table>
+
+    <h2>위험 수준</h2>
+    <div class="score-box {% if risk == 'Low' %}risk-low{% elif risk == 'Medium' %}risk-medium{% else %}risk-high{% endif %}">
+        {{ risk | default('N/A') }}
+    </div>
+</body>
+</html>

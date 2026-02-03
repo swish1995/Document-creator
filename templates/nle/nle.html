@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>NLE Assessment</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1 { color: #333; border-bottom: 2px solid #ff5722; padding-bottom: 10px; }
+        .info { margin: 10px 0; }
+        .label { font-weight: bold; color: #555; }
+        table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #fbe9e7; }
+        .result-box {
+            display: inline-block;
+            padding: 15px 30px;
+            font-size: 28px;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .safe { background-color: #28a745; color: white; }
+        .caution { background-color: #ffc107; color: black; }
+        .danger { background-color: #dc3545; color: white; }
+        .formula { background-color: #f5f5f5; padding: 15px; border-radius: 8px; font-family: monospace; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <h1>NLE 평가 결과 (NIOSH Lifting Equation)</h1>
+
+    <div class="info">
+        <span class="label">프레임:</span> {{ frame | default('-') }}
+        &nbsp;&nbsp;
+        <span class="label">시간:</span> {{ time | default('-') }}
+    </div>
+
+    <h2>승수 요소</h2>
+    <table>
+        <tr>
+            <th>요소</th>
+            <th>값</th>
+            <th>설명</th>
+        </tr>
+        <tr>
+            <td>H</td>
+            <td>{{ h | default('-') }} cm</td>
+            <td>수평 거리</td>
+        </tr>
+        <tr>
+            <td>V</td>
+            <td>{{ v | default('-') }} cm</td>
+            <td>수직 높이</td>
+        </tr>
+        <tr>
+            <td>D</td>
+            <td>{{ d | default('-') }} cm</td>
+            <td>이동 거리</td>
+        </tr>
+        <tr>
+            <td>A</td>
+            <td>{{ a | default('-') }}°</td>
+            <td>비대칭 각도</td>
+        </tr>
+        <tr>
+            <td>F</td>
+            <td>{{ f | default('-') }}</td>
+            <td>빈도</td>
+        </tr>
+        <tr>
+            <td>C</td>
+            <td>{{ c | default('-') }}</td>
+            <td>커플링</td>
+        </tr>
+    </table>
+
+    <h2>결과</h2>
+    <table>
+        <tr>
+            <th>실제 하중 (L)</th>
+            <th>권장 무게 한도 (RWL)</th>
+            <th>들기 지수 (LI)</th>
+        </tr>
+        <tr>
+            <td>{{ load | default('-') }} kg</td>
+            <td>{{ rwl | default('-') }} kg</td>
+            <td><strong>{{ li | default('-') }}</strong></td>
+        </tr>
+    </table>
+
+    <div class="formula">
+        LI = L / RWL = {{ load | default('L') }} / {{ rwl | default('RWL') }} = {{ li | default('-') }}
+    </div>
+
+    <h2>위험 수준</h2>
+    <div class="result-box {% if li and li|float <= 1.0 %}safe{% elif li and li|float <= 3.0 %}caution{% else %}danger{% endif %}">
+        {{ risk | default('N/A') }}
+    </div>
+
+    <table>
+        <tr><th>LI 값</th><th>위험 수준</th></tr>
+        <tr><td>≤ 1.0</td><td>안전 (대부분의 작업자에게 적합)</td></tr>
+        <tr><td>1.0 ~ 3.0</td><td>주의 (일부 작업자에게 위험)</td></tr>
+        <tr><td>> 3.0</td><td>위험 (대부분의 작업자에게 위험)</td></tr>
+    </table>
+</body>
+</html>
