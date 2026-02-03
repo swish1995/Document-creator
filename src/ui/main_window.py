@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 
 from src.core.template_manager import TemplateManager
 from src.core.document_generator import DocumentGenerator
+from src.core.logger import get_logger
 from src.ui.excel_viewer import ExcelViewer
 from src.ui.template_panel import TemplatePanel
 from src.ui.export_dialog import ExportDialog
@@ -44,6 +45,9 @@ class MainWindow(QMainWindow):
 
     def __init__(self, templates_dir: Optional[Path] = None):
         super().__init__()
+        self._logger = get_logger("main_window")
+        self._logger.info("MainWindow 초기화 시작")
+
         self._settings = QSettings("SafetyDoc", "DocumentCreator")
         self._current_file: Optional[Path] = None
         self._template_panels: List[TemplatePanel] = []
@@ -55,8 +59,10 @@ class MainWindow(QMainWindow):
 
         if templates_dir.exists():
             self._template_manager = TemplateManager(templates_dir)
+            self._logger.debug(f"템플릿 디렉토리 로드: {templates_dir}")
         else:
             self._template_manager = None
+            self._logger.warning(f"템플릿 디렉토리 없음: {templates_dir}")
 
         self._setup_ui()
         self._setup_menu()
@@ -379,6 +385,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """윈도우 닫기 이벤트"""
+        self._logger.info("앱 종료")
         # 윈도우 위치/크기 저장
         self._settings.setValue("geometry", self.saveGeometry())
         self._settings.setValue("windowState", self.saveState())
@@ -398,11 +405,14 @@ class MainWindow(QMainWindow):
 
     def _load_file(self, file_path: Path):
         """파일 로드"""
+        self._logger.info(f"파일 로드 시작: {file_path}")
         try:
             self._excel_viewer.load_file(file_path)
             self._current_file = file_path
+            self._logger.info(f"파일 로드 완료: {file_path}")
             self.setWindowTitle(f"Document Creator - {file_path.name}")
         except Exception as e:
+            self._logger.error(f"파일 로드 실패: {file_path}, 오류: {e}")
             QMessageBox.critical(self, "오류", f"파일을 열 수 없습니다:\n{e}")
 
     def _on_file_loaded(self, filename: str, row_count: int):
@@ -458,12 +468,16 @@ class MainWindow(QMainWindow):
         active_panels = [p for p in self._template_panels if p.is_active]
 
         if not selected:
+            self._logger.warning("내보내기 시도: 선택된 행 없음")
             QMessageBox.warning(self, "경고", "내보낼 행을 선택해주세요.")
             return
 
         if not active_panels:
+            self._logger.warning("내보내기 시도: 선택된 템플릿 없음")
             QMessageBox.warning(self, "경고", "내보낼 템플릿을 선택해주세요.")
             return
+
+        self._logger.info(f"내보내기 시작: {len(selected)}행, {len(active_panels)}개 템플릿")
 
         # 템플릿 이름 목록
         template_names = [p.current_template_name for p in active_panels if p.current_template_name]
