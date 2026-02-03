@@ -26,6 +26,8 @@
 | **RULA** | Rapid Upper Limb Assessment - 상지 중심 평가 |
 | **REBA** | Rapid Entire Body Assessment - 전신 평가 |
 | **OWAS** | Ovako Working Posture Analysis System - 작업 자세 분석 |
+| **NLE** | NIOSH Lifting Equation - 들기 작업 위험도 평가 (RWL/LI 산출) |
+| **SI** | Strain Index - 상지 반복 작업 위험도 평가 |
 
 ### 매핑 및 미리보기
 - 엑셀 첫 행(헤더)과 템플릿 필드 자동/수동 매핑
@@ -85,6 +87,7 @@ Skeleton Analyzer에서 생성되는 엑셀 파일 구조:
 | `RULA_A`, `RULA_B`, `RULA_C` | RULA 참조 테이블 |
 | `REBA_A`, `REBA_B`, `REBA_C` | REBA 참조 테이블 |
 | `OWAS_AC` | OWAS 참조 테이블 |
+| `NLE_FM` | NLE Frequency Multiplier 참조 테이블 |
 | `SI_*` | Strain Index 관련 테이블 |
 
 ### 주요 데이터 컬럼 (Capture Data)
@@ -93,7 +96,9 @@ Skeleton Analyzer에서 생성되는 엑셀 파일 구조:
 Frame, Skeleton, Time, Captured,
 Upper Arm, Lower Arm, Wrist, Wrist Twist, Neck, Trunk, Leg,
 Score A, Score B, Score, Risk,
-Back, Arms, Legs, Load, Code, AC, ...
+Back, Arms, Legs, Load, Code, AC,
+NLE_H, NLE_V, NLE_D, NLE_A, NLE_F, NLE_C, NLE_Load, NLE_RWL, NLE_LI, NLE_Risk,
+SI_IE, SI_DE, SI_EM, SI_HWP, SI_SW, SI_DD, SI_Score, SI_Risk, ...
 ```
 
 ## 템플릿 형식
@@ -112,7 +117,23 @@ template/
 └── owas.mapping.json  # 좌표 및 필드 매핑 정의
 ```
 
+### NLE 템플릿
+```
+template/
+├── nle.html           # NLE 평가 레이아웃
+└── nle.mapping.json   # 필드 매핑 정의 (RWL, LI, 승수 등)
+```
+
+### SI 템플릿
+```
+template/
+├── si.html            # SI 평가 레이아웃
+└── si.mapping.json    # 필드 매핑 정의 (6개 승수, SI 점수 등)
+```
+
 ### 매핑 JSON 예시
+
+#### RULA 매핑
 ```json
 {
   "name": "RULA",
@@ -129,6 +150,94 @@ template/
       "label": "최종 점수",
       "excel_column": "Score",
       "position": { "x": 450, "y": 520 }
+    }
+  ]
+}
+```
+
+#### NLE 매핑
+```json
+{
+  "name": "NLE",
+  "version": "1.0",
+  "fields": [
+    {
+      "id": "h",
+      "label": "수평 거리 (H)",
+      "excel_column": "NLE_H",
+      "unit": "cm"
+    },
+    {
+      "id": "v",
+      "label": "수직 높이 (V)",
+      "excel_column": "NLE_V",
+      "unit": "cm"
+    },
+    {
+      "id": "rwl",
+      "label": "권장 무게 한도 (RWL)",
+      "excel_column": "NLE_RWL",
+      "unit": "kg"
+    },
+    {
+      "id": "li",
+      "label": "들기 지수 (LI)",
+      "excel_column": "NLE_LI"
+    },
+    {
+      "id": "risk",
+      "label": "위험 수준",
+      "excel_column": "NLE_Risk"
+    }
+  ]
+}
+```
+
+#### SI 매핑
+```json
+{
+  "name": "SI",
+  "version": "1.0",
+  "fields": [
+    {
+      "id": "ie",
+      "label": "노력 강도 (IE)",
+      "excel_column": "SI_IE"
+    },
+    {
+      "id": "de",
+      "label": "노력 지속시간 (DE)",
+      "excel_column": "SI_DE"
+    },
+    {
+      "id": "em",
+      "label": "분당 노력 횟수 (EM)",
+      "excel_column": "SI_EM"
+    },
+    {
+      "id": "hwp",
+      "label": "손/손목 자세 (HWP)",
+      "excel_column": "SI_HWP"
+    },
+    {
+      "id": "sw",
+      "label": "작업 속도 (SW)",
+      "excel_column": "SI_SW"
+    },
+    {
+      "id": "dd",
+      "label": "일일 작업 시간 (DD)",
+      "excel_column": "SI_DD"
+    },
+    {
+      "id": "score",
+      "label": "SI 점수",
+      "excel_column": "SI_Score"
+    },
+    {
+      "id": "risk",
+      "label": "위험 수준",
+      "excel_column": "SI_Risk"
     }
   ]
 }
