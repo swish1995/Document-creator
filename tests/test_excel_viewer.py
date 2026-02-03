@@ -146,3 +146,50 @@ class TestExcelViewer:
         excel_viewer_with_data.select_all()
         label_text = excel_viewer_with_data._selection_count_label.text()
         assert str(excel_viewer_with_data.row_count) in label_text
+
+    def test_checkbox_toggle_by_setdata(self, excel_viewer_with_data):
+        """체크박스 setData를 통한 토글 테스트"""
+        model = excel_viewer_with_data._model
+        
+        # 초기 상태: 선택 없음
+        assert len(model.get_selected_rows()) == 0
+        
+        # 첫 번째 행 체크 (Checked = 2)
+        index = model.index(0, 0)
+        result = model.setData(index, Qt.CheckState.Checked, Qt.ItemDataRole.CheckStateRole)
+        assert result is True
+        assert 0 in model.get_selected_rows()
+        
+        # 첫 번째 행 체크 해제 (Unchecked = 0)
+        result = model.setData(index, Qt.CheckState.Unchecked, Qt.ItemDataRole.CheckStateRole)
+        assert result is True
+        assert 0 not in model.get_selected_rows()
+        
+        # 정수 값으로 체크 (2)
+        result = model.setData(index, 2, Qt.ItemDataRole.CheckStateRole)
+        assert result is True
+        assert 0 in model.get_selected_rows()
+        
+        # 정수 값으로 체크 해제 (0)
+        result = model.setData(index, 0, Qt.ItemDataRole.CheckStateRole)
+        assert result is True
+        assert 0 not in model.get_selected_rows()
+    
+    def test_checkbox_data_returns_correct_state(self, excel_viewer_with_data):
+        """체크박스 data() 메서드가 올바른 상태 반환 테스트"""
+        model = excel_viewer_with_data._model
+        index = model.index(0, 0)
+        
+        # 초기: Unchecked
+        state = model.data(index, Qt.ItemDataRole.CheckStateRole)
+        assert state == Qt.CheckState.Unchecked
+        
+        # 체크 후: Checked
+        model.setData(index, Qt.CheckState.Checked, Qt.ItemDataRole.CheckStateRole)
+        state = model.data(index, Qt.ItemDataRole.CheckStateRole)
+        assert state == Qt.CheckState.Checked
+        
+        # 체크 해제 후: Unchecked
+        model.setData(index, Qt.CheckState.Unchecked, Qt.ItemDataRole.CheckStateRole)
+        state = model.data(index, Qt.ItemDataRole.CheckStateRole)
+        assert state == Qt.CheckState.Unchecked

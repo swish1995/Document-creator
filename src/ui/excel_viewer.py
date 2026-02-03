@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.excel_loader import ExcelLoader, ExcelLoaderError
+from src.core.logger import get_logger
 
 
 class ExcelTableModel(QAbstractTableModel):
@@ -29,6 +30,7 @@ class ExcelTableModel(QAbstractTableModel):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._logger = get_logger("excel_model")
         self._headers: List[str] = []
         self._data: List[Dict[str, Any]] = []
         self._selected_rows: Set[int] = set()
@@ -67,12 +69,13 @@ class ExcelTableModel(QAbstractTableModel):
 
         elif role == Qt.ItemDataRole.CheckStateRole:
             if col == 0:
-                return Qt.CheckState.Checked if row in self._selected_rows else Qt.CheckState.Unchecked
+                check_state = Qt.CheckState.Checked if row in self._selected_rows else Qt.CheckState.Unchecked
+                return check_state
 
         elif role == Qt.ItemDataRole.BackgroundRole:
             if row == self._preview_row:
                 from PyQt6.QtGui import QColor
-                return QColor(230, 240, 255)  # 미리보기 행 하이라이트
+                return QColor(60, 70, 90)  # 미리보기 행 하이라이트 (다크 테마용)
 
         elif role == Qt.ItemDataRole.TextAlignmentRole:
             return Qt.AlignmentFlag.AlignCenter
@@ -98,10 +101,18 @@ class ExcelTableModel(QAbstractTableModel):
     def setData(self, index: QModelIndex, value, role: int = Qt.ItemDataRole.EditRole) -> bool:
         if index.column() == 0 and role == Qt.ItemDataRole.CheckStateRole:
             row = index.row()
-            if value == Qt.CheckState.Checked:
+            
+            # CheckState 값 추출 (enum 또는 int)
+            check_value = value.value if isinstance(value, Qt.CheckState) else value
+            is_checked = (check_value == Qt.CheckState.Checked.value)
+            
+            self._logger.debug(f"setData() 체크박스 토글: row={row}, is_checked={is_checked}")
+            
+            if is_checked:
                 self._selected_rows.add(row)
             else:
                 self._selected_rows.discard(row)
+            
             self.dataChanged.emit(index, index, [role])
             return True
         return False
@@ -184,6 +195,7 @@ class ExcelViewer(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._logger = get_logger("excel_viewer")
         self._loader: Optional[ExcelLoader] = None
         self._setup_ui()
 
@@ -289,6 +301,13 @@ class ExcelViewer(QWidget):
         self._table_view.setAlternatingRowColors(True)
         self._table_view.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self._table_view.horizontalHeader().setStretchLastSection(True)
+        
+        # 체크박스 자동 편집 비활성화 (수동으로 처리)
+        self._table_view.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
+        
+        # 체크박스 컬럼은 수동으로 처리 (pressed 사용)
+        self._table_view.pressed.connect(self._on_table_pressed)
+        # 미리보기 행 변경은 clicked 사용
         self._table_view.clicked.connect(self._on_table_clicked)
 
         # 테이블 스타일 (스켈레톤 분석기와 동일한 다크 테마)
@@ -379,19 +398,28 @@ class ExcelViewer(QWidget):
         self._model.set_preview_row(row_index)
         self.preview_row_changed.emit(row_index)
 
-    def _on_table_clicked(self, index: QModelIndex):
-        """테이블 클릭"""
+    def _on_table_pressed(self, index: QModelIndex):
+        """테이블 마우스 누름 - 체크박스 수동 처리"""
         if index.column() == 0:
-            # 체크박스 클릭 - 모델에서 처리됨
-            pass
-        else:
-            # 데이터 컬럼 클릭 - 미리보기 행 변경
-            row = index.row()
-            self._preview_row_spinbox.setValue(row + 1)
+            # 체크박스 컬럼: 수동으로 토글
+            self._logger.debug(f"체크박스 클릭: row={index.row()}")
+            self._model.toggle_row(index.row())
+
+    def _on_table_clicked(self, index: QModelIndex):
+        """테이블 클릭 - 미리보기 행 변경"""
+        # 체크박스 컬럼(0번)은 pressed에서 이미 처리했으므로 무시
+        if index.column() == 0:
+            return
+        
+        # 데이터 컬럼 클릭 - 미리보기 행 변경
+        row = index.row()
+        self._logger.debug(f"미리보기 행 변경: row={row}")
+        self._preview_row_spinbox.setValue(row + 1)
 
     def _on_model_data_changed(self, topLeft, bottomRight, roles):
         """모델 데이터 변경"""
         if Qt.ItemDataRole.CheckStateRole in roles:
+            self._logger.debug(f"선택 변경: {len(self._model._selected_rows)}행 선택됨")
             self._update_selection_count()
             self.selection_changed.emit(self.get_selected_rows())
 
