@@ -343,6 +343,9 @@ class MainWindow(QMainWindow):
         export_action.triggered.connect(self._on_export_clicked)
         self._edit_menu.addAction(export_action)
 
+        # 매핑 메뉴
+        self._mapping_menu = menu_bar.addMenu("매핑(&M)")
+
         # 보기 메뉴
         self._view_menu = menu_bar.addMenu("보기(&V)")
 
