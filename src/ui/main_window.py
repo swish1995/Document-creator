@@ -419,10 +419,12 @@ class MainWindow(QMainWindow):
         """파일 로드 완료"""
         self.statusBar().showMessage(f"파일 로드됨: {filename} ({row_count}행)")
 
-        # 템플릿 패널에 엑셀 헤더 전달
+        # 템플릿 패널에 엑셀 헤더 및 파일 경로 전달
         headers = self._excel_viewer._loader.get_headers() if self._excel_viewer._loader else []
         for panel in self._template_panels:
             panel.set_excel_headers(headers)
+            if self._current_file:
+                panel.set_excel_file_path(str(self._current_file))
 
         # 첫 번째 행으로 미리보기 업데이트
         self._update_previews(0)

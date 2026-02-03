@@ -5,6 +5,9 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
@@ -124,3 +127,121 @@ class Mapper:
     def is_fully_mapped(self) -> bool:
         """모든 필드가 매핑되었는지 여부"""
         return len(self.get_unmapped_fields()) == 0
+
+    def save_to_file(
+        self, file_path: str, template_name: str, excel_file: str
+    ) -> None:
+        """현재 매핑을 파일로 저장
+
+        Args:
+            file_path: 저장할 파일 경로
+            template_name: 템플릿 이름
+            excel_file: 엑셀 파일명
+        """
+        mapping = self.get_mapping()
+        now = datetime.now().isoformat()
+
+        data = {
+            "version": "1.0",
+            "template_name": template_name,
+            "excel_file": excel_file,
+            "mappings": mapping,
+            "created_at": now,
+            "updated_at": now,
+        }
+
+        path = Path(file_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+    def load_from_file(self, file_path: str) -> None:
+        """파일에서 매핑 로드
+
+        Args:
+            file_path: 로드할 파일 경로
+
+        Raises:
+            FileNotFoundError: 파일이 존재하지 않음
+            json.JSONDecodeError: 잘못된 JSON 형식
+            ValueError: 필수 필드 누락 또는 버전 불일치
+        """
+        path = Path(file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"매핑 파일을 찾을 수 없습니다: {file_path}")
+
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # 버전 확인
+        if "version" not in data:
+            raise ValueError("version 정보가 없습니다")
+
+        version = data["version"]
+        if version != "1.0":
+            raise ValueError(f"version 불일치: {version}")
+
+        # 매핑 로드
+        if "mappings" in data:
+            self.import_config(data["mappings"])
+
+    def export_config(self) -> Dict[str, Optional[str]]:
+        """현재 매핑을 딕셔너리로 변환
+
+        Returns:
+            {field_id: excel_column} 딕셔너리
+        """
+        return self.get_mapping()
+
+    def import_config(self, config: Dict[str, Optional[str]]) -> None:
+        """딕셔너리에서 매핑 가져오기
+
+        수동 매핑으로 설정됨
+
+        Args:
+            config: {field_id: excel_column} 딕셔너리
+        """
+        for field_id, excel_column in config.items():
+            if excel_column is not None:
+                self._manual_mappings[field_id] = excel_column
+
+    def reset_to_auto(self) -> None:
+        """모든 수동 매핑 제거 (자동 매핑으로 복원)"""
+        self._manual_mappings.clear()
+
+    def get_mapping_status(self) -> Dict[str, str]:
+        """각 필드의 매핑 상태 반환
+
+        Returns:
+            {field_id: status} 딕셔너리
+            status: "auto", "manual", "unmapped"
+        """
+        result = {}
+        mapping = self.get_mapping()
+
+        for field in self._template_fields:
+            field_id = field["id"]
+
+            if field_id in self._manual_mappings:
+                result[field_id] = "manual"
+            elif mapping.get(field_id) is not None:
+                result[field_id] = "auto"
+            else:
+                result[field_id] = "unmapped"
+
+        return result
+
+
+def get_mapping_file_path(excel_path: str, template_name: str) -> str:
+    """매핑 파일 경로 생성
+
+    Args:
+        excel_path: 엑셀 파일 경로
+        template_name: 템플릿 이름
+
+    Returns:
+        매핑 파일 경로 (예: /data/sample.xlsx.rula.mapping)
+    """
+    template_lower = template_name.lower()
+    return f"{excel_path}.{template_lower}.mapping"

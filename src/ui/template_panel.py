@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import logging
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -15,11 +17,15 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QPushButton,
     QFrame,
+    QLabel,
 )
 
 from src.core.template_manager import TemplateManager, Template
-from src.core.mapper import Mapper
+from src.core.mapper import Mapper, get_mapping_file_path
 from src.ui.preview_widget import PreviewWidget
+from src.ui.mapping_dialog import MappingDialog
+
+logger = logging.getLogger(__name__)
 
 
 class TemplatePanel(QFrame):
@@ -38,6 +44,7 @@ class TemplatePanel(QFrame):
         self._current_template: Optional[Template] = None
         self._mapper: Optional[Mapper] = None
         self._excel_headers: list = []
+        self._excel_file_path: Optional[str] = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -97,6 +104,29 @@ class TemplatePanel(QFrame):
         self._template_combo.currentTextChanged.connect(self._on_template_changed)
         toolbar.addWidget(self._template_combo, 1)
 
+        # 매핑 버튼
+        self._mapping_button = QPushButton("🔧 매핑")
+        self._mapping_button.setEnabled(False)
+        self._mapping_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3a3a3a;
+                color: #ffffff;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                padding: 4px 12px;
+                min-height: 20px;
+            }
+            QPushButton:hover:enabled {
+                background-color: #4a4a4a;
+                border-color: #666666;
+            }
+            QPushButton:disabled {
+                color: #666666;
+            }
+        """)
+        self._mapping_button.clicked.connect(self._on_mapping_clicked)
+        toolbar.addWidget(self._mapping_button)
+
         # 닫기 버튼
         self._close_button = QPushButton("×")
         self._close_button.setFixedSize(24, 24)
@@ -117,6 +147,17 @@ class TemplatePanel(QFrame):
         toolbar.addWidget(self._close_button)
 
         layout.addLayout(toolbar)
+
+        # 매핑 상태 라벨
+        self._status_label = QLabel("")
+        self._status_label.setStyleSheet("""
+            QLabel {
+                color: #bbbbbb;
+                font-size: 11px;
+                padding: 2px 5px;
+            }
+        """)
+        layout.addWidget(self._status_label)
 
         # 미리보기 영역
         self._preview_widget = PreviewWidget()
@@ -139,6 +180,9 @@ class TemplatePanel(QFrame):
             # 매퍼 생성 (엑셀 헤더가 있는 경우)
             if self._excel_headers:
                 self._mapper = Mapper(template.fields, self._excel_headers)
+                self._auto_detect_mapping()
+                self._update_mapping_status()
+                self._mapping_button.setEnabled(True)
 
             self.template_changed.emit(text)
 
@@ -153,6 +197,13 @@ class TemplatePanel(QFrame):
         self._excel_headers = headers
         if self._current_template:
             self._mapper = Mapper(self._current_template.fields, headers)
+            self._auto_detect_mapping()
+            self._update_mapping_status()
+            self._mapping_button.setEnabled(True)
+
+    def set_excel_file_path(self, file_path: str):
+        """엑셀 파일 경로 설정"""
+        self._excel_file_path = file_path
 
     def update_preview(self, row_data: Dict[str, Any]):
         """미리보기 업데이트"""
@@ -181,3 +232,68 @@ class TemplatePanel(QFrame):
     def get_mapper(self) -> Optional[Mapper]:
         """현재 매퍼 반환"""
         return self._mapper
+
+    def _auto_detect_mapping(self):
+        """매핑 파일 자동 탐지 및 로드"""
+        if not self._excel_file_path or not self._current_template or not self._mapper:
+            return
+
+        mapping_path = get_mapping_file_path(
+            self._excel_file_path, self._current_template.name
+        )
+
+        if Path(mapping_path).exists():
+            try:
+                self._mapper.load_from_file(mapping_path)
+                logger.debug(f"매핑 파일 자동 로드: {mapping_path}")
+            except Exception as e:
+                logger.warning(f"매핑 파일 로드 실패: {e}")
+
+    def _update_mapping_status(self):
+        """매핑 상태 업데이트"""
+        if not self._mapper:
+            self._status_label.setText("")
+            return
+
+        unmapped = self._mapper.get_unmapped_fields()
+        total = len(self._mapper._template_fields)
+        mapped = total - len(unmapped)
+
+        if len(unmapped) == 0:
+            self._status_label.setText(f"매핑: 완료")
+            self._status_label.setStyleSheet("""
+                QLabel {
+                    color: #4caf50;
+                    font-size: 11px;
+                    padding: 2px 5px;
+                }
+            """)
+        else:
+            self._status_label.setText(f"매핑: {mapped}/{total}")
+            self._status_label.setStyleSheet("""
+                QLabel {
+                    color: #ff9800;
+                    font-size: 11px;
+                    padding: 2px 5px;
+                }
+            """)
+
+    def _on_mapping_clicked(self):
+        """매핑 버튼 클릭"""
+        if not self._mapper or not self._current_template:
+            return
+
+        excel_file = Path(self._excel_file_path).name if self._excel_file_path else ""
+
+        dialog = MappingDialog(
+            self._mapper, self._current_template.name, excel_file, self
+        )
+        dialog.mapping_changed.connect(self._on_mapping_changed)
+
+        if dialog.exec():
+            self._update_mapping_status()
+
+    def _on_mapping_changed(self, mapping: Dict[str, str]):
+        """매핑 변경 시"""
+        logger.debug(f"매핑 변경: {mapping}")
+        self._update_mapping_status()
