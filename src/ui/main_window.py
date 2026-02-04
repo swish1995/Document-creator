@@ -121,17 +121,24 @@ class MainWindow(QMainWindow):
                 background-color: #2b2b2b;
                 color: #ffffff;
             }
+            QToolBar {
+                background-color: #333333;
+                border: none;
+                border-bottom: 1px solid #444444;
+                padding: 8px 10px;
+                spacing: 8px;
+            }
             QMenuBar {
                 background-color: #2b2b2b;
                 color: #ffffff;
                 border-bottom: 1px solid #444444;
-                padding: 2px 0px;
+                padding: 6px 8px;
             }
             QMenuBar::item {
                 background-color: transparent;
                 padding: 6px 12px;
                 border-radius: 4px;
-                margin: 2px 2px;
+                margin: 2px 4px;
             }
             QMenuBar::item:selected {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
