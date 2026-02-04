@@ -203,9 +203,10 @@ class MainToolbar(QToolBar):
         # ========== 뷰 그룹 ==========
         self._setup_view_group()
 
-        # 오른쪽 여백
+        # 오른쪽 여백 (투명 배경으로 설정하여 툴바 배경색과 일치)
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        spacer.setStyleSheet("background-color: transparent;")
         self.addWidget(spacer)
 
     def _add_separator(self):

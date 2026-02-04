@@ -93,6 +93,7 @@ class EditorWidget(QWidget):
     def _create_preview_view(self) -> QWidget:
         """미리보기 뷰 생성"""
         widget = QWidget()
+        widget.setStyleSheet("background-color: #2b2b2b;")
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(8, 8, 8, 8)
 
@@ -101,7 +102,7 @@ class EditorWidget(QWidget):
             self._web_view.setStyleSheet("""
                 QWebEngineView {
                     background-color: #ffffff;
-                    border: 1px solid #444444;
+                    border: 2px solid #333333;
                     border-radius: 4px;
                 }
             """)

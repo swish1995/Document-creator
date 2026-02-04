@@ -237,11 +237,12 @@ class ExcelViewer(QWidget):
 
         # 상단 툴바
         toolbar = QHBoxLayout()
+        toolbar.setContentsMargins(10, 8, 10, 8)  # 메인 툴바와 동일한 여백
 
-        # 파일 열기 버튼
+        # 엑셀 파일 열기 버튼
         icon_path = Path(__file__).parent.parent / "resources" / "icons"
-        self._open_button = QPushButton(" 파일 열기")
-        self._open_button.setIcon(QIcon(str(icon_path / "folder_open.svg")))
+        self._open_button = QPushButton(" 엑셀 파일 열기")
+        self._open_button.setIcon(QIcon(str(icon_path / "excel.svg")))
         self._open_button.setIconSize(QSize(14, 14))
         self._open_button.setFixedHeight(28)
         self._open_button.setStyleSheet(self._get_button_style('open'))

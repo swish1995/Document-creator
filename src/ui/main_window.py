@@ -211,7 +211,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setContentsMargins(8, 0, 8, 8)  # 상단 마진 0 (툴바와 색상 차이 제거)
 
         # 상단/하단 스플리터
         self._splitter = QSplitter(Qt.Orientation.Vertical)
