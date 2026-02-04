@@ -2,6 +2,7 @@
   "name": "NLE",
   "version": "1.0",
   "type": "html",
+  "safety_indicator": "NLE",
   "description": "NIOSH Lifting Equation",
   "fields": [
     {"id": "frame", "label": "프레임", "excel_column": "Frame"},

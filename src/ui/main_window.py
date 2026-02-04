@@ -276,15 +276,24 @@ class MainWindow(QMainWindow):
         self._update_toolbar_templates()
         self._load_initial_template()
 
+    # 안전지표 정렬 순서
+    SAFETY_INDICATOR_ORDER = ["RULA", "REBA", "OWAS", "NLE", "SI"]
+
+    def _get_template_sort_key(self, template) -> tuple:
+        """템플릿 정렬 키 반환 (안전지표 순서)"""
+        indicator = template.safety_indicator
+        if indicator and indicator in self.SAFETY_INDICATOR_ORDER:
+            order_index = self.SAFETY_INDICATOR_ORDER.index(indicator)
+        else:
+            order_index = len(self.SAFETY_INDICATOR_ORDER)  # 안전지표 없으면 맨 뒤
+        return (not template.is_builtin, order_index, template.name.upper())
+
     def _update_toolbar_templates(self):
         """툴바의 템플릿 드롭다운 업데이트"""
         if self._template_storage:
-            # 템플릿 목록을 이름순으로 정렬 (기본 템플릿 먼저, 그 다음 사용자 템플릿)
+            # 템플릿 목록을 safety_indicator 순서로 정렬 (RULA→REBA→OWAS→NLE→SI)
             all_templates = self._template_storage.get_all_templates()
-            sorted_templates = sorted(
-                all_templates,
-                key=lambda t: (not t.is_builtin, t.name.upper())  # 기본 먼저, 이름순
-            )
+            sorted_templates = sorted(all_templates, key=self._get_template_sort_key)
             templates = [
                 (t.id, f"{'[기본] ' if t.is_builtin else ''}{t.name}")
                 for t in sorted_templates
@@ -296,11 +305,8 @@ class MainWindow(QMainWindow):
         if self._template_storage and not self._current_template_id:
             all_templates = self._template_storage.get_all_templates()
             if all_templates:
-                # 이름순 정렬 (기본 템플릿 먼저)
-                sorted_templates = sorted(
-                    all_templates,
-                    key=lambda t: (not t.is_builtin, t.name.upper())
-                )
+                # 안전지표 순서로 정렬 (기본 템플릿 먼저)
+                sorted_templates = sorted(all_templates, key=self._get_template_sort_key)
                 first_template = sorted_templates[0]
                 self._toolbar.set_current_template(first_template.id)
                 self._on_toolbar_template_selected(first_template.id)

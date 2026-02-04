@@ -17,6 +17,10 @@ class TemplateError(Exception):
     pass
 
 
+# 유효한 안전지표 목록 및 정렬 순서
+SAFETY_INDICATORS = ["RULA", "REBA", "OWAS", "NLE", "SI"]
+
+
 @dataclass
 class Template:
     """템플릿 정보"""
@@ -27,6 +31,7 @@ class Template:
     template_path: Path
     mapping_path: Path
     fields: List[Dict[str, Any]] = field(default_factory=list)
+    safety_indicator: Optional[str] = None  # RULA, REBA, OWAS, NLE, SI
 
     @classmethod
     def from_mapping_file(cls, mapping_path: Path) -> "Template":
@@ -53,6 +58,11 @@ class Template:
         version = data.get("version", "1.0")
         template_type = data.get("type", "html")
         fields = data.get("fields", [])
+        safety_indicator = data.get("safety_indicator")
+
+        # 유효한 안전지표인지 확인
+        if safety_indicator and safety_indicator not in SAFETY_INDICATORS:
+            safety_indicator = None
 
         # 템플릿 파일 경로 찾기
         template_dir = mapping_path.parent
@@ -71,6 +81,7 @@ class Template:
             template_path=template_path,
             mapping_path=mapping_path,
             fields=fields,
+            safety_indicator=safety_indicator,
         )
 
     @staticmethod

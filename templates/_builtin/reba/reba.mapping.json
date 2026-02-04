@@ -2,6 +2,7 @@
   "name": "REBA",
   "version": "2.0",
   "type": "html",
+  "safety_indicator": "REBA",
   "description": "Rapid Entire Body Assessment",
   "fields": [
     {"id": "trunk_score", "label": "몸통 점수", "excel_column": "Trunk Score"},
