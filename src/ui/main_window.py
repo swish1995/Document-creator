@@ -265,7 +265,6 @@ class MainWindow(QMainWindow):
         # 툴바 시그널 연결
         self._toolbar.data_sheet_toggled.connect(self._on_data_sheet_toggled)
         self._toolbar.template_selected.connect(self._on_toolbar_template_selected)
-        self._toolbar.template_new_requested.connect(self._on_new_template)
         self._toolbar.template_manage_requested.connect(self._on_manage_templates)
         self._toolbar.mode_changed.connect(self._on_mode_changed)
         self._toolbar.zoom_changed.connect(self._on_zoom_changed)
@@ -342,11 +341,6 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 self._logger.error(f"템플릿 로드 실패: {e}")
                 QMessageBox.warning(self, "경고", f"템플릿을 로드할 수 없습니다:\n{e}")
-
-    def _on_new_template(self):
-        """새 템플릿 만들기"""
-        # TODO: Phase 2에서 구현
-        QMessageBox.information(self, "알림", "새 템플릿 만들기 기능은 추후 구현 예정입니다.")
 
     def _on_manage_templates(self):
         """템플릿 관리 다이얼로그"""
