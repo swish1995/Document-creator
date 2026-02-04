@@ -270,6 +270,7 @@ class MainWindow(QMainWindow):
         self._toolbar.mode_changed.connect(self._on_mode_changed)
         self._toolbar.zoom_changed.connect(self._on_zoom_changed)
         self._toolbar.generate_requested.connect(self._on_export_clicked)
+        self._toolbar.exit_requested.connect(self._on_exit_requested)
 
         # 템플릿 목록 업데이트
         self._update_toolbar_templates()
@@ -476,11 +477,26 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """윈도우 닫기 이벤트"""
-        self._logger.info("앱 종료")
-        # 윈도우 위치/크기 저장
-        self._settings.setValue("geometry", self.saveGeometry())
-        self._settings.setValue("windowState", self.saveState())
-        super().closeEvent(event)
+        reply = QMessageBox.question(
+            self,
+            "종료 확인",
+            "프로그램을 종료하시겠습니까?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self._logger.info("앱 종료")
+            # 윈도우 위치/크기 저장
+            self._settings.setValue("geometry", self.saveGeometry())
+            self._settings.setValue("windowState", self.saveState())
+            event.accept()
+        else:
+            event.ignore()
+
+    def _on_exit_requested(self):
+        """종료 버튼 클릭"""
+        self.close()
 
     def _on_open_file(self):
         """파일 열기"""

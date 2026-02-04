@@ -42,6 +42,7 @@ class MainToolbar(QToolBar):
     mode_changed = pyqtSignal(int)  # 0=미리보기, 1=매핑
     zoom_changed = pyqtSignal(int)  # 줌 퍼센트
     generate_requested = pyqtSignal()  # 문서 생성 요청
+    exit_requested = pyqtSignal()  # 종료 요청
 
     # 편집 모드 상수
     MODE_PREVIEW = 0
@@ -56,6 +57,7 @@ class MainToolbar(QToolBar):
         'preview': ('#b8825a', '#a8724a', '#c8926a'),   # 주황색 (미리보기)
         'mapping': ('#b85a8a', '#a84a7a', '#c86a9a'),   # 핑크색 (매핑)
         'generate': ('#5ab87a', '#4aa86a', '#6ac88a'),  # 초록색 (문서 생성)
+        'exit': ('#c55a5a', '#b54a4a', '#d56a6a'),      # 빨간색 (종료)
     }
 
     def __init__(self, parent: Optional[QWidget] = None):
@@ -176,10 +178,11 @@ class MainToolbar(QToolBar):
 
     def _setup_ui(self):
         """UI 구성"""
-        # ========== 왼쪽 그룹 (템플릿 + 모드 + 출력) ==========
+        # ========== 왼쪽 그룹 (템플릿 + 모드 + 출력 + 보기) ==========
         self._setup_template_group()
         self._setup_mode_group()
         self._setup_output_group()
+        self._setup_view_group()
 
         # 중앙 스페이서
         spacer = QWidget()
@@ -187,8 +190,8 @@ class MainToolbar(QToolBar):
         spacer.setStyleSheet("background-color: transparent;")
         self.addWidget(spacer)
 
-        # ========== 오른쪽 그룹 (보기: 데이터) ==========
-        self._setup_view_group()
+        # ========== 오른쪽 그룹 (종료) ==========
+        self._setup_exit_group()
 
     def _setup_template_group(self):
         """템플릿 그룹"""
@@ -282,6 +285,17 @@ class MainToolbar(QToolBar):
         self.btn_data_toggle.setStyleSheet(self._get_button_style('data', is_checkable=True))
         self.addWidget(self.btn_data_toggle)
 
+    def _setup_exit_group(self):
+        """종료 그룹"""
+        # 종료 버튼
+        self.btn_exit = QPushButton(" 종료")
+        self.btn_exit.setIcon(QIcon(self._get_icon_path("exit")))
+        self.btn_exit.setIconSize(QSize(14, 14))
+        self.btn_exit.setFixedHeight(28)
+        self.btn_exit.setToolTip("프로그램 종료")
+        self.btn_exit.setStyleSheet(self._get_button_style('exit'))
+        self.addWidget(self.btn_exit)
+
     def _setup_output_group(self):
         """출력 그룹"""
         # 문서 생성하기 버튼
@@ -310,6 +324,9 @@ class MainToolbar(QToolBar):
 
         # 출력 그룹
         self.btn_generate.clicked.connect(self.generate_requested.emit)
+
+        # 종료 그룹
+        self.btn_exit.clicked.connect(self.exit_requested.emit)
 
     def _on_template_changed(self, text: str):
         """템플릿 선택 변경"""
