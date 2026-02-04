@@ -137,14 +137,13 @@ class MainToolbar(QToolBar):
         return style
 
     def _setup_style(self):
-        """툴바 스타일 설정"""
+        """툴바 스타일 설정 (스켈레톤 분석기와 동일)"""
         self.setStyleSheet("""
-            QToolBar#mainToolbar {
-                background-color: #2b2b2b;
+            QToolBar {
+                background-color: #333333;
                 border: none;
-                border-bottom: 1px solid #444444;
-                spacing: 4px;
-                padding: 4px 8px;
+                padding: 8px 10px;
+                spacing: 8px;
             }
             QComboBox {
                 background-color: #3a3a3a;
