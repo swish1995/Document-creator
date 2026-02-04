@@ -263,8 +263,6 @@ class MainWindow(QMainWindow):
         self.addToolBar(self._toolbar)
 
         # 툴바 시그널 연결
-        self._toolbar.file_open_requested.connect(self._on_open_file)
-        self._toolbar.file_save_requested.connect(self._on_save_template)
         self._toolbar.data_sheet_toggled.connect(self._on_data_sheet_toggled)
         self._toolbar.template_selected.connect(self._on_toolbar_template_selected)
         self._toolbar.template_new_requested.connect(self._on_new_template)
@@ -312,7 +310,6 @@ class MainWindow(QMainWindow):
                     template.template_path,
                     html_content,
                 )
-                self._toolbar.set_save_enabled(False)
                 self.statusBar().showMessage(f"템플릿 로드됨: {template.name}")
             except Exception as e:
                 self._logger.error(f"템플릿 로드 실패: {e}")
@@ -341,14 +338,6 @@ class MainWindow(QMainWindow):
         # 툴바 업데이트
         self._update_toolbar_templates()
 
-    def _on_save_template(self):
-        """템플릿 저장"""
-        if self._editor_widget.save_template():
-            self._toolbar.set_save_enabled(False)
-            self.statusBar().showMessage("템플릿 저장됨")
-        else:
-            QMessageBox.warning(self, "경고", "템플릿을 저장할 수 없습니다.")
-
     def _on_mode_changed(self, mode: int):
         """모드 변경"""
         mode_names = {0: "미리보기", 1: "매핑"}
@@ -362,7 +351,7 @@ class MainWindow(QMainWindow):
 
     def _on_editor_content_modified(self):
         """편집기 내용 수정됨"""
-        self._toolbar.set_save_enabled(True)
+        pass  # 저장 버튼 제거됨
 
     def _on_editor_auto_saved(self, path: str):
         """편집기 자동 저장됨"""
