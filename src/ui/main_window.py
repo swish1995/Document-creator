@@ -24,10 +24,13 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.template_manager import TemplateManager
+from src.core.template_storage import TemplateStorage
 from src.core.document_generator import DocumentGenerator
 from src.core.logger import get_logger
 from src.ui.excel_viewer import ExcelViewer
 from src.ui.template_panel import TemplatePanel
+from src.ui.main_toolbar import MainToolbar
+from src.ui.template_editor import TemplateManagerDialog, EditorWidget
 from src.ui.export_dialog import ExportDialog
 from src.ui.export_progress_dialog import ExportProgressDialog
 
@@ -50,21 +53,26 @@ class MainWindow(QMainWindow):
 
         self._settings = QSettings("SafetyDoc", "DocumentCreator")
         self._current_file: Optional[Path] = None
-        self._template_panels: List[TemplatePanel] = []
+        self._template_panels: List[TemplatePanel] = []  # 호환성 유지
+        self._data_sheet_visible = True
+        self._current_template_id: Optional[str] = None
 
-        # 템플릿 매니저 초기화
+        # 템플릿 매니저 및 저장소 초기화
         if templates_dir is None:
             templates_dir = Path(__file__).parent.parent.parent / "templates"
         self._templates_dir = templates_dir
 
         if templates_dir.exists():
             self._template_manager = TemplateManager(templates_dir)
+            self._template_storage = TemplateStorage(templates_dir)
             self._logger.debug(f"템플릿 디렉토리 로드: {templates_dir}")
         else:
             self._template_manager = None
+            self._template_storage = None
             self._logger.warning(f"템플릿 디렉토리 없음: {templates_dir}")
 
         self._setup_ui()
+        self._setup_toolbar()
         self._setup_menu()
         self._setup_status_bar()
         self._restore_geometry()
@@ -194,45 +202,12 @@ class MainWindow(QMainWindow):
         """)
         main_layout.addWidget(self._splitter)
 
-        # 상단 영역 - 템플릿 패널 컨테이너 (스크롤 가능)
-        self._template_scroll = QScrollArea()
-        self._template_scroll.setWidgetResizable(True)
-        self._template_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self._template_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self._template_scroll.setMinimumHeight(250)
-
-        self._template_container = QWidget()
-        self._template_layout = QHBoxLayout(self._template_container)
-        self._template_layout.setContentsMargins(0, 0, 0, 0)
-        self._template_layout.setSpacing(8)
-
-        # 패널 추가 버튼 (먼저 생성)
-        self._add_panel_button = QPushButton("+")
-        self._add_panel_button.setFixedSize(40, 40)
-        self._add_panel_button.setStyleSheet("""
-            QPushButton {
-                font-size: 24px;
-                border: 2px dashed #666666;
-                border-radius: 8px;
-                background-color: #3a3a3a;
-                color: #888888;
-            }
-            QPushButton:hover {
-                background-color: #4a4a4a;
-                border-color: #888888;
-                color: #aaaaaa;
-            }
-        """)
-        self._add_panel_button.clicked.connect(self._on_add_panel)
-        self._template_layout.addWidget(self._add_panel_button)
-
-        self._template_layout.addStretch()
-
-        # 초기 템플릿 패널 추가
-        if self._template_manager:
-            self._add_template_panel()
-        self._template_scroll.setWidget(self._template_container)
-        self._splitter.addWidget(self._template_scroll)
+        # 상단 영역 - 템플릿 편집기
+        self._editor_widget = EditorWidget()
+        self._editor_widget.setMinimumHeight(250)
+        self._editor_widget.content_modified.connect(self._on_editor_content_modified)
+        self._editor_widget.auto_saved.connect(self._on_editor_auto_saved)
+        self._splitter.addWidget(self._editor_widget)
 
         # 하단 영역 - 엑셀 뷰어
         self._excel_container = QWidget()
@@ -263,6 +238,130 @@ class MainWindow(QMainWindow):
 
         # 스플리터 비율 설정 (상단:하단 = 2:3)
         self._splitter.setSizes([300, 500])
+
+    def _setup_toolbar(self):
+        """메인 툴바 설정"""
+        self._toolbar = MainToolbar(self)
+        self.addToolBar(self._toolbar)
+
+        # 툴바 시그널 연결
+        self._toolbar.file_open_requested.connect(self._on_open_file)
+        self._toolbar.file_save_requested.connect(self._on_save_template)
+        self._toolbar.data_sheet_toggled.connect(self._on_data_sheet_toggled)
+        self._toolbar.data_refresh_requested.connect(self._on_data_refresh)
+        self._toolbar.template_selected.connect(self._on_toolbar_template_selected)
+        self._toolbar.template_new_requested.connect(self._on_new_template)
+        self._toolbar.template_manage_requested.connect(self._on_manage_templates)
+        self._toolbar.mode_changed.connect(self._on_mode_changed)
+        self._toolbar.zoom_changed.connect(self._on_zoom_changed)
+        self._toolbar.fullscreen_toggled.connect(self._on_fullscreen_toggled)
+
+        # 템플릿 목록 업데이트
+        self._update_toolbar_templates()
+
+    def _update_toolbar_templates(self):
+        """툴바의 템플릿 드롭다운 업데이트"""
+        if self._template_storage:
+            templates = [
+                (t.id, f"{'[기본] ' if t.is_builtin else ''}{t.name}")
+                for t in self._template_storage.get_all_templates()
+            ]
+            self._toolbar.set_templates(templates)
+
+    def _on_data_sheet_toggled(self, visible: bool):
+        """데이터 시트 표시/숨김 토글"""
+        self._data_sheet_visible = visible
+        self._excel_container.setVisible(visible)
+
+        if not visible and self._current_file:
+            # 숨김 시 상태바에 파일 정보 표시
+            row_count = self._excel_viewer.row_count if hasattr(self._excel_viewer, 'row_count') else 0
+            self.statusBar().showMessage(f"📊 {self._current_file.name} ({row_count}행) - 데이터 시트 숨김")
+        elif visible:
+            self.statusBar().showMessage("데이터 시트 표시됨")
+
+    def _on_data_refresh(self):
+        """데이터 새로고침"""
+        if self._current_file:
+            self._load_file(self._current_file)
+
+    def _on_toolbar_template_selected(self, template_id: str):
+        """툴바에서 템플릿 선택"""
+        if not self._template_storage:
+            return
+
+        template = self._template_storage.get_template(template_id)
+        if template:
+            self._current_template_id = template_id
+            try:
+                html_content = template.template_path.read_text(encoding="utf-8")
+                self._editor_widget.set_template(
+                    template_id,
+                    template.template_path,
+                    html_content,
+                )
+                self._toolbar.set_save_enabled(False)
+                self.statusBar().showMessage(f"템플릿 로드됨: {template.name}")
+            except Exception as e:
+                self._logger.error(f"템플릿 로드 실패: {e}")
+                QMessageBox.warning(self, "경고", f"템플릿을 로드할 수 없습니다:\n{e}")
+
+    def _on_new_template(self):
+        """새 템플릿 만들기"""
+        # TODO: Phase 2에서 구현
+        QMessageBox.information(self, "알림", "새 템플릿 만들기 기능은 추후 구현 예정입니다.")
+
+    def _on_manage_templates(self):
+        """템플릿 관리 다이얼로그"""
+        if not self._template_storage:
+            QMessageBox.warning(self, "경고", "템플릿 저장소를 사용할 수 없습니다.")
+            return
+
+        dialog = TemplateManagerDialog(self._template_storage, self)
+        dialog.templates_changed.connect(self._on_templates_changed)
+        dialog.exec()
+
+    def _on_templates_changed(self):
+        """템플릿 목록 변경됨"""
+        # 템플릿 매니저 새로고침
+        if self._template_manager:
+            self._template_manager.refresh()
+        # 툴바 업데이트
+        self._update_toolbar_templates()
+
+    def _on_save_template(self):
+        """템플릿 저장"""
+        if self._editor_widget.save_template():
+            self._toolbar.set_save_enabled(False)
+            self.statusBar().showMessage("템플릿 저장됨")
+        else:
+            QMessageBox.warning(self, "경고", "템플릿을 저장할 수 없습니다.")
+
+    def _on_mode_changed(self, mode: int):
+        """편집 모드 변경"""
+        mode_names = {0: "편집", 1: "미리보기", 2: "매핑"}
+        self._editor_widget.set_mode(mode)
+        self.statusBar().showMessage(f"모드: {mode_names.get(mode, '알 수 없음')}")
+
+    def _on_zoom_changed(self, zoom: int):
+        """줌 변경"""
+        self._editor_widget.set_zoom(zoom)
+        self.statusBar().showMessage(f"확대/축소: {zoom}%")
+
+    def _on_fullscreen_toggled(self):
+        """전체화면 토글"""
+        if self.isFullScreen():
+            self.showNormal()
+        else:
+            self.showFullScreen()
+
+    def _on_editor_content_modified(self):
+        """편집기 내용 수정됨"""
+        self._toolbar.set_save_enabled(True)
+
+    def _on_editor_auto_saved(self, path: str):
+        """편집기 자동 저장됨"""
+        self.statusBar().showMessage(f"자동 저장됨: {path}")
 
     def _add_template_panel(self) -> Optional[TemplatePanel]:
         """템플릿 패널 추가"""
@@ -422,7 +521,7 @@ class MainWindow(QMainWindow):
         """파일 로드 완료"""
         self.statusBar().showMessage(f"파일 로드됨: {filename} ({row_count}행)")
 
-        # 템플릿 패널에 엑셀 헤더 및 파일 경로 전달
+        # 템플릿 패널에 엑셀 헤더 및 파일 경로 전달 (호환성 유지)
         headers = self._excel_viewer._loader.get_headers() if self._excel_viewer._loader else []
         for panel in self._template_panels:
             panel.set_excel_headers(headers)
@@ -431,6 +530,14 @@ class MainWindow(QMainWindow):
 
         # 첫 번째 행으로 미리보기 업데이트
         self._update_previews(0)
+
+        # 첫 번째 템플릿 자동 로드
+        if self._template_storage and not self._current_template_id:
+            templates = self._template_storage.get_all_templates()
+            if templates:
+                first_template = templates[0]
+                self._toolbar.set_current_template(first_template.id)
+                self._on_toolbar_template_selected(first_template.id)
 
     def _on_preview_row_changed(self, row_index: int):
         """미리보기 행 변경"""
@@ -441,19 +548,26 @@ class MainWindow(QMainWindow):
         """모든 템플릿 패널 미리보기 업데이트"""
         row_data = self._excel_viewer.get_row_data(row_index)
         if row_data:
+            # 기존 TemplatePanel 업데이트 (호환성)
             for panel in self._template_panels:
                 if panel.is_active:
                     panel.update_preview(row_data)
 
+            # EditorWidget 미리보기 데이터 업데이트
+            self._editor_widget.set_preview_data(row_data)
+
     def _on_selection_changed(self, selected_rows: list):
         """선택 변경"""
         count = len(selected_rows)
+        # EditorWidget 템플릿이 있으면 1개로 계산
+        has_editor_template = self._current_template_id is not None
         active_templates = sum(1 for p in self._template_panels if p.is_active)
+        total_templates = active_templates + (1 if has_editor_template else 0)
 
-        if count > 0 and active_templates > 0:
-            total_files = count * active_templates
+        if count > 0 and total_templates > 0:
+            total_files = count * total_templates
             self._export_button.setEnabled(True)
-            self._export_button.setText(f"내보내기 ({count}행 × {active_templates}템플릿 = {total_files}개)")
+            self._export_button.setText(f"내보내기 ({count}행 × {total_templates}템플릿 = {total_files}개)")
         else:
             self._export_button.setEnabled(False)
             self._export_button.setText("내보내기")
@@ -477,15 +591,24 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "경고", "내보낼 행을 선택해주세요.")
             return
 
-        if not active_panels:
+        # EditorWidget의 템플릿도 확인
+        has_editor_template = self._current_template_id is not None
+        if not active_panels and not has_editor_template:
             self._logger.warning("내보내기 시도: 선택된 템플릿 없음")
             QMessageBox.warning(self, "경고", "내보낼 템플릿을 선택해주세요.")
             return
 
-        self._logger.info(f"내보내기 시작: {len(selected)}행, {len(active_panels)}개 템플릿")
+        total_templates = len(active_panels) + (1 if has_editor_template else 0)
+        self._logger.info(f"내보내기 시작: {len(selected)}행, {total_templates}개 템플릿")
 
         # 템플릿 이름 목록
         template_names = [p.current_template_name for p in active_panels if p.current_template_name]
+
+        # EditorWidget 템플릿 추가
+        if has_editor_template and self._template_storage:
+            template = self._template_storage.get_template(self._current_template_id)
+            if template:
+                template_names.append(template.name)
 
         # 내보내기 설정 다이얼로그
         export_dialog = ExportDialog(
