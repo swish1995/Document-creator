@@ -481,11 +481,6 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        # 버전 레이블
-        version_label = QLabel("v1.0.0")
-        version_label.setStyleSheet("color: #666666;")
-        status_bar.addPermanentWidget(version_label)
-
     def _restore_geometry(self):
         """윈도우 위치/크기 복원"""
         geometry = self._settings.value("geometry")
