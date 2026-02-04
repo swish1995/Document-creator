@@ -125,7 +125,7 @@ class MainWindow(QMainWindow):
                 background-color: #333333;
                 border: none;
                 border-bottom: 1px solid #444444;
-                padding: 8px 10px;
+                padding: 8px 10px 8px 16px;
                 spacing: 8px;
             }
             QMenuBar {
