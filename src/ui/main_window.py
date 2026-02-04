@@ -272,17 +272,38 @@ class MainWindow(QMainWindow):
         self._toolbar.generate_requested.connect(self._on_export_clicked)
         self._toolbar.exit_requested.connect(self._on_exit_requested)
 
-        # 템플릿 목록 업데이트
+        # 템플릿 목록 업데이트 및 첫 번째 템플릿 로드
         self._update_toolbar_templates()
+        self._load_initial_template()
 
     def _update_toolbar_templates(self):
         """툴바의 템플릿 드롭다운 업데이트"""
         if self._template_storage:
+            # 템플릿 목록을 이름순으로 정렬 (기본 템플릿 먼저, 그 다음 사용자 템플릿)
+            all_templates = self._template_storage.get_all_templates()
+            sorted_templates = sorted(
+                all_templates,
+                key=lambda t: (not t.is_builtin, t.name.upper())  # 기본 먼저, 이름순
+            )
             templates = [
                 (t.id, f"{'[기본] ' if t.is_builtin else ''}{t.name}")
-                for t in self._template_storage.get_all_templates()
+                for t in sorted_templates
             ]
             self._toolbar.set_templates(templates)
+
+    def _load_initial_template(self):
+        """앱 시작 시 첫 번째 템플릿 로드"""
+        if self._template_storage and not self._current_template_id:
+            all_templates = self._template_storage.get_all_templates()
+            if all_templates:
+                # 이름순 정렬 (기본 템플릿 먼저)
+                sorted_templates = sorted(
+                    all_templates,
+                    key=lambda t: (not t.is_builtin, t.name.upper())
+                )
+                first_template = sorted_templates[0]
+                self._toolbar.set_current_template(first_template.id)
+                self._on_toolbar_template_selected(first_template.id)
 
     def _on_data_sheet_toggled(self, visible: bool):
         """데이터 시트 표시/숨김 토글"""
@@ -535,14 +556,6 @@ class MainWindow(QMainWindow):
 
         # 첫 번째 행으로 미리보기 업데이트
         self._update_previews(0)
-
-        # 첫 번째 템플릿 자동 로드
-        if self._template_storage and not self._current_template_id:
-            templates = self._template_storage.get_all_templates()
-            if templates:
-                first_template = templates[0]
-                self._toolbar.set_current_template(first_template.id)
-                self._on_toolbar_template_selected(first_template.id)
 
     def _on_preview_row_changed(self, row_index: int):
         """미리보기 행 변경"""
