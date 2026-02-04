@@ -2,6 +2,7 @@
   "name": "SI",
   "version": "1.0",
   "type": "html",
+  "safety_indicator": "SI",
   "description": "Strain Index",
   "fields": [
     {"id": "frame", "label": "프레임", "excel_column": "Frame"},

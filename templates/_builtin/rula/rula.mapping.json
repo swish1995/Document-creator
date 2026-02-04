@@ -2,6 +2,7 @@
   "name": "RULA",
   "version": "2.0",
   "type": "html",
+  "safety_indicator": "RULA",
   "description": "Rapid Upper Limb Assessment",
   "fields": [
     {"id": "upper_arm_score", "label": "상박 점수", "excel_column": "Upper Arm Score"},

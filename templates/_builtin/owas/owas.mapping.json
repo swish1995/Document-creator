@@ -2,6 +2,7 @@
   "name": "OWAS",
   "version": "2.0",
   "type": "html",
+  "safety_indicator": "OWAS",
   "description": "Ovako Working Posture Analysis System",
   "fields": [
     {"id": "back", "label": "허리", "excel_column": "Back"},

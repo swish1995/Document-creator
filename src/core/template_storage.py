@@ -83,6 +83,7 @@ class ExtendedTemplate(Template):
             template_path=template.template_path,
             mapping_path=template.mapping_path,
             fields=template.fields,
+            safety_indicator=template.safety_indicator,
             id=template_id,
             is_builtin=is_builtin,
             is_readonly=is_builtin,
