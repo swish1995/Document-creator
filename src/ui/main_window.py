@@ -266,7 +266,6 @@ class MainWindow(QMainWindow):
         self._toolbar.file_open_requested.connect(self._on_open_file)
         self._toolbar.file_save_requested.connect(self._on_save_template)
         self._toolbar.data_sheet_toggled.connect(self._on_data_sheet_toggled)
-        self._toolbar.data_refresh_requested.connect(self._on_data_refresh)
         self._toolbar.template_selected.connect(self._on_toolbar_template_selected)
         self._toolbar.template_new_requested.connect(self._on_new_template)
         self._toolbar.template_manage_requested.connect(self._on_manage_templates)
@@ -297,11 +296,6 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"📊 {self._current_file.name} ({row_count}행) - 데이터 시트 숨김")
         elif visible:
             self.statusBar().showMessage("데이터 시트 표시됨")
-
-    def _on_data_refresh(self):
-        """데이터 새로고침"""
-        if self._current_file:
-            self._load_file(self._current_file)
 
     def _on_toolbar_template_selected(self, template_id: str):
         """툴바에서 템플릿 선택"""

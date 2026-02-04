@@ -38,7 +38,6 @@ class MainToolbar(QToolBar):
     file_open_requested = pyqtSignal()
     file_save_requested = pyqtSignal()
     data_sheet_toggled = pyqtSignal(bool)  # True=표시, False=숨김
-    data_refresh_requested = pyqtSignal()
     template_selected = pyqtSignal(str)  # 템플릿 ID
     template_new_requested = pyqtSignal()
     template_manage_requested = pyqtSignal()
@@ -55,7 +54,6 @@ class MainToolbar(QToolBar):
         'open': ('#b8a25a', '#a8924a', '#c8b26a'),      # 골드/노란색 (열기)
         'save': ('#5ab87a', '#4aa86a', '#6ac88a'),      # 초록색 (저장)
         'data': ('#5a7ab8', '#4a6aa8', '#6a8ac8'),      # 파란색 (데이터)
-        'refresh': ('#3a9a8a', '#2a8a7a', '#4aaa9a'),   # 틸색 (새로고침)
         'template': ('#8a5ab8', '#7a4aa8', '#9a6ac8'),  # 보라색 (템플릿)
         'add': ('#5ab87a', '#4aa86a', '#6ac88a'),       # 초록색 (새로만들기)
         'manage': ('#7a7a7a', '#6a6a6a', '#8a8a8a'),    # 회색 (관리)
@@ -260,16 +258,6 @@ class MainToolbar(QToolBar):
         self.btn_data_toggle.setStyleSheet(self._get_button_style('data', is_checkable=True))
         self.addWidget(self.btn_data_toggle)
 
-        # 새로고침 버튼
-        self.btn_refresh = QPushButton(" 새로고침")
-        self.btn_refresh.setIcon(QIcon(self._get_icon_path("refresh")))
-        self.btn_refresh.setIconSize(QSize(14, 14))
-        self.btn_refresh.setFixedHeight(28)
-        self.btn_refresh.setToolTip("데이터 새로고침 (F5)")
-        self.btn_refresh.setShortcut("F5")
-        self.btn_refresh.setStyleSheet(self._get_button_style('refresh'))
-        self.addWidget(self.btn_refresh)
-
     def _setup_template_group(self):
         """템플릿 그룹"""
         # 템플릿 선택 드롭다운
@@ -360,7 +348,6 @@ class MainToolbar(QToolBar):
 
         # 데이터 시트 그룹
         self.btn_data_toggle.toggled.connect(self.data_sheet_toggled.emit)
-        self.btn_refresh.clicked.connect(self.data_refresh_requested.emit)
 
         # 템플릿 그룹
         self.combo_template.currentTextChanged.connect(self._on_template_changed)
