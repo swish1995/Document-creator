@@ -87,7 +87,13 @@ class TemplateManager:
     """템플릿 관리자
 
     템플릿 디렉토리를 스캔하고 템플릿을 관리합니다.
+    새로운 디렉토리 구조 지원:
+        templates/_builtin/  - 기본 템플릿
+        templates/user/      - 사용자 템플릿
     """
+
+    BUILTIN_DIR = "_builtin"
+    USER_DIR = "user"
 
     def __init__(self, templates_dir: Path):
         """
@@ -102,22 +108,60 @@ class TemplateManager:
         self._scan_templates()
 
     def _scan_templates(self) -> None:
-        """템플릿 디렉토리 스캔"""
+        """템플릿 디렉토리 스캔 (새 구조 + 레거시 구조 지원)"""
         if not self._templates_dir.exists():
             return
 
+        # 새 구조: _builtin/ 디렉토리
+        builtin_dir = self._templates_dir / self.BUILTIN_DIR
+        if builtin_dir.exists():
+            self._scan_directory(builtin_dir)
+
+        # 새 구조: user/ 디렉토리
+        user_dir = self._templates_dir / self.USER_DIR
+        if user_dir.exists():
+            self._scan_directory(user_dir)
+
+        # 레거시 구조: 루트 디렉토리의 템플릿 (하위 호환성)
         for template_dir in self._templates_dir.iterdir():
             if not template_dir.is_dir():
                 continue
+            # 특수 디렉토리 스킵
+            if template_dir.name in (self.BUILTIN_DIR, self.USER_DIR, "sample"):
+                continue
+            if template_dir.name.startswith(".") or template_dir.name.startswith("_"):
+                continue
 
-            # mapping.json 파일 찾기
             mapping_files = list(template_dir.glob("*.mapping.json"))
             if not mapping_files:
                 continue
 
-            mapping_path = mapping_files[0]
-            template = Template.from_mapping_file(mapping_path)
-            self._templates[template.name] = template
+            try:
+                template = Template.from_mapping_file(mapping_files[0])
+                self._templates[template.name] = template
+            except TemplateError:
+                continue
+
+    def _scan_directory(self, directory: Path) -> None:
+        """특정 디렉토리의 템플릿 스캔"""
+        for template_dir in directory.iterdir():
+            if not template_dir.is_dir():
+                continue
+            if template_dir.name.startswith("."):
+                continue
+
+            # mapping.json 또는 *.mapping.json 찾기
+            mapping_files = list(template_dir.glob("*.mapping.json"))
+            if not mapping_files:
+                mapping_files = list(template_dir.glob("mapping.json"))
+            if not mapping_files:
+                continue
+
+            try:
+                template = Template.from_mapping_file(mapping_files[0])
+                self._templates[template.name] = template
+            except TemplateError:
+                continue
 
     def get(self, name: str) -> Optional[Template]:
         """이름으로 템플릿 조회
@@ -142,3 +186,8 @@ class TemplateManager:
     def template_names(self) -> List[str]:
         """템플릿 이름 목록"""
         return list(self._templates.keys())
+
+    def refresh(self) -> None:
+        """템플릿 목록 새로고침"""
+        self._templates.clear()
+        self._scan_templates()
