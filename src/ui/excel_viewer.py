@@ -8,7 +8,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from PyQt6.QtCore import Qt, pyqtSignal, QAbstractTableModel, QModelIndex
+from PyQt6.QtCore import Qt, pyqtSignal, QAbstractTableModel, QModelIndex, QSize
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -238,7 +239,10 @@ class ExcelViewer(QWidget):
         toolbar = QHBoxLayout()
 
         # 파일 열기 버튼
+        icon_path = Path(__file__).parent.parent / "resources" / "icons"
         self._open_button = QPushButton(" 파일 열기")
+        self._open_button.setIcon(QIcon(str(icon_path / "folder_open.svg")))
+        self._open_button.setIconSize(QSize(14, 14))
         self._open_button.setFixedHeight(28)
         self._open_button.setStyleSheet(self._get_button_style('open'))
         self._open_button.clicked.connect(self._on_open_clicked)
@@ -248,6 +252,9 @@ class ExcelViewer(QWidget):
 
         # 전체 선택 / 해제 버튼
         self._select_all_button = QPushButton(" 전체 선택")
+        icon_path = Path(__file__).parent.parent / "resources" / "icons"
+        self._select_all_button.setIcon(QIcon(str(icon_path / "select_all.svg")))
+        self._select_all_button.setIconSize(QSize(14, 14))
         self._select_all_button.setFixedHeight(28)
         self._select_all_button.setStyleSheet(self._get_button_style('select'))
         self._select_all_button.clicked.connect(self.select_all)
@@ -255,6 +262,8 @@ class ExcelViewer(QWidget):
         toolbar.addWidget(self._select_all_button)
 
         self._deselect_all_button = QPushButton(" 선택 해제")
+        self._deselect_all_button.setIcon(QIcon(str(icon_path / "deselect.svg")))
+        self._deselect_all_button.setIconSize(QSize(14, 14))
         self._deselect_all_button.setFixedHeight(28)
         self._deselect_all_button.setStyleSheet(self._get_button_style('deselect'))
         self._deselect_all_button.clicked.connect(self.deselect_all)

@@ -42,9 +42,9 @@ class MainToolbar(QToolBar):
     template_selected = pyqtSignal(str)  # 템플릿 ID
     template_new_requested = pyqtSignal()
     template_manage_requested = pyqtSignal()
-    mode_changed = pyqtSignal(int)  # 0=편집, 1=미리보기, 2=매핑
+    mode_changed = pyqtSignal(int)  # 0=미리보기, 1=매핑
     zoom_changed = pyqtSignal(int)  # 줌 퍼센트
-    fullscreen_toggled = pyqtSignal()
+    generate_requested = pyqtSignal()  # 문서 생성 요청
 
     # 편집 모드 상수
     MODE_PREVIEW = 0
@@ -63,8 +63,7 @@ class MainToolbar(QToolBar):
         'preview': ('#b8825a', '#a8724a', '#c8926a'),   # 주황색 (미리보기)
         'mapping': ('#b85a8a', '#a84a7a', '#c86a9a'),   # 핑크색 (매핑)
         'zoom': ('#7a8a7a', '#6a7a6a', '#8a9a8a'),      # 녹회색 (줌)
-        'fullscreen': ('#5a5ab8', '#4a4aa8', '#6a6ac8'), # 남색 (전체화면)
-        'export': ('#5ab87a', '#4aa86a', '#6ac88a'),    # 초록색 (내보내기)
+        'generate': ('#5ab87a', '#4aa86a', '#6ac88a'),  # 초록색 (문서 생성)
     }
 
     def __init__(self, parent: Optional[QWidget] = None):
@@ -341,15 +340,17 @@ class MainToolbar(QToolBar):
         self.combo_zoom.setFixedHeight(28)
         self.addWidget(self.combo_zoom)
 
-        # 전체화면 버튼
-        self.btn_fullscreen = QPushButton(" 전체화면")
-        self.btn_fullscreen.setIcon(QIcon(self._get_icon_path("fullscreen")))
-        self.btn_fullscreen.setIconSize(QSize(14, 14))
-        self.btn_fullscreen.setFixedHeight(28)
-        self.btn_fullscreen.setToolTip("전체화면 (F11)")
-        self.btn_fullscreen.setShortcut("F11")
-        self.btn_fullscreen.setStyleSheet(self._get_button_style('fullscreen'))
-        self.addWidget(self.btn_fullscreen)
+        # 문서 생성하기 버튼
+        self.btn_generate = QPushButton(" 문서 생성하기")
+        self.btn_generate.setIcon(QIcon(self._get_icon_path("document")))
+        self.btn_generate.setIconSize(QSize(14, 14))
+        self.btn_generate.setFixedHeight(28)
+        self.btn_generate.setMinimumWidth(120)
+        self.btn_generate.setToolTip("선택된 행으로 문서 생성 (Ctrl+G)")
+        self.btn_generate.setShortcut("Ctrl+G")
+        self.btn_generate.setStyleSheet(self._get_button_style('generate'))
+        self.btn_generate.setEnabled(False)  # 기본 비활성화
+        self.addWidget(self.btn_generate)
 
     def _connect_signals(self):
         """시그널 연결"""
@@ -371,7 +372,7 @@ class MainToolbar(QToolBar):
 
         # 뷰 그룹
         self.combo_zoom.currentTextChanged.connect(self._on_zoom_changed)
-        self.btn_fullscreen.clicked.connect(self.fullscreen_toggled.emit)
+        self.btn_generate.clicked.connect(self.generate_requested.emit)
 
     def _on_template_changed(self, text: str):
         """템플릿 선택 변경"""
@@ -454,6 +455,22 @@ class MainToolbar(QToolBar):
             enabled: 활성화 여부
         """
         self.btn_save.setEnabled(enabled)
+
+    def set_generate_enabled(self, enabled: bool):
+        """문서 생성 버튼 활성화/비활성화
+
+        Args:
+            enabled: 활성화 여부
+        """
+        self.btn_generate.setEnabled(enabled)
+
+    def set_generate_text(self, text: str):
+        """문서 생성 버튼 텍스트 변경
+
+        Args:
+            text: 버튼 텍스트
+        """
+        self.btn_generate.setText(f" {text}")
 
     def get_current_mode(self) -> int:
         """현재 편집 모드 반환"""
