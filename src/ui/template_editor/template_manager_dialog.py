@@ -30,6 +30,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.template_storage import TemplateStorage, ExtendedTemplate
+from src.core.template_manager import SAFETY_INDICATORS
 
 
 # 버튼별 색상 정의 (기본색, 어두운색, 밝은색)
@@ -301,6 +302,10 @@ class TemplateManagerDialog(QDialog):
         self._type_label = QLabel("-")
         layout.addRow("타입:", self._type_label)
 
+        # 안전지표
+        self._indicator_label = QLabel("-")
+        layout.addRow("안전지표:", self._indicator_label)
+
         # 기반 템플릿
         self._based_on_label = QLabel("-")
         layout.addRow("기반:", self._based_on_label)
@@ -317,18 +322,35 @@ class TemplateManagerDialog(QDialog):
 
         return panel
 
+    def _get_template_sort_key(self, template: ExtendedTemplate) -> tuple:
+        """템플릿 정렬 키 (안전지표 순서: RULA → REBA → OWAS → NLE → SI)"""
+        indicator = template.safety_indicator
+        if indicator and indicator in SAFETY_INDICATORS:
+            order_index = SAFETY_INDICATORS.index(indicator)
+        else:
+            order_index = len(SAFETY_INDICATORS)
+        return (order_index, template.name.upper())
+
     def _load_templates(self):
-        """템플릿 목록 로드"""
-        # 기본 템플릿
+        """템플릿 목록 로드 (안전지표 순서로 정렬)"""
+        # 기본 템플릿 (정렬)
         self._builtin_list.clear()
-        for template in self._storage.get_builtin_templates():
+        builtin_templates = sorted(
+            self._storage.get_builtin_templates(),
+            key=self._get_template_sort_key
+        )
+        for template in builtin_templates:
             item = QListWidgetItem(f"  {template.name}")
             item.setData(Qt.ItemDataRole.UserRole, template.id)
             self._builtin_list.addItem(item)
 
-        # 사용자 템플릿
+        # 사용자 템플릿 (정렬)
         self._user_list.clear()
-        for template in self._storage.get_user_templates():
+        user_templates = sorted(
+            self._storage.get_user_templates(),
+            key=self._get_template_sort_key
+        )
+        for template in user_templates:
             item = QListWidgetItem(f"  {template.name}")
             item.setData(Qt.ItemDataRole.UserRole, template.id)
             self._user_list.addItem(item)
@@ -340,6 +362,7 @@ class TemplateManagerDialog(QDialog):
             self._id_label.setText("-")
             self._version_label.setText("-")
             self._type_label.setText("-")
+            self._indicator_label.setText("-")
             self._based_on_label.setText("-")
             self._fields_label.setText("-")
             self._desc_edit.setText("")
@@ -350,6 +373,7 @@ class TemplateManagerDialog(QDialog):
         self._id_label.setText(template.id)
         self._version_label.setText(template.version)
         self._type_label.setText(template.template_type)
+        self._indicator_label.setText(template.safety_indicator or "-")
 
         if template.metadata and template.metadata.based_on:
             self._based_on_label.setText(template.metadata.based_on)
