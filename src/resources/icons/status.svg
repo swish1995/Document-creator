@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 각도 기준선 (수평) -->
+  <line x1="4" y1="18" x2="20" y2="18"/>
+  <!-- 각도 선 -->
+  <line x1="4" y1="18" x2="16" y2="6"/>
+  <!-- 각도 호 -->
+  <path d="M10 18 A6 6 0 0 1 11.5 13" fill="none"/>
+</svg>

@@ -8,7 +8,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QSize
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -29,6 +30,53 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.template_storage import TemplateStorage, ExtendedTemplate
+
+
+# 버튼별 색상 정의 (기본색, 어두운색, 밝은색)
+BUTTON_COLORS = {
+    'copy': ('#8a5ab8', '#7a4aa8', '#9a6ac8'),     # 보라색 (복사)
+    'new': ('#5ab87a', '#4aa86a', '#6ac88a'),      # 초록색 (새로만들기)
+    'delete': ('#c55a5a', '#b54a4a', '#d56a6a'),   # 빨간색 (삭제)
+    'import': ('#5a8ab8', '#4a7aa8', '#6a9ac8'),   # 하늘색 (가져오기)
+    'export': ('#b8825a', '#a8724a', '#c8926a'),   # 주황색 (내보내기)
+    'close': ('#7a7a7a', '#6a6a6a', '#8a8a8a'),    # 회색 (닫기)
+}
+
+
+def _get_icon_path(icon_name: str) -> str:
+    """아이콘 경로 반환"""
+    return str(Path(__file__).parent.parent.parent / "resources" / "icons" / f"{icon_name}.svg")
+
+
+def _get_button_style(color_key: str) -> str:
+    """버튼 스타일 생성 (그라데이션)"""
+    colors = BUTTON_COLORS.get(color_key, BUTTON_COLORS['close'])
+    base, dark, light = colors
+
+    return f"""
+        QPushButton {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {base}, stop:1 {dark});
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }}
+        QPushButton:hover {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {light}, stop:1 {base});
+        }}
+        QPushButton:pressed {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {dark}, stop:1 {base});
+        }}
+        QPushButton:disabled {{
+            background: #444444;
+            color: #666666;
+        }}
+    """
 
 
 class TemplateManagerDialog(QDialog):
@@ -89,22 +137,6 @@ class TemplateManagerDialog(QDialog):
             QListWidget::item:hover {
                 background-color: #3a3a3a;
             }
-            QPushButton {
-                background-color: #3a3a3a;
-                color: #ffffff;
-                border: 1px solid #555555;
-                border-radius: 4px;
-                padding: 6px 12px;
-            }
-            QPushButton:hover {
-                background-color: #4a4a4a;
-            }
-            QPushButton:pressed {
-                background-color: #333333;
-            }
-            QPushButton:disabled {
-                color: #666666;
-            }
             QLineEdit, QTextEdit {
                 background-color: #333333;
                 border: 1px solid #444444;
@@ -153,7 +185,11 @@ class TemplateManagerDialog(QDialog):
 
         # 기본 템플릿 버튼
         builtin_buttons = QHBoxLayout()
-        self._copy_builtin_btn = QPushButton("📋 복사하여 새로 만들기")
+        self._copy_builtin_btn = QPushButton(" 복사하여 새로 만들기")
+        self._copy_builtin_btn.setIcon(QIcon(_get_icon_path("copy")))
+        self._copy_builtin_btn.setIconSize(QSize(14, 14))
+        self._copy_builtin_btn.setFixedHeight(28)
+        self._copy_builtin_btn.setStyleSheet(_get_button_style('copy'))
         self._copy_builtin_btn.setEnabled(False)
         self._copy_builtin_btn.clicked.connect(self._on_copy_builtin)
         builtin_buttons.addWidget(self._copy_builtin_btn)
@@ -171,16 +207,28 @@ class TemplateManagerDialog(QDialog):
 
         # 사용자 템플릿 버튼
         user_buttons = QHBoxLayout()
-        self._new_btn = QPushButton("➕ 새로 만들기")
+        self._new_btn = QPushButton(" 새로 만들기")
+        self._new_btn.setIcon(QIcon(_get_icon_path("add")))
+        self._new_btn.setIconSize(QSize(14, 14))
+        self._new_btn.setFixedHeight(28)
+        self._new_btn.setStyleSheet(_get_button_style('new'))
         self._new_btn.clicked.connect(self._on_new_template)
         user_buttons.addWidget(self._new_btn)
 
-        self._copy_user_btn = QPushButton("📋 복사")
+        self._copy_user_btn = QPushButton(" 복사")
+        self._copy_user_btn.setIcon(QIcon(_get_icon_path("copy")))
+        self._copy_user_btn.setIconSize(QSize(14, 14))
+        self._copy_user_btn.setFixedHeight(28)
+        self._copy_user_btn.setStyleSheet(_get_button_style('copy'))
         self._copy_user_btn.setEnabled(False)
         self._copy_user_btn.clicked.connect(self._on_copy_user)
         user_buttons.addWidget(self._copy_user_btn)
 
-        self._delete_btn = QPushButton("🗑️ 삭제")
+        self._delete_btn = QPushButton(" 삭제")
+        self._delete_btn.setIcon(QIcon(_get_icon_path("delete")))
+        self._delete_btn.setIconSize(QSize(14, 14))
+        self._delete_btn.setFixedHeight(28)
+        self._delete_btn.setStyleSheet(_get_button_style('delete'))
         self._delete_btn.setEnabled(False)
         self._delete_btn.clicked.connect(self._on_delete)
         user_buttons.addWidget(self._delete_btn)
@@ -203,16 +251,28 @@ class TemplateManagerDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
-        self._import_btn = QPushButton("📥 가져오기")
+        self._import_btn = QPushButton(" 가져오기")
+        self._import_btn.setIcon(QIcon(_get_icon_path("import")))
+        self._import_btn.setIconSize(QSize(14, 14))
+        self._import_btn.setFixedHeight(28)
+        self._import_btn.setStyleSheet(_get_button_style('import'))
         self._import_btn.clicked.connect(self._on_import)
         button_layout.addWidget(self._import_btn)
 
-        self._export_btn = QPushButton("📤 내보내기")
+        self._export_btn = QPushButton(" 내보내기")
+        self._export_btn.setIcon(QIcon(_get_icon_path("export")))
+        self._export_btn.setIconSize(QSize(14, 14))
+        self._export_btn.setFixedHeight(28)
+        self._export_btn.setStyleSheet(_get_button_style('export'))
         self._export_btn.setEnabled(False)
         self._export_btn.clicked.connect(self._on_export)
         button_layout.addWidget(self._export_btn)
 
-        close_btn = QPushButton("닫기")
+        close_btn = QPushButton(" 닫기")
+        close_btn.setIcon(QIcon(_get_icon_path("close")))
+        close_btn.setIconSize(QSize(14, 14))
+        close_btn.setFixedHeight(28)
+        close_btn.setStyleSheet(_get_button_style('close'))
         close_btn.clicked.connect(self.close)
         button_layout.addWidget(close_btn)
 
@@ -262,14 +322,14 @@ class TemplateManagerDialog(QDialog):
         # 기본 템플릿
         self._builtin_list.clear()
         for template in self._storage.get_builtin_templates():
-            item = QListWidgetItem(f"📄 {template.name}")
+            item = QListWidgetItem(f"  {template.name}")
             item.setData(Qt.ItemDataRole.UserRole, template.id)
             self._builtin_list.addItem(item)
 
         # 사용자 템플릿
         self._user_list.clear()
         for template in self._storage.get_user_templates():
-            item = QListWidgetItem(f"📝 {template.name}")
+            item = QListWidgetItem(f"  {template.name}")
             item.setData(Qt.ItemDataRole.UserRole, template.id)
             self._user_list.addItem(item)
 

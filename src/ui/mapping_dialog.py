@@ -1,8 +1,10 @@
 """매핑 설정 다이얼로그"""
 
+from pathlib import Path
 from typing import Dict, List, Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QSize
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -19,6 +21,53 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.mapper import Mapper
+
+
+# 버튼별 색상 정의 (기본색, 어두운색, 밝은색)
+BUTTON_COLORS = {
+    'load': ('#b8a25a', '#a8924a', '#c8b26a'),      # 골드 (불러오기)
+    'save': ('#5ab87a', '#4aa86a', '#6ac88a'),      # 초록색 (저장)
+    'auto': ('#5a8ab8', '#4a7aa8', '#6a9ac8'),      # 하늘색 (자동 매핑)
+    'reset': ('#b8825a', '#a8724a', '#c8926a'),     # 주황색 (초기화)
+    'cancel': ('#7a7a7a', '#6a6a6a', '#8a8a8a'),    # 회색 (취소)
+    'confirm': ('#5ab87a', '#4aa86a', '#6ac88a'),   # 초록색 (확인)
+}
+
+
+def _get_icon_path(icon_name: str) -> str:
+    """아이콘 경로 반환"""
+    return str(Path(__file__).parent.parent / "resources" / "icons" / f"{icon_name}.svg")
+
+
+def _get_button_style(color_key: str) -> str:
+    """버튼 스타일 생성 (그라데이션)"""
+    colors = BUTTON_COLORS.get(color_key, BUTTON_COLORS['cancel'])
+    base, dark, light = colors
+
+    return f"""
+        QPushButton {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {base}, stop:1 {dark});
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }}
+        QPushButton:hover {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {light}, stop:1 {base});
+        }}
+        QPushButton:pressed {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {dark}, stop:1 {base});
+        }}
+        QPushButton:disabled {{
+            background: #444444;
+            color: #666666;
+        }}
+    """
 
 
 class MappingDialog(QDialog):
@@ -59,19 +108,35 @@ class MappingDialog(QDialog):
         # 버튼 툴바
         toolbar_layout = QHBoxLayout()
 
-        self._load_btn = QPushButton("📂 불러오기")
+        self._load_btn = QPushButton(" 불러오기")
+        self._load_btn.setIcon(QIcon(_get_icon_path("load")))
+        self._load_btn.setIconSize(QSize(14, 14))
+        self._load_btn.setFixedHeight(28)
+        self._load_btn.setStyleSheet(_get_button_style('load'))
         self._load_btn.clicked.connect(self._on_load_clicked)
         toolbar_layout.addWidget(self._load_btn)
 
-        self._save_btn = QPushButton("💾 저장")
+        self._save_btn = QPushButton(" 저장")
+        self._save_btn.setIcon(QIcon(_get_icon_path("save")))
+        self._save_btn.setIconSize(QSize(14, 14))
+        self._save_btn.setFixedHeight(28)
+        self._save_btn.setStyleSheet(_get_button_style('save'))
         self._save_btn.clicked.connect(self._on_save_clicked)
         toolbar_layout.addWidget(self._save_btn)
 
-        self._auto_map_btn = QPushButton("🔄 자동 매핑")
+        self._auto_map_btn = QPushButton(" 자동 매핑")
+        self._auto_map_btn.setIcon(QIcon(_get_icon_path("auto")))
+        self._auto_map_btn.setIconSize(QSize(14, 14))
+        self._auto_map_btn.setFixedHeight(28)
+        self._auto_map_btn.setStyleSheet(_get_button_style('auto'))
         self._auto_map_btn.clicked.connect(self._on_auto_map_clicked)
         toolbar_layout.addWidget(self._auto_map_btn)
 
-        self._reset_btn = QPushButton("🔃 초기화")
+        self._reset_btn = QPushButton(" 초기화")
+        self._reset_btn.setIcon(QIcon(_get_icon_path("reset")))
+        self._reset_btn.setIconSize(QSize(14, 14))
+        self._reset_btn.setFixedHeight(28)
+        self._reset_btn.setStyleSheet(_get_button_style('reset'))
         self._reset_btn.clicked.connect(self._on_reset_clicked)
         toolbar_layout.addWidget(self._reset_btn)
 
@@ -101,11 +166,19 @@ class MappingDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
-        cancel_btn = QPushButton("취소")
+        cancel_btn = QPushButton(" 취소")
+        cancel_btn.setIcon(QIcon(_get_icon_path("cancel")))
+        cancel_btn.setIconSize(QSize(14, 14))
+        cancel_btn.setFixedHeight(28)
+        cancel_btn.setStyleSheet(_get_button_style('cancel'))
         cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(cancel_btn)
 
-        confirm_btn = QPushButton("확인")
+        confirm_btn = QPushButton(" 확인")
+        confirm_btn.setIcon(QIcon(_get_icon_path("confirm")))
+        confirm_btn.setIconSize(QSize(14, 14))
+        confirm_btn.setFixedHeight(28)
+        confirm_btn.setStyleSheet(_get_button_style('confirm'))
         confirm_btn.clicked.connect(self._on_confirm_clicked)
         button_layout.addWidget(confirm_btn)
 
@@ -183,7 +256,7 @@ class MappingDialog(QDialog):
                 status_item.setText("✓ 자동")
                 status_item.setForeground(Qt.GlobalColor.darkGreen)
             elif field_status == "manual":
-                status_item.setText("🔧 수동")
+                status_item.setText("✓ 수동")
                 status_item.setForeground(Qt.GlobalColor.darkBlue)
             else:
                 status_item.setText("✗ 미매핑")
@@ -292,20 +365,6 @@ class MappingDialog(QDialog):
             }
             QLabel {
                 color: #ffffff;
-            }
-            QPushButton {
-                background-color: #3c3f41;
-                color: #ffffff;
-                border: 1px solid #555555;
-                padding: 8px 16px;
-                border-radius: 4px;
-                min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #4c4f51;
-            }
-            QPushButton:pressed {
-                background-color: #2c2f31;
             }
             QTableWidget {
                 background-color: #3c3f41;
