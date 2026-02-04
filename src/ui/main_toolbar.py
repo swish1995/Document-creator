@@ -1,18 +1,20 @@
 """메인 툴바 모듈
 
 상단 메인 툴바 - 기능별 버튼 그룹
-스켈레톤 분석기 스타일
+스켈레톤 분석기 스타일 (SVG 아이콘 + 색상별 그라데이션)
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import List, Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
 from PyQt6.QtWidgets import (
     QToolBar,
     QToolButton,
+    QPushButton,
     QComboBox,
     QButtonGroup,
     QFrame,
@@ -49,48 +51,102 @@ class MainToolbar(QToolBar):
     MODE_PREVIEW = 1
     MODE_MAPPING = 2
 
+    # 버튼별 색상 정의 (기본색, 어두운색, 밝은색)
+    BUTTON_COLORS = {
+        'open': ('#b8a25a', '#a8924a', '#c8b26a'),      # 골드/노란색 (열기)
+        'save': ('#5ab87a', '#4aa86a', '#6ac88a'),      # 초록색 (저장)
+        'data': ('#5a7ab8', '#4a6aa8', '#6a8ac8'),      # 파란색 (데이터)
+        'refresh': ('#3a9a8a', '#2a8a7a', '#4aaa9a'),   # 틸색 (새로고침)
+        'template': ('#8a5ab8', '#7a4aa8', '#9a6ac8'),  # 보라색 (템플릿)
+        'add': ('#5ab87a', '#4aa86a', '#6ac88a'),       # 초록색 (새로만들기)
+        'manage': ('#7a7a7a', '#6a6a6a', '#8a8a8a'),    # 회색 (관리)
+        'edit': ('#5a8ab8', '#4a7aa8', '#6a9ac8'),      # 하늘색 (편집)
+        'preview': ('#b8825a', '#a8724a', '#c8926a'),   # 주황색 (미리보기)
+        'mapping': ('#b85a8a', '#a84a7a', '#c86a9a'),   # 핑크색 (매핑)
+        'zoom': ('#7a8a7a', '#6a7a6a', '#8a9a8a'),      # 녹회색 (줌)
+        'fullscreen': ('#5a5ab8', '#4a4aa8', '#6a6ac8'), # 남색 (전체화면)
+        'export': ('#5ab87a', '#4aa86a', '#6ac88a'),    # 초록색 (내보내기)
+    }
+
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setObjectName("mainToolbar")
         self.setMovable(False)
         self.setFloatable(False)
-        self.setIconSize(self.iconSize())
+        self.setIconSize(QSize(14, 14))
 
         self._setup_style()
         self._setup_ui()
         self._connect_signals()
 
+    def _get_icon_path(self, icon_name: str) -> str:
+        """아이콘 경로 반환"""
+        return str(Path(__file__).parent.parent / "resources" / "icons" / f"{icon_name}.svg")
+
+    def _get_button_style(self, color_key: str, is_checkable: bool = False, is_checked: bool = True) -> str:
+        """버튼 스타일 생성 (그라데이션)"""
+        colors = self.BUTTON_COLORS.get(color_key, self.BUTTON_COLORS['open'])
+        base, dark, light = colors
+        text_color = "white" if is_checked else "rgba(255, 255, 255, 0.6)"
+
+        style = f"""
+            QPushButton, QToolButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {base}, stop:1 {dark});
+                color: {text_color};
+                border: none;
+                padding: 5px 10px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: bold;
+            }}
+            QPushButton:hover, QToolButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {light}, stop:1 {base});
+            }}
+            QPushButton:pressed, QToolButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {dark}, stop:1 {base});
+            }}
+            QPushButton:disabled, QToolButton:disabled {{
+                background: #444444;
+                color: #666666;
+            }}
+        """
+
+        if is_checkable:
+            # 체크 상태 스타일 추가
+            unchecked_base = '#555555'
+            unchecked_dark = '#444444'
+            unchecked_light = '#666666'
+            style += f"""
+                QPushButton:checked, QToolButton:checked {{
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 {base}, stop:1 {dark});
+                    color: white;
+                }}
+                QPushButton:!checked, QToolButton:!checked {{
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 {unchecked_base}, stop:1 {unchecked_dark});
+                    color: rgba(255, 255, 255, 0.6);
+                }}
+                QPushButton:!checked:hover, QToolButton:!checked:hover {{
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 {unchecked_light}, stop:1 {unchecked_base});
+                }}
+            """
+
+        return style
+
     def _setup_style(self):
         """툴바 스타일 설정"""
         self.setStyleSheet("""
             QToolBar#mainToolbar {
-                background-color: #333333;
+                background-color: #2b2b2b;
                 border: none;
                 border-bottom: 1px solid #444444;
                 spacing: 4px;
                 padding: 4px 8px;
-            }
-            QToolButton {
-                background-color: transparent;
-                border: 1px solid transparent;
-                border-radius: 4px;
-                padding: 4px 8px;
-                color: #ffffff;
-                font-size: 11px;
-            }
-            QToolButton:hover {
-                background-color: #4a4a4a;
-                border: 1px solid #555555;
-            }
-            QToolButton:pressed {
-                background-color: #3a3a3a;
-            }
-            QToolButton:checked {
-                background-color: #0d47a1;
-                border: 1px solid #1565c0;
-            }
-            QToolButton:disabled {
-                color: #666666;
             }
             QComboBox {
                 background-color: #3a3a3a;
@@ -99,9 +155,11 @@ class MainToolbar(QToolBar):
                 padding: 4px 8px;
                 color: #ffffff;
                 min-width: 100px;
+                font-size: 11px;
             }
             QComboBox:hover {
                 border: 1px solid #666666;
+                background-color: #4a4a4a;
             }
             QComboBox::drop-down {
                 border: none;
@@ -170,36 +228,48 @@ class MainToolbar(QToolBar):
     def _setup_file_group(self):
         """파일 그룹 버튼"""
         # 열기 버튼
-        self.btn_open = QToolButton()
-        self.btn_open.setText("열기")
+        self.btn_open = QPushButton(" 열기")
+        self.btn_open.setIcon(QIcon(self._get_icon_path("folder_open")))
+        self.btn_open.setIconSize(QSize(14, 14))
+        self.btn_open.setFixedHeight(28)
         self.btn_open.setToolTip("파일 열기 (Ctrl+O)")
         self.btn_open.setShortcut(QKeySequence.StandardKey.Open)
+        self.btn_open.setStyleSheet(self._get_button_style('open'))
         self.addWidget(self.btn_open)
 
         # 저장 버튼
-        self.btn_save = QToolButton()
-        self.btn_save.setText("저장")
+        self.btn_save = QPushButton(" 저장")
+        self.btn_save.setIcon(QIcon(self._get_icon_path("save")))
+        self.btn_save.setIconSize(QSize(14, 14))
+        self.btn_save.setFixedHeight(28)
         self.btn_save.setToolTip("템플릿 저장 (Ctrl+S)")
         self.btn_save.setShortcut(QKeySequence.StandardKey.Save)
         self.btn_save.setEnabled(False)  # 기본 비활성화
+        self.btn_save.setStyleSheet(self._get_button_style('save'))
         self.addWidget(self.btn_save)
 
     def _setup_data_sheet_group(self):
         """데이터 시트 그룹 버튼"""
         # 데이터 시트 토글 버튼
-        self.btn_data_toggle = QToolButton()
-        self.btn_data_toggle.setText("데이터")
+        self.btn_data_toggle = QPushButton(" 데이터")
+        self.btn_data_toggle.setIcon(QIcon(self._get_icon_path("data")))
+        self.btn_data_toggle.setIconSize(QSize(14, 14))
+        self.btn_data_toggle.setFixedHeight(28)
         self.btn_data_toggle.setToolTip("데이터 시트 표시/숨김 (Ctrl+D)")
         self.btn_data_toggle.setCheckable(True)
         self.btn_data_toggle.setChecked(True)  # 기본값: 표시
         self.btn_data_toggle.setShortcut("Ctrl+D")
+        self.btn_data_toggle.setStyleSheet(self._get_button_style('data', is_checkable=True))
         self.addWidget(self.btn_data_toggle)
 
         # 새로고침 버튼
-        self.btn_refresh = QToolButton()
-        self.btn_refresh.setText("새로고침")
+        self.btn_refresh = QPushButton(" 새로고침")
+        self.btn_refresh.setIcon(QIcon(self._get_icon_path("refresh")))
+        self.btn_refresh.setIconSize(QSize(14, 14))
+        self.btn_refresh.setFixedHeight(28)
         self.btn_refresh.setToolTip("데이터 새로고침 (F5)")
         self.btn_refresh.setShortcut("F5")
+        self.btn_refresh.setStyleSheet(self._get_button_style('refresh'))
         self.addWidget(self.btn_refresh)
 
     def _setup_template_group(self):
@@ -208,19 +278,26 @@ class MainToolbar(QToolBar):
         self.combo_template = QComboBox()
         self.combo_template.setToolTip("템플릿 선택")
         self.combo_template.setMinimumWidth(120)
+        self.combo_template.setFixedHeight(28)
         self.addWidget(self.combo_template)
 
         # 새 템플릿 버튼
-        self.btn_new_template = QToolButton()
-        self.btn_new_template.setText("새로 만들기")
+        self.btn_new_template = QPushButton(" 새로 만들기")
+        self.btn_new_template.setIcon(QIcon(self._get_icon_path("add")))
+        self.btn_new_template.setIconSize(QSize(14, 14))
+        self.btn_new_template.setFixedHeight(28)
         self.btn_new_template.setToolTip("새 템플릿 만들기 (Ctrl+N)")
         self.btn_new_template.setShortcut("Ctrl+N")
+        self.btn_new_template.setStyleSheet(self._get_button_style('add'))
         self.addWidget(self.btn_new_template)
 
         # 템플릿 관리 버튼
-        self.btn_manage_template = QToolButton()
-        self.btn_manage_template.setText("관리")
+        self.btn_manage_template = QPushButton(" 관리")
+        self.btn_manage_template.setIcon(QIcon(self._get_icon_path("settings")))
+        self.btn_manage_template.setIconSize(QSize(14, 14))
+        self.btn_manage_template.setFixedHeight(28)
         self.btn_manage_template.setToolTip("템플릿 관리")
+        self.btn_manage_template.setStyleSheet(self._get_button_style('manage'))
         self.addWidget(self.btn_manage_template)
 
     def _setup_mode_group(self):
@@ -230,30 +307,39 @@ class MainToolbar(QToolBar):
         self.mode_group.setExclusive(True)
 
         # 편집 모드 버튼
-        self.btn_mode_edit = QToolButton()
-        self.btn_mode_edit.setText("편집")
+        self.btn_mode_edit = QPushButton(" 편집")
+        self.btn_mode_edit.setIcon(QIcon(self._get_icon_path("edit")))
+        self.btn_mode_edit.setIconSize(QSize(14, 14))
+        self.btn_mode_edit.setFixedHeight(28)
         self.btn_mode_edit.setToolTip("HTML 편집 모드 (Ctrl+E)")
         self.btn_mode_edit.setCheckable(True)
         self.btn_mode_edit.setChecked(True)  # 기본값
         self.btn_mode_edit.setShortcut("Ctrl+E")
+        self.btn_mode_edit.setStyleSheet(self._get_button_style('edit', is_checkable=True))
         self.mode_group.addButton(self.btn_mode_edit, self.MODE_EDIT)
         self.addWidget(self.btn_mode_edit)
 
         # 미리보기 모드 버튼
-        self.btn_mode_preview = QToolButton()
-        self.btn_mode_preview.setText("미리보기")
+        self.btn_mode_preview = QPushButton(" 미리보기")
+        self.btn_mode_preview.setIcon(QIcon(self._get_icon_path("preview")))
+        self.btn_mode_preview.setIconSize(QSize(14, 14))
+        self.btn_mode_preview.setFixedHeight(28)
         self.btn_mode_preview.setToolTip("렌더링 미리보기 (Ctrl+P)")
         self.btn_mode_preview.setCheckable(True)
         self.btn_mode_preview.setShortcut("Ctrl+P")
+        self.btn_mode_preview.setStyleSheet(self._get_button_style('preview', is_checkable=True))
         self.mode_group.addButton(self.btn_mode_preview, self.MODE_PREVIEW)
         self.addWidget(self.btn_mode_preview)
 
         # 매핑 모드 버튼
-        self.btn_mode_mapping = QToolButton()
-        self.btn_mode_mapping.setText("매핑")
+        self.btn_mode_mapping = QPushButton(" 매핑")
+        self.btn_mode_mapping.setIcon(QIcon(self._get_icon_path("mapping")))
+        self.btn_mode_mapping.setIconSize(QSize(14, 14))
+        self.btn_mode_mapping.setFixedHeight(28)
         self.btn_mode_mapping.setToolTip("위지윅 매핑 모드 (Ctrl+M)")
         self.btn_mode_mapping.setCheckable(True)
         self.btn_mode_mapping.setShortcut("Ctrl+M")
+        self.btn_mode_mapping.setStyleSheet(self._get_button_style('mapping', is_checkable=True))
         self.mode_group.addButton(self.btn_mode_mapping, self.MODE_MAPPING)
         self.addWidget(self.btn_mode_mapping)
 
@@ -265,13 +351,17 @@ class MainToolbar(QToolBar):
         self.combo_zoom.addItems(["50%", "75%", "100%", "125%", "150%", "200%"])
         self.combo_zoom.setCurrentText("100%")
         self.combo_zoom.setMinimumWidth(70)
+        self.combo_zoom.setFixedHeight(28)
         self.addWidget(self.combo_zoom)
 
         # 전체화면 버튼
-        self.btn_fullscreen = QToolButton()
-        self.btn_fullscreen.setText("전체화면")
+        self.btn_fullscreen = QPushButton(" 전체화면")
+        self.btn_fullscreen.setIcon(QIcon(self._get_icon_path("fullscreen")))
+        self.btn_fullscreen.setIconSize(QSize(14, 14))
+        self.btn_fullscreen.setFixedHeight(28)
         self.btn_fullscreen.setToolTip("전체화면 (F11)")
         self.btn_fullscreen.setShortcut("F11")
+        self.btn_fullscreen.setStyleSheet(self._get_button_style('fullscreen'))
         self.addWidget(self.btn_fullscreen)
 
     def _connect_signals(self):

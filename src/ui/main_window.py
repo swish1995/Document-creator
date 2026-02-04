@@ -8,8 +8,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtGui import QAction, QKeySequence
+from PyQt6.QtCore import Qt, QSettings, QSize
+from PyQt6.QtGui import QAction, QKeySequence, QIcon
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -224,7 +224,10 @@ class MainWindow(QMainWindow):
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
-        self._export_button = QPushButton("내보내기")
+        self._export_button = QPushButton(" 내보내기")
+        icon_path = Path(__file__).parent.parent / "resources" / "icons" / "export.svg"
+        self._export_button.setIcon(QIcon(str(icon_path)))
+        self._export_button.setIconSize(QSize(14, 14))
         self._export_button.setEnabled(False)
         self._export_button.setMinimumWidth(150)
         self._export_button.setFixedHeight(28)
@@ -567,10 +570,10 @@ class MainWindow(QMainWindow):
         if count > 0 and total_templates > 0:
             total_files = count * total_templates
             self._export_button.setEnabled(True)
-            self._export_button.setText(f"내보내기 ({count}행 × {total_templates}템플릿 = {total_files}개)")
+            self._export_button.setText(f" 내보내기 ({count}행 × {total_templates}템플릿 = {total_files}개)")
         else:
             self._export_button.setEnabled(False)
-            self._export_button.setText("내보내기")
+            self._export_button.setText(" 내보내기")
 
     def _on_template_changed(self, template_name: str):
         """템플릿 변경"""
