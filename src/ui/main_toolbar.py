@@ -37,7 +37,6 @@ class MainToolbar(QToolBar):
     # 시그널 정의
     data_sheet_toggled = pyqtSignal(bool)  # True=표시, False=숨김
     template_selected = pyqtSignal(str)  # 템플릿 ID
-    template_new_requested = pyqtSignal()
     template_manage_requested = pyqtSignal()
     mode_changed = pyqtSignal(int)  # 0=미리보기, 1=매핑
     zoom_changed = pyqtSignal(int)  # 줌 퍼센트
@@ -52,7 +51,6 @@ class MainToolbar(QToolBar):
     BUTTON_COLORS = {
         'data': ('#5a7ab8', '#4a6aa8', '#6a8ac8'),      # 파란색 (데이터)
         'template': ('#8a5ab8', '#7a4aa8', '#9a6ac8'),  # 보라색 (템플릿)
-        'add': ('#5ab87a', '#4aa86a', '#6ac88a'),       # 초록색 (새로만들기)
         'manage': ('#7a7a7a', '#6a6a6a', '#8a8a8a'),    # 회색 (관리)
         'preview': ('#b8825a', '#a8724a', '#c8926a'),   # 주황색 (미리보기)
         'mapping': ('#b85a8a', '#a84a7a', '#c86a9a'),   # 핑크색 (매핑)
@@ -207,16 +205,6 @@ class MainToolbar(QToolBar):
         self.combo_template.setFixedHeight(28)
         self.addWidget(self.combo_template)
 
-        # 새 템플릿 버튼
-        self.btn_new_template = QPushButton(" 새로 만들기")
-        self.btn_new_template.setIcon(QIcon(self._get_icon_path("add")))
-        self.btn_new_template.setIconSize(QSize(14, 14))
-        self.btn_new_template.setFixedHeight(28)
-        self.btn_new_template.setToolTip("새 템플릿 만들기 (Ctrl+N)")
-        self.btn_new_template.setShortcut("Ctrl+N")
-        self.btn_new_template.setStyleSheet(self._get_button_style('add'))
-        self.addWidget(self.btn_new_template)
-
         # 템플릿 관리 버튼
         self.btn_manage_template = QPushButton(" 관리")
         self.btn_manage_template.setIcon(QIcon(self._get_icon_path("settings")))
@@ -319,7 +307,6 @@ class MainToolbar(QToolBar):
 
         # 템플릿 그룹
         self.combo_template.currentTextChanged.connect(self._on_template_changed)
-        self.btn_new_template.clicked.connect(self.template_new_requested.emit)
         self.btn_manage_template.clicked.connect(self.template_manage_requested.emit)
 
         # 출력 그룹
