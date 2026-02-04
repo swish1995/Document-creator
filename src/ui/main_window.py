@@ -487,7 +487,7 @@ class MainWindow(QMainWindow):
         """)
 
     def _restore_geometry(self):
-        """윈도우 위치/크기 복원"""
+        """윈도우 위치/크기 및 상태 복원"""
         geometry = self._settings.value("geometry")
         if geometry:
             self.restoreGeometry(geometry)
@@ -495,6 +495,17 @@ class MainWindow(QMainWindow):
         state = self._settings.value("windowState")
         if state:
             self.restoreState(state)
+
+        # 보기 상태 복원 (데이터 시트 표시 여부)
+        data_visible = self._settings.value("dataSheetVisible", True, type=bool)
+        self._toolbar.set_data_sheet_visible(data_visible)
+        self._excel_container.setVisible(data_visible)
+        self._data_sheet_visible = data_visible
+
+        # 모드 상태 복원 (미리보기/매핑)
+        mode = self._settings.value("viewMode", 0, type=int)
+        self._toolbar.set_mode(mode)
+        self._editor_widget.set_mode(mode)
 
     def closeEvent(self, event):
         """윈도우 닫기 이벤트"""
@@ -511,6 +522,10 @@ class MainWindow(QMainWindow):
             # 윈도우 위치/크기 저장
             self._settings.setValue("geometry", self.saveGeometry())
             self._settings.setValue("windowState", self.saveState())
+            # 보기 상태 저장
+            self._settings.setValue("dataSheetVisible", self._toolbar.is_data_sheet_visible())
+            # 모드 상태 저장
+            self._settings.setValue("viewMode", self._toolbar.get_current_mode())
             event.accept()
         else:
             event.ignore()
