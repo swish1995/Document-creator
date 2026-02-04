@@ -35,8 +35,6 @@ class MainToolbar(QToolBar):
     """
 
     # 시그널 정의
-    file_open_requested = pyqtSignal()
-    file_save_requested = pyqtSignal()
     data_sheet_toggled = pyqtSignal(bool)  # True=표시, False=숨김
     template_selected = pyqtSignal(str)  # 템플릿 ID
     template_new_requested = pyqtSignal()
@@ -51,16 +49,12 @@ class MainToolbar(QToolBar):
 
     # 버튼별 색상 정의 (기본색, 어두운색, 밝은색)
     BUTTON_COLORS = {
-        'open': ('#b8a25a', '#a8924a', '#c8b26a'),      # 골드/노란색 (열기)
-        'save': ('#5ab87a', '#4aa86a', '#6ac88a'),      # 초록색 (저장)
         'data': ('#5a7ab8', '#4a6aa8', '#6a8ac8'),      # 파란색 (데이터)
         'template': ('#8a5ab8', '#7a4aa8', '#9a6ac8'),  # 보라색 (템플릿)
         'add': ('#5ab87a', '#4aa86a', '#6ac88a'),       # 초록색 (새로만들기)
         'manage': ('#7a7a7a', '#6a6a6a', '#8a8a8a'),    # 회색 (관리)
-        'edit': ('#5a8ab8', '#4a7aa8', '#6a9ac8'),      # 하늘색 (편집)
         'preview': ('#b8825a', '#a8724a', '#c8926a'),   # 주황색 (미리보기)
         'mapping': ('#b85a8a', '#a84a7a', '#c86a9a'),   # 핑크색 (매핑)
-        'zoom': ('#7a8a7a', '#6a7a6a', '#8a9a8a'),      # 녹회색 (줌)
         'generate': ('#5ab87a', '#4aa86a', '#6ac88a'),  # 초록색 (문서 생성)
     }
 
@@ -81,7 +75,7 @@ class MainToolbar(QToolBar):
 
     def _get_button_style(self, color_key: str, is_checkable: bool = False, is_checked: bool = True) -> str:
         """버튼 스타일 생성 (그라데이션)"""
-        colors = self.BUTTON_COLORS.get(color_key, self.BUTTON_COLORS['open'])
+        colors = self.BUTTON_COLORS.get(color_key, self.BUTTON_COLORS['data'])
         base, dark, light = colors
         text_color = "white" if is_checked else "rgba(255, 255, 255, 0.6)"
 
@@ -182,84 +176,27 @@ class MainToolbar(QToolBar):
 
     def _setup_ui(self):
         """UI 구성"""
-        # ========== 파일 그룹 ==========
-        self._setup_file_group()
-        self._add_separator()
-
-        # ========== 데이터 시트 그룹 ==========
-        self._setup_data_sheet_group()
-        self._add_separator()
-
-        # ========== 템플릿 그룹 ==========
+        # ========== 왼쪽 그룹 (템플릿 + 모드 + 출력) ==========
         self._setup_template_group()
-        self._add_separator()
-
-        # ========== 편집 모드 그룹 ==========
         self._setup_mode_group()
-        self._add_separator()
+        self._setup_output_group()
 
-        # ========== 뷰 그룹 ==========
-        self._setup_view_group()
-
-        # 오른쪽 여백 (투명 배경으로 설정하여 툴바 배경색과 일치)
+        # 중앙 스페이서
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         spacer.setStyleSheet("background-color: transparent;")
         self.addWidget(spacer)
 
-    def _add_separator(self):
-        """그룹 분리자 추가"""
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.VLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setStyleSheet("""
-            QFrame {
-                background-color: #555555;
-                max-width: 1px;
-                margin: 4px 8px;
-            }
-        """)
-        self.addWidget(separator)
-
-    def _setup_file_group(self):
-        """파일 그룹 버튼"""
-        # 열기 버튼
-        self.btn_open = QPushButton(" 열기")
-        self.btn_open.setIcon(QIcon(self._get_icon_path("folder_open")))
-        self.btn_open.setIconSize(QSize(14, 14))
-        self.btn_open.setFixedHeight(28)
-        self.btn_open.setToolTip("파일 열기 (Ctrl+O)")
-        self.btn_open.setShortcut(QKeySequence.StandardKey.Open)
-        self.btn_open.setStyleSheet(self._get_button_style('open'))
-        self.addWidget(self.btn_open)
-
-        # 저장 버튼
-        self.btn_save = QPushButton(" 저장")
-        self.btn_save.setIcon(QIcon(self._get_icon_path("save")))
-        self.btn_save.setIconSize(QSize(14, 14))
-        self.btn_save.setFixedHeight(28)
-        self.btn_save.setToolTip("템플릿 저장 (Ctrl+S)")
-        self.btn_save.setShortcut(QKeySequence.StandardKey.Save)
-        self.btn_save.setEnabled(False)  # 기본 비활성화
-        self.btn_save.setStyleSheet(self._get_button_style('save'))
-        self.addWidget(self.btn_save)
-
-    def _setup_data_sheet_group(self):
-        """데이터 시트 그룹 버튼"""
-        # 데이터 시트 토글 버튼
-        self.btn_data_toggle = QPushButton(" 데이터")
-        self.btn_data_toggle.setIcon(QIcon(self._get_icon_path("data")))
-        self.btn_data_toggle.setIconSize(QSize(14, 14))
-        self.btn_data_toggle.setFixedHeight(28)
-        self.btn_data_toggle.setToolTip("데이터 시트 표시/숨김 (Ctrl+D)")
-        self.btn_data_toggle.setCheckable(True)
-        self.btn_data_toggle.setChecked(True)  # 기본값: 표시
-        self.btn_data_toggle.setShortcut("Ctrl+D")
-        self.btn_data_toggle.setStyleSheet(self._get_button_style('data', is_checkable=True))
-        self.addWidget(self.btn_data_toggle)
+        # ========== 오른쪽 그룹 (보기: 데이터) ==========
+        self._setup_view_group()
 
     def _setup_template_group(self):
         """템플릿 그룹"""
+        # 템플릿 라벨
+        template_label = QLabel("템플릿:")
+        template_label.setStyleSheet("color: #999999; font-size: 12px; margin-right: 4px; background-color: transparent;")
+        self.addWidget(template_label)
+
         # 템플릿 선택 드롭다운
         self.combo_template = QComboBox()
         self.combo_template.setToolTip("템플릿 선택")
@@ -287,8 +224,8 @@ class MainToolbar(QToolBar):
         self.addWidget(self.btn_manage_template)
 
     def _setup_mode_group(self):
-        """모드 그룹 (라디오 버튼 스타일)"""
-        # 버튼 그룹 생성
+        """모드 그룹 (미리보기/매핑 + 줌)"""
+        # 버튼 그룹 생성 (미리보기/매핑 모드)
         self.mode_group = QButtonGroup(self)
         self.mode_group.setExclusive(True)
 
@@ -317,8 +254,6 @@ class MainToolbar(QToolBar):
         self.mode_group.addButton(self.btn_mode_mapping, self.MODE_MAPPING)
         self.addWidget(self.btn_mode_mapping)
 
-    def _setup_view_group(self):
-        """뷰 그룹"""
         # 줌 드롭다운
         self.combo_zoom = QComboBox()
         self.combo_zoom.setToolTip("확대/축소")
@@ -328,6 +263,27 @@ class MainToolbar(QToolBar):
         self.combo_zoom.setFixedHeight(28)
         self.addWidget(self.combo_zoom)
 
+    def _setup_view_group(self):
+        """보기 그룹 (데이터만)"""
+        # 보기 라벨
+        view_label = QLabel("보기:")
+        view_label.setStyleSheet("color: #999999; font-size: 12px; margin-right: 4px; background-color: transparent;")
+        self.addWidget(view_label)
+
+        # 데이터 시트 토글 버튼
+        self.btn_data_toggle = QPushButton(" 데이터")
+        self.btn_data_toggle.setIcon(QIcon(self._get_icon_path("data")))
+        self.btn_data_toggle.setIconSize(QSize(14, 14))
+        self.btn_data_toggle.setFixedHeight(28)
+        self.btn_data_toggle.setToolTip("데이터 시트 표시/숨김 (Ctrl+D)")
+        self.btn_data_toggle.setCheckable(True)
+        self.btn_data_toggle.setChecked(True)  # 기본값: 표시
+        self.btn_data_toggle.setShortcut("Ctrl+D")
+        self.btn_data_toggle.setStyleSheet(self._get_button_style('data', is_checkable=True))
+        self.addWidget(self.btn_data_toggle)
+
+    def _setup_output_group(self):
+        """출력 그룹"""
         # 문서 생성하기 버튼
         self.btn_generate = QPushButton(" 문서 생성하기")
         self.btn_generate.setIcon(QIcon(self._get_icon_path("document")))
@@ -342,23 +298,17 @@ class MainToolbar(QToolBar):
 
     def _connect_signals(self):
         """시그널 연결"""
-        # 파일 그룹
-        self.btn_open.clicked.connect(self.file_open_requested.emit)
-        self.btn_save.clicked.connect(self.file_save_requested.emit)
-
-        # 데이터 시트 그룹
+        # 보기 그룹
         self.btn_data_toggle.toggled.connect(self.data_sheet_toggled.emit)
+        self.mode_group.idClicked.connect(self.mode_changed.emit)
+        self.combo_zoom.currentTextChanged.connect(self._on_zoom_changed)
 
         # 템플릿 그룹
         self.combo_template.currentTextChanged.connect(self._on_template_changed)
         self.btn_new_template.clicked.connect(self.template_new_requested.emit)
         self.btn_manage_template.clicked.connect(self.template_manage_requested.emit)
 
-        # 편집 모드 그룹
-        self.mode_group.idClicked.connect(self.mode_changed.emit)
-
-        # 뷰 그룹
-        self.combo_zoom.currentTextChanged.connect(self._on_zoom_changed)
+        # 출력 그룹
         self.btn_generate.clicked.connect(self.generate_requested.emit)
 
     def _on_template_changed(self, text: str):
@@ -434,14 +384,6 @@ class MainToolbar(QToolBar):
             percent: 줌 퍼센트 (50, 75, 100, 125, 150, 200)
         """
         self.combo_zoom.setCurrentText(f"{percent}%")
-
-    def set_save_enabled(self, enabled: bool):
-        """저장 버튼 활성화/비활성화
-
-        Args:
-            enabled: 활성화 여부
-        """
-        self.btn_save.setEnabled(enabled)
 
     def set_generate_enabled(self, enabled: bool):
         """문서 생성 버튼 활성화/비활성화
