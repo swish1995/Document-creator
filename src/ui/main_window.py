@@ -341,8 +341,8 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "경고", "템플릿을 저장할 수 없습니다.")
 
     def _on_mode_changed(self, mode: int):
-        """편집 모드 변경"""
-        mode_names = {0: "편집", 1: "미리보기", 2: "매핑"}
+        """모드 변경"""
+        mode_names = {0: "미리보기", 1: "매핑"}
         self._editor_widget.set_mode(mode)
         self.statusBar().showMessage(f"모드: {mode_names.get(mode, '알 수 없음')}")
 

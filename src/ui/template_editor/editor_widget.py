@@ -1,6 +1,6 @@
 """템플릿 편집기 위젯 모듈
 
-편집/미리보기/매핑 모드를 지원하는 템플릿 편집기입니다.
+미리보기/매핑 모드를 지원하는 템플릿 편집기입니다.
 """
 
 from __future__ import annotations
@@ -14,9 +14,6 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QStackedWidget,
-    QTextEdit,
-    QPlainTextEdit,
-    QSplitter,
     QFrame,
     QLabel,
 )
@@ -30,17 +27,15 @@ except ImportError:
 
 from jinja2 import Template as Jinja2Template
 
-from .undo_manager import UndoManager
 from .auto_save import AutoSaveManager
 
 
 class EditorWidget(QWidget):
     """템플릿 편집기 메인 위젯
 
-    3가지 모드 지원:
-    - EDIT (0): HTML 편집
-    - PREVIEW (1): 렌더링 미리보기
-    - MAPPING (2): 위지윅 매핑
+    2가지 모드 지원:
+    - PREVIEW (0): 렌더링 미리보기
+    - MAPPING (1): 위지윅 매핑
     """
 
     # 시그널
@@ -49,23 +44,18 @@ class EditorWidget(QWidget):
     auto_saved = pyqtSignal(str)  # 자동 저장됨
 
     # 모드 상수
-    MODE_EDIT = 0
-    MODE_PREVIEW = 1
-    MODE_MAPPING = 2
+    MODE_PREVIEW = 0
+    MODE_MAPPING = 1
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self._template_id: Optional[str] = None
         self._template_path: Optional[Path] = None
         self._html_content: str = ""
-        self._html_content_before_edit: str = ""  # 편집 전 내용 (Undo용)
         self._preview_data: Dict[str, Any] = {}
         self._modified: bool = False
-        self._current_mode: int = self.MODE_EDIT
+        self._current_mode: int = self.MODE_PREVIEW
         self._zoom_level: int = 100
-
-        # 실행 취소 관리자
-        self._undo_manager = UndoManager(self)
 
         # 자동 저장 관리자
         self._auto_save = AutoSaveManager(self)
@@ -92,42 +82,13 @@ class EditorWidget(QWidget):
         self._stack = QStackedWidget()
         layout.addWidget(self._stack)
 
-        # 편집 뷰
-        self._edit_view = self._create_edit_view()
-        self._stack.addWidget(self._edit_view)
-
-        # 미리보기 뷰
+        # 미리보기 뷰 (index 0)
         self._preview_view = self._create_preview_view()
         self._stack.addWidget(self._preview_view)
 
-        # 매핑 뷰
+        # 매핑 뷰 (index 1)
         self._mapping_view = self._create_mapping_view()
         self._stack.addWidget(self._mapping_view)
-
-    def _create_edit_view(self) -> QWidget:
-        """HTML 편집 뷰 생성"""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(8, 8, 8, 8)
-
-        # HTML 편집기
-        self._html_editor = QPlainTextEdit()
-        self._html_editor.setStyleSheet("""
-            QPlainTextEdit {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                border: 1px solid #444444;
-                border-radius: 4px;
-                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                font-size: 12px;
-                padding: 8px;
-            }
-        """)
-        self._html_editor.setPlaceholderText("HTML 템플릿을 입력하세요...")
-        self._html_editor.textChanged.connect(self._on_text_changed)
-        layout.addWidget(self._html_editor)
-
-        return widget
 
     def _create_preview_view(self) -> QWidget:
         """미리보기 뷰 생성"""
@@ -260,46 +221,7 @@ class EditorWidget(QWidget):
 
     def _setup_shortcuts(self):
         """키보드 단축키 설정"""
-        from PyQt6.QtGui import QShortcut, QKeySequence
-
-        # Ctrl+Z: 실행 취소
-        undo_shortcut = QShortcut(QKeySequence.StandardKey.Undo, self)
-        undo_shortcut.activated.connect(self.undo)
-
-        # Ctrl+Y / Ctrl+Shift+Z: 다시 실행
-        redo_shortcut = QShortcut(QKeySequence.StandardKey.Redo, self)
-        redo_shortcut.activated.connect(self.redo)
-
-        # Ctrl+S: 저장
-        save_shortcut = QShortcut(QKeySequence.StandardKey.Save, self)
-        save_shortcut.activated.connect(self.save_template)
-
-    def _on_text_changed(self):
-        """텍스트 변경 이벤트"""
-        new_content = self._html_editor.toPlainText()
-
-        # Undo 스택에 변경 기록
-        if self._html_content != new_content and self._html_content_before_edit:
-            self._undo_manager.push_text_edit(
-                "HTML 편집",
-                self._html_content_before_edit,
-                new_content,
-                self._apply_html_content,
-            )
-
-        self._html_content = new_content
-        self._html_content_before_edit = new_content
-        self._modified = True
-        self._auto_save.set_modified(True)
-        self.content_modified.emit()
-
-    def _apply_html_content(self, content: str):
-        """HTML 내용 적용 (Undo/Redo용)"""
-        self._html_editor.blockSignals(True)
-        self._html_editor.setPlainText(content)
-        self._html_editor.blockSignals(False)
-        self._html_content = content
-        self._update_preview()
+        pass  # 편집 기능 제거로 단축키 불필요
 
     # ========== Public Methods ==========
 
@@ -314,20 +236,11 @@ class EditorWidget(QWidget):
         self._template_id = template_id
         self._template_path = template_path
         self._html_content = html_content
-        self._html_content_before_edit = html_content
         self._modified = False
-
-        # Undo 스택 초기화
-        self._undo_manager.clear()
 
         # 자동 저장 경로 설정
         self._auto_save.set_file_path(template_path)
         self._auto_save.set_modified(False)
-
-        # 편집기에 HTML 로드
-        self._html_editor.blockSignals(True)
-        self._html_editor.setPlainText(html_content)
-        self._html_editor.blockSignals(False)
 
         # 미리보기 업데이트
         self._update_preview()
@@ -345,23 +258,23 @@ class EditorWidget(QWidget):
                 html_content = f.read()
             self.set_template(template_path.stem, template_path, html_content)
         except Exception as e:
-            self._html_editor.setPlainText(f"<!-- 파일 로드 실패: {e} -->")
+            self._html_content = f"<!-- 파일 로드 실패: {e} -->"
+            self._update_preview()
 
     def set_mode(self, mode: int):
-        """편집 모드 설정
+        """모드 설정
 
         Args:
-            mode: MODE_EDIT, MODE_PREVIEW, MODE_MAPPING
+            mode: MODE_PREVIEW, MODE_MAPPING
         """
-        if mode not in (self.MODE_EDIT, self.MODE_PREVIEW, self.MODE_MAPPING):
+        if mode not in (self.MODE_PREVIEW, self.MODE_MAPPING):
             return
 
         self._current_mode = mode
         self._stack.setCurrentIndex(mode)
 
-        # 미리보기 모드로 전환 시 업데이트
-        if mode in (self.MODE_PREVIEW, self.MODE_MAPPING):
-            self._update_preview()
+        # 미리보기 업데이트
+        self._update_preview()
 
     def set_preview_data(self, data: Dict[str, Any]):
         """미리보기 데이터 설정
@@ -370,8 +283,7 @@ class EditorWidget(QWidget):
             data: 템플릿에 바인딩할 데이터
         """
         self._preview_data = data
-        if self._current_mode in (self.MODE_PREVIEW, self.MODE_MAPPING):
-            self._update_preview()
+        self._update_preview()
 
     def _update_preview(self):
         """미리보기 업데이트"""
@@ -425,7 +337,6 @@ class EditorWidget(QWidget):
             with open(self._template_path, "w", encoding="utf-8") as f:
                 f.write(self._html_content)
             self._modified = False
-            self._undo_manager.set_clean()
             self._auto_save.set_modified(False)
             return True
         except Exception:
@@ -458,28 +369,6 @@ class EditorWidget(QWidget):
     def get_current_mode(self) -> int:
         """현재 모드 반환"""
         return self._current_mode
-
-    # ========== Undo/Redo Methods ==========
-
-    def undo(self):
-        """실행 취소"""
-        self._undo_manager.undo()
-
-    def redo(self):
-        """다시 실행"""
-        self._undo_manager.redo()
-
-    def can_undo(self) -> bool:
-        """실행 취소 가능 여부"""
-        return self._undo_manager.can_undo()
-
-    def can_redo(self) -> bool:
-        """다시 실행 가능 여부"""
-        return self._undo_manager.can_redo()
-
-    def get_undo_manager(self) -> UndoManager:
-        """UndoManager 반환"""
-        return self._undo_manager
 
     # ========== Auto Save Methods ==========
 

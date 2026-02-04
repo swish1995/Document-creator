@@ -47,9 +47,8 @@ class MainToolbar(QToolBar):
     fullscreen_toggled = pyqtSignal()
 
     # 편집 모드 상수
-    MODE_EDIT = 0
-    MODE_PREVIEW = 1
-    MODE_MAPPING = 2
+    MODE_PREVIEW = 0
+    MODE_MAPPING = 1
 
     # 버튼별 색상 정의 (기본색, 어두운색, 밝은색)
     BUTTON_COLORS = {
@@ -301,23 +300,10 @@ class MainToolbar(QToolBar):
         self.addWidget(self.btn_manage_template)
 
     def _setup_mode_group(self):
-        """편집 모드 그룹 (라디오 버튼 스타일)"""
+        """모드 그룹 (라디오 버튼 스타일)"""
         # 버튼 그룹 생성
         self.mode_group = QButtonGroup(self)
         self.mode_group.setExclusive(True)
-
-        # 편집 모드 버튼
-        self.btn_mode_edit = QPushButton(" 편집")
-        self.btn_mode_edit.setIcon(QIcon(self._get_icon_path("edit")))
-        self.btn_mode_edit.setIconSize(QSize(14, 14))
-        self.btn_mode_edit.setFixedHeight(28)
-        self.btn_mode_edit.setToolTip("HTML 편집 모드 (Ctrl+E)")
-        self.btn_mode_edit.setCheckable(True)
-        self.btn_mode_edit.setChecked(True)  # 기본값
-        self.btn_mode_edit.setShortcut("Ctrl+E")
-        self.btn_mode_edit.setStyleSheet(self._get_button_style('edit', is_checkable=True))
-        self.mode_group.addButton(self.btn_mode_edit, self.MODE_EDIT)
-        self.addWidget(self.btn_mode_edit)
 
         # 미리보기 모드 버튼
         self.btn_mode_preview = QPushButton(" 미리보기")
@@ -326,6 +312,7 @@ class MainToolbar(QToolBar):
         self.btn_mode_preview.setFixedHeight(28)
         self.btn_mode_preview.setToolTip("렌더링 미리보기 (Ctrl+P)")
         self.btn_mode_preview.setCheckable(True)
+        self.btn_mode_preview.setChecked(True)  # 기본값
         self.btn_mode_preview.setShortcut("Ctrl+P")
         self.btn_mode_preview.setStyleSheet(self._get_button_style('preview', is_checkable=True))
         self.mode_group.addButton(self.btn_mode_preview, self.MODE_PREVIEW)
