@@ -16,6 +16,9 @@ from PyQt6.QtWidgets import (
     QStackedWidget,
     QFrame,
     QLabel,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QHeaderView,
 )
 
 try:
@@ -53,6 +56,7 @@ class EditorWidget(QWidget):
         self._template_path: Optional[Path] = None
         self._html_content: str = ""
         self._preview_data: Dict[str, Any] = {}
+        self._fields: List[Dict[str, Any]] = []
         self._modified: bool = False
         self._current_mode: int = self.MODE_PREVIEW
         self._zoom_level: int = 100
@@ -164,20 +168,54 @@ class EditorWidget(QWidget):
                 font-weight: bold;
                 font-size: 12px;
                 padding: 4px;
+                background-color: transparent;
             }
         """)
         layout.addWidget(header)
 
-        # 필드 목록 (TODO: Phase 3에서 구현)
-        self._field_list = QLabel("필드 목록이 여기에 표시됩니다.")
-        self._field_list.setStyleSheet("""
-            QLabel {
-                color: #888888;
-                padding: 8px;
+        # 필드 목록 트리
+        self._field_tree = QTreeWidget()
+        self._field_tree.setHeaderLabels(["라벨", "엑셀 컬럼"])
+        self._field_tree.setRootIsDecorated(False)
+        self._field_tree.setAlternatingRowColors(True)
+        self._field_tree.setStyleSheet("""
+            QTreeWidget {
+                background-color: #2b2b2b;
+                border: 1px solid #444444;
+                border-radius: 4px;
+                color: #ffffff;
+                font-size: 11px;
+            }
+            QTreeWidget::item {
+                padding: 4px 8px;
+            }
+            QTreeWidget::item:alternate {
+                background-color: #323232;
+            }
+            QTreeWidget::item:selected {
+                background-color: #0d47a1;
+            }
+            QTreeWidget::item:hover {
+                background-color: #3a3a3a;
+            }
+            QHeaderView::section {
+                background-color: #3a3a3a;
+                color: #cccccc;
+                padding: 6px;
+                border: none;
+                border-bottom: 1px solid #444444;
+                font-weight: bold;
+                font-size: 10px;
             }
         """)
-        self._field_list.setWordWrap(True)
-        layout.addWidget(self._field_list, 1)
+
+        # 컬럼 너비 설정
+        header_view = self._field_tree.header()
+        header_view.setStretchLastSection(True)
+        header_view.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        self._field_tree.setColumnWidth(0, 120)
+
+        layout.addWidget(self._field_tree, 1)
 
         return panel
 
@@ -226,27 +264,55 @@ class EditorWidget(QWidget):
 
     # ========== Public Methods ==========
 
-    def set_template(self, template_id: str, template_path: Path, html_content: str):
+    def set_template(
+        self,
+        template_id: str,
+        template_path: Path,
+        html_content: str,
+        fields: Optional[List[Dict[str, Any]]] = None,
+    ):
         """템플릿 설정
 
         Args:
             template_id: 템플릿 ID
             template_path: 템플릿 파일 경로
             html_content: HTML 내용
+            fields: 필드 정의 목록 (선택)
         """
         self._template_id = template_id
         self._template_path = template_path
         self._html_content = html_content
+        self._fields = fields or []
         self._modified = False
 
         # 자동 저장 경로 설정
         self._auto_save.set_file_path(template_path)
         self._auto_save.set_modified(False)
 
+        # 필드 목록 업데이트
+        self._update_field_list()
+
         # 미리보기 업데이트
         self._update_preview()
 
         self.template_changed.emit(template_id)
+
+    def _update_field_list(self):
+        """필드 목록 트리 업데이트"""
+        self._field_tree.clear()
+
+        if not self._fields:
+            # 필드가 없으면 안내 메시지 표시
+            item = QTreeWidgetItem(["필드 정보 없음", ""])
+            item.setForeground(0, Qt.GlobalColor.gray)
+            self._field_tree.addTopLevelItem(item)
+            return
+
+        for field in self._fields:
+            label = field.get("label", field.get("id", ""))
+            excel_column = field.get("excel_column", "")
+            item = QTreeWidgetItem([label, excel_column])
+            self._field_tree.addTopLevelItem(item)
 
     def load_template_from_path(self, template_path: Path):
         """파일에서 템플릿 로드

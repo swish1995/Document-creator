@@ -336,6 +336,7 @@ class MainWindow(QMainWindow):
                     template_id,
                     template.template_path,
                     html_content,
+                    fields=template.fields,
                 )
                 self.statusBar().showMessage(f"템플릿 로드됨: {template.name}")
             except Exception as e:
