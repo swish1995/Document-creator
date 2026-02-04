@@ -122,19 +122,44 @@ class MainWindow(QMainWindow):
                 color: #ffffff;
             }
             QMenuBar {
-                background-color: #333333;
+                background-color: #2b2b2b;
                 color: #ffffff;
+                border-bottom: 1px solid #444444;
+                padding: 2px 0px;
+            }
+            QMenuBar::item {
+                background-color: transparent;
+                padding: 6px 12px;
+                border-radius: 4px;
+                margin: 2px 2px;
             }
             QMenuBar::item:selected {
-                background-color: #0d47a1;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5a7ab8, stop:1 #4a6aa8);
+            }
+            QMenuBar::item:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #4a6aa8, stop:1 #3a5a98);
             }
             QMenu {
-                background-color: #3a3a3a;
+                background-color: #333333;
                 color: #ffffff;
                 border: 1px solid #555555;
+                border-radius: 4px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 6px 24px;
+                border-radius: 3px;
             }
             QMenu::item:selected {
-                background-color: #0d47a1;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5a7ab8, stop:1 #4a6aa8);
+            }
+            QMenu::separator {
+                height: 1px;
+                background-color: #555555;
+                margin: 4px 8px;
             }
             QScrollArea {
                 background-color: #2b2b2b;
@@ -220,23 +245,6 @@ class MainWindow(QMainWindow):
         self._excel_viewer.selection_changed.connect(self._on_selection_changed)
         excel_layout.addWidget(self._excel_viewer)
 
-        # 내보내기 버튼 영역
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-
-        self._export_button = QPushButton(" 내보내기")
-        icon_path = Path(__file__).parent.parent / "resources" / "icons" / "export.svg"
-        self._export_button.setIcon(QIcon(str(icon_path)))
-        self._export_button.setIconSize(QSize(14, 14))
-        self._export_button.setEnabled(False)
-        self._export_button.setMinimumWidth(150)
-        self._export_button.setFixedHeight(28)
-        self._export_button.setStyleSheet(self._get_button_style('export'))
-        self._export_button.clicked.connect(self._on_export_clicked)
-        button_layout.addWidget(self._export_button)
-
-        excel_layout.addLayout(button_layout)
-
         self._splitter.addWidget(self._excel_container)
 
         # 스플리터 비율 설정 (상단:하단 = 2:3)
@@ -257,7 +265,7 @@ class MainWindow(QMainWindow):
         self._toolbar.template_manage_requested.connect(self._on_manage_templates)
         self._toolbar.mode_changed.connect(self._on_mode_changed)
         self._toolbar.zoom_changed.connect(self._on_zoom_changed)
-        self._toolbar.fullscreen_toggled.connect(self._on_fullscreen_toggled)
+        self._toolbar.generate_requested.connect(self._on_export_clicked)
 
         # 템플릿 목록 업데이트
         self._update_toolbar_templates()
@@ -350,13 +358,6 @@ class MainWindow(QMainWindow):
         """줌 변경"""
         self._editor_widget.set_zoom(zoom)
         self.statusBar().showMessage(f"확대/축소: {zoom}%")
-
-    def _on_fullscreen_toggled(self):
-        """전체화면 토글"""
-        if self.isFullScreen():
-            self.showNormal()
-        else:
-            self.showFullScreen()
 
     def _on_editor_content_modified(self):
         """편집기 내용 수정됨"""
@@ -569,11 +570,11 @@ class MainWindow(QMainWindow):
 
         if count > 0 and total_templates > 0:
             total_files = count * total_templates
-            self._export_button.setEnabled(True)
-            self._export_button.setText(f" 내보내기 ({count}행 × {total_templates}템플릿 = {total_files}개)")
+            self._toolbar.set_generate_enabled(True)
+            self._toolbar.set_generate_text(f"문서 생성하기 ({count}행 × {total_templates}템플릿 = {total_files}개)")
         else:
-            self._export_button.setEnabled(False)
-            self._export_button.setText(" 내보내기")
+            self._toolbar.set_generate_enabled(False)
+            self._toolbar.set_generate_text("문서 생성하기")
 
     def _on_template_changed(self, template_name: str):
         """템플릿 변경"""
