@@ -551,11 +551,24 @@ class TemplateManagerDialog(QDialog):
         self._save_current_to_pending()
 
         if not self._pending_changes:
+            self._skip_save_prompt = True
             self.close()
             return
 
-        if self._save_all_changes():
-            self.close()
+        # 저장 확인
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("저장")
+        msg_box.setText("저장하시겠습니까?")
+        msg_box.setIcon(QMessageBox.Icon.Question)
+        yes_btn = msg_box.addButton("예", QMessageBox.ButtonRole.YesRole)
+        no_btn = msg_box.addButton("아니오", QMessageBox.ButtonRole.NoRole)
+        msg_box.exec()
+
+        if msg_box.clickedButton() == yes_btn:
+            self._save_all_changes()
+        # "예" 또는 "아니오" 모두 닫기
+        self._skip_save_prompt = True
+        self.close()
 
     def _on_cancel(self):
         """취소 버튼 클릭 - 저장 확인 없이 바로 닫기"""
