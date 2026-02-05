@@ -172,6 +172,10 @@ class ExcelLoader:
                 value = value[0]
                 break
 
+        # float가 정수인 경우 int로 변환 (5.0 → 5)
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+
         return value
 
     def _load_sheet(self) -> None:
