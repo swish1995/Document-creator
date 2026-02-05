@@ -613,13 +613,25 @@ class MainWindow(QMainWindow):
             # EditorWidget 미리보기 데이터 업데이트 (인덱스 기반 데이터 포함)
             self._editor_widget.set_preview_data(row_data, row_data_by_index)
 
+    def _get_active_template_count(self) -> int:
+        """활성화된 템플릿 개수 반환"""
+        if not self._template_storage:
+            return 0
+
+        count = 0
+        for template in self._template_storage.get_all_templates():
+            is_active = True
+            if template.metadata and hasattr(template.metadata, 'is_active'):
+                is_active = template.metadata.is_active
+            if is_active:
+                count += 1
+        return count
+
     def _on_selection_changed(self, selected_rows: list):
         """선택 변경"""
         count = len(selected_rows)
-        # EditorWidget 템플릿이 있으면 1개로 계산
-        has_editor_template = self._current_template_id is not None
-        active_templates = sum(1 for p in self._template_panels if p.is_active)
-        total_templates = active_templates + (1 if has_editor_template else 0)
+        # 활성화된 모든 템플릿 개수 사용
+        total_templates = self._get_active_template_count()
 
         if count > 0 and total_templates > 0:
             total_files = count * total_templates
