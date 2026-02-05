@@ -203,7 +203,7 @@ class TemplateManagerDialog(QDialog):
         # 상단 폼 레이아웃
         form_layout = QFormLayout()
         form_layout.setSpacing(8)
-        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
+        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         form_layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
         # 활성화 토글 버튼
@@ -341,7 +341,7 @@ class TemplateManagerDialog(QDialog):
             self._name_edit.setText(name)
             self._name_edit.setReadOnly(False)
 
-            self._type_label.setText(template.template_type)
+            self._type_label.setText(template.template_type.upper())
             self._indicator_label.setText(template.safety_indicator or "-")
             self._fields_label.setText(str(len(template.fields)))
 
