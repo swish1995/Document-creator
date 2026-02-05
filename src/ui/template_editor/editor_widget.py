@@ -410,11 +410,20 @@ class EditorWidget(QWidget):
                 highlight_script = self._get_highlight_script()
                 highlight_css = self._get_highlight_css()
 
+                # 줌 CSS 생성
+                zoom_css_mapping = ""
+                if self._zoom_level != 100:
+                    zoom_css_mapping = f"""
+                    <style>
+                        body {{ transform: scale({self._zoom_level / 100}); transform-origin: top left; }}
+                    </style>
+                    """
+
                 # CSS와 Script 삽입
                 if "</head>" in mapping_html:
-                    mapping_html = mapping_html.replace("</head>", f"{highlight_css}</head>")
+                    mapping_html = mapping_html.replace("</head>", f"{highlight_css}{zoom_css_mapping}</head>")
                 else:
-                    mapping_html = f"{highlight_css}{mapping_html}"
+                    mapping_html = f"{highlight_css}{zoom_css_mapping}{mapping_html}"
 
                 if "</body>" in mapping_html:
                     mapping_html = mapping_html.replace("</body>", f"{highlight_script}</body>")
