@@ -20,6 +20,8 @@ from PyQt6.QtWidgets import (
     QLabel,
     QHeaderView,
     QFileDialog,
+    QProgressDialog,
+    QApplication,
 )
 
 from src.core.excel_loader import ExcelLoader, ExcelLoaderError
@@ -388,28 +390,46 @@ class ExcelViewer(QWidget):
 
     def load_file(self, file_path: Path):
         """파일 로드"""
-        self._loader = ExcelLoader()
-        self._loader.load(file_path)
+        # 프로그레스 다이얼로그 표시 (4단계)
+        progress = QProgressDialog("준비 중...", None, 0, 4, self)
+        progress.setWindowTitle("파일 로드")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setMinimumSize(400, 100)
+        progress.setValue(0)
+        progress.show()
+        QApplication.processEvents()
 
-        headers = self._loader.get_headers()
-        data = self._loader.get_all_rows()
-        data_by_index = self._loader.get_all_rows_by_index()
+        def on_progress(step: int, message: str):
+            progress.setValue(step)
+            progress.setLabelText(message)
+            QApplication.processEvents()
 
-        self._model.load_data(headers, data, data_by_index)
+        try:
+            self._loader = ExcelLoader()
+            self._loader.load(file_path, progress_callback=on_progress)
 
-        # UI 업데이트
-        self._select_all_button.setEnabled(True)
-        self._deselect_all_button.setEnabled(True)
-        self._preview_row_spinbox.setEnabled(True)
-        self._preview_row_spinbox.setMaximum(len(data))
-        self._preview_row_spinbox.setValue(1)
-        self._row_count_label.setText(f"/ {len(data)}")
-        self._update_selection_count()
+            headers = self._loader.get_headers()
+            data = self._loader.get_all_rows()
+            data_by_index = self._loader.get_all_rows_by_index()
 
-        # 첫 번째 컬럼 너비 조정
-        self._table_view.setColumnWidth(0, 50)
+            self._model.load_data(headers, data, data_by_index)
 
-        self.file_loaded.emit(file_path.name, len(data))
+            # UI 업데이트
+            self._select_all_button.setEnabled(True)
+            self._deselect_all_button.setEnabled(True)
+            self._preview_row_spinbox.setEnabled(True)
+            self._preview_row_spinbox.setMaximum(len(data))
+            self._preview_row_spinbox.setValue(1)
+            self._row_count_label.setText(f"/ {len(data)}")
+            self._update_selection_count()
+
+            # 첫 번째 컬럼 너비 조정
+            self._table_view.setColumnWidth(0, 50)
+
+            self.file_loaded.emit(file_path.name, len(data))
+        finally:
+            progress.close()
 
     def _on_preview_row_changed(self, value: int):
         """미리보기 행 스핀박스 변경"""
