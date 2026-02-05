@@ -285,7 +285,18 @@ class TemplateManagerDialog(QDialog):
         )
 
         for template in all_templates:
-            item = QListWidgetItem(f"  {template.name}")
+            # 활성화 상태 확인
+            is_active = True
+            if template.metadata and hasattr(template.metadata, 'is_active'):
+                is_active = template.metadata.is_active
+
+            # 비활성화된 템플릿은 회색으로 표시
+            if is_active:
+                item = QListWidgetItem(f"  {template.name}")
+            else:
+                item = QListWidgetItem(f"  {template.name} (비활성)")
+                item.setForeground(Qt.GlobalColor.gray)
+
             item.setData(Qt.ItemDataRole.UserRole, template.id)
             self._template_list.addItem(item)
 
