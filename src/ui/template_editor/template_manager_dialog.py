@@ -1,12 +1,12 @@
 """템플릿 설정 다이얼로그 모듈
 
-기본/사용자 템플릿의 이름, 설명, 활성화 상태를 관리하는 다이얼로그입니다.
+템플릿의 이름, 설명, 활성화 상태를 관리하는 다이얼로그입니다.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtGui import QIcon
@@ -14,7 +14,6 @@ from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QHBoxLayout,
-    QTabWidget,
     QWidget,
     QListWidget,
     QListWidgetItem,
@@ -106,21 +105,6 @@ class TemplateManagerDialog(QDialog):
                 background-color: #2b2b2b;
                 color: #ffffff;
             }
-            QTabWidget::pane {
-                border: 1px solid #444444;
-                background-color: #333333;
-            }
-            QTabBar::tab {
-                background-color: #3a3a3a;
-                color: #ffffff;
-                padding: 8px 16px;
-                border: 1px solid #444444;
-                border-bottom: none;
-            }
-            QTabBar::tab:selected {
-                background-color: #333333;
-                border-bottom: 1px solid #333333;
-            }
             QListWidget {
                 background-color: #333333;
                 border: 1px solid #444444;
@@ -188,33 +172,16 @@ class TemplateManagerDialog(QDialog):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         layout.addWidget(splitter, 1)
 
-        # 왼쪽: 탭 위젯 (기본/사용자 템플릿)
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.setContentsMargins(0, 0, 0, 0)
+        # 왼쪽: 템플릿 목록
+        left_group = QGroupBox("템플릿")
+        left_layout = QVBoxLayout(left_group)
+        left_layout.setContentsMargins(8, 12, 8, 8)
 
-        self._tab_widget = QTabWidget()
-        left_layout.addWidget(self._tab_widget)
+        self._template_list = QListWidget()
+        self._template_list.itemSelectionChanged.connect(self._on_template_selected)
+        left_layout.addWidget(self._template_list)
 
-        # 기본 템플릿 탭
-        builtin_tab = QWidget()
-        builtin_layout = QVBoxLayout(builtin_tab)
-        self._builtin_list = QListWidget()
-        self._builtin_list.itemSelectionChanged.connect(self._on_builtin_selected)
-        builtin_layout.addWidget(self._builtin_list)
-
-        self._tab_widget.addTab(builtin_tab, "기본 템플릿")
-
-        # 사용자 템플릿 탭
-        user_tab = QWidget()
-        user_layout = QVBoxLayout(user_tab)
-        self._user_list = QListWidget()
-        self._user_list.itemSelectionChanged.connect(self._on_user_selected)
-        user_layout.addWidget(self._user_list)
-
-        self._tab_widget.addTab(user_tab, "사용자 템플릿")
-
-        splitter.addWidget(left_widget)
+        splitter.addWidget(left_group)
 
         # 오른쪽: 상세 정보
         right_widget = self._create_detail_panel()
@@ -247,7 +214,7 @@ class TemplateManagerDialog(QDialog):
 
     def _create_detail_panel(self) -> QWidget:
         """상세 정보 패널 생성"""
-        panel = QGroupBox("템플릿 정보")
+        panel = QGroupBox("정보")
         main_layout = QVBoxLayout(panel)
         main_layout.setSpacing(8)
         main_layout.setContentsMargins(12, 16, 12, 12)
@@ -309,27 +276,18 @@ class TemplateManagerDialog(QDialog):
 
     def _load_templates(self):
         """템플릿 목록 로드 (안전지표 순서로 정렬)"""
-        # 기본 템플릿 (정렬)
-        self._builtin_list.clear()
-        builtin_templates = sorted(
-            self._storage.get_builtin_templates(),
-            key=self._get_template_sort_key
-        )
-        for template in builtin_templates:
-            item = QListWidgetItem(f"  {template.name}")
-            item.setData(Qt.ItemDataRole.UserRole, template.id)
-            self._builtin_list.addItem(item)
+        self._template_list.clear()
 
-        # 사용자 템플릿 (정렬)
-        self._user_list.clear()
-        user_templates = sorted(
-            self._storage.get_user_templates(),
+        # 모든 템플릿 가져와서 정렬
+        all_templates = sorted(
+            self._storage.get_all_templates(),
             key=self._get_template_sort_key
         )
-        for template in user_templates:
+
+        for template in all_templates:
             item = QListWidgetItem(f"  {template.name}")
             item.setData(Qt.ItemDataRole.UserRole, template.id)
-            self._user_list.addItem(item)
+            self._template_list.addItem(item)
 
     def _update_detail_panel(self, template: Optional[ExtendedTemplate]):
         """상세 패널 업데이트"""
@@ -382,13 +340,13 @@ class TemplateManagerDialog(QDialog):
         """값 변경 감지"""
         self._has_changes = True
 
-    def _on_builtin_selected(self):
-        """기본 템플릿 선택"""
+    def _on_template_selected(self):
+        """템플릿 선택"""
         # 변경사항 확인
         if self._has_changes:
             self._prompt_save_changes()
 
-        items = self._builtin_list.selectedItems()
+        items = self._template_list.selectedItems()
         if not items:
             self._selected_template = None
             self._update_detail_panel(None)
@@ -397,28 +355,6 @@ class TemplateManagerDialog(QDialog):
         template_id = items[0].data(Qt.ItemDataRole.UserRole)
         self._selected_template = self._storage.get_template(template_id)
         self._update_detail_panel(self._selected_template)
-
-        # 사용자 목록 선택 해제
-        self._user_list.clearSelection()
-
-    def _on_user_selected(self):
-        """사용자 템플릿 선택"""
-        # 변경사항 확인
-        if self._has_changes:
-            self._prompt_save_changes()
-
-        items = self._user_list.selectedItems()
-        if not items:
-            self._selected_template = None
-            self._update_detail_panel(None)
-            return
-
-        template_id = items[0].data(Qt.ItemDataRole.UserRole)
-        self._selected_template = self._storage.get_template(template_id)
-        self._update_detail_panel(self._selected_template)
-
-        # 기본 목록 선택 해제
-        self._builtin_list.clearSelection()
 
     def _prompt_save_changes(self):
         """변경사항 저장 여부 확인"""
