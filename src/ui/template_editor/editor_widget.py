@@ -266,21 +266,6 @@ class EditorWidget(QWidget):
         header_layout.addWidget(header)
         header_layout.addStretch()
 
-        # 경고 라벨 (엑셀 파일 없을 때 표시) - 오른쪽에 배치
-        self._no_excel_warning = QLabel("⚠ 엑셀 파일을 열어주세요")
-        self._no_excel_warning.setStyleSheet("""
-            QLabel {
-                color: #ffffff;
-                background-color: #c62828;
-                font-weight: bold;
-                font-size: 11px;
-                padding: 4px 8px;
-                border-radius: 3px;
-            }
-        """)
-        self._no_excel_warning.setVisible(True)  # 기본적으로 표시
-        header_layout.addWidget(self._no_excel_warning)
-
         layout.addLayout(header_layout)
 
         # 미리보기 영역
@@ -392,8 +377,6 @@ class EditorWidget(QWidget):
         """
         self._preview_data = data
         self._has_excel_data = bool(data)  # 데이터가 있으면 True
-        # 경고 라벨 가시성 업데이트
-        self._no_excel_warning.setVisible(not self._has_excel_data)
 
         self._update_preview()
 
