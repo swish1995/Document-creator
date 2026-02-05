@@ -386,7 +386,7 @@ class EditorWidget(QWidget):
             return
 
         try:
-            # Jinja2 렌더링
+            # Jinja2 렌더링 (미리보기용)
             template = Jinja2Template(self._html_content)
             rendered = template.render(**self._preview_data)
 
@@ -403,15 +403,25 @@ class EditorWidget(QWidget):
             if self._web_view:
                 self._web_view.setHtml(rendered)
 
-            # 매핑 미리보기 뷰 업데이트 (JavaScript로 하이라이트)
+            # 매핑 미리보기 뷰 업데이트 (원본 템플릿 + 하이라이트)
             if self._mapping_web_view:
-                # 기본 HTML + 가벼운 하이라이트 스크립트
+                # 원본 HTML에서 {{ field_id }}를 하이라이트 span으로 감싸기
+                mapping_html = self._add_field_highlights_to_template(self._html_content)
                 highlight_script = self._get_highlight_script()
-                if "</body>" in rendered:
-                    mapping_rendered = rendered.replace("</body>", f"{highlight_script}</body>")
+                highlight_css = self._get_highlight_css()
+
+                # CSS와 Script 삽입
+                if "</head>" in mapping_html:
+                    mapping_html = mapping_html.replace("</head>", f"{highlight_css}</head>")
                 else:
-                    mapping_rendered = f"{rendered}{highlight_script}"
-                self._mapping_web_view.setHtml(mapping_rendered)
+                    mapping_html = f"{highlight_css}{mapping_html}"
+
+                if "</body>" in mapping_html:
+                    mapping_html = mapping_html.replace("</body>", f"{highlight_script}</body>")
+                else:
+                    mapping_html = f"{mapping_html}{highlight_script}"
+
+                self._mapping_web_view.setHtml(mapping_html)
 
         except Exception as e:
             error_html = f"""
@@ -433,8 +443,8 @@ class EditorWidget(QWidget):
         def replace_field(match):
             field_id = match.group(1).strip()
             label = field_labels.get(field_id, field_id)
-            # 하이라이트 span으로 감싸기
-            return f'<span class="mapping-field" data-field="{field_id}" title="{label}">{{{{ {field_id} }}}}</span>'
+            # 공백 + 툴팁(title)으로 표시
+            return f'<span class="mapping-field" data-field="{field_id}" title="{label}">&nbsp;</span>'
 
         # {{ field_id }} 패턴을 찾아서 span으로 감싸기
         pattern = r'\{\{\s*(\w+)\s*\}\}'
@@ -523,26 +533,54 @@ class EditorWidget(QWidget):
 
         return html
 
-    def _get_highlight_script(self) -> str:
-        """가벼운 하이라이트 JavaScript 반환 (테스트용 카운터 포함)"""
+    def _get_highlight_css(self) -> str:
+        """필드 하이라이트용 CSS 반환"""
         return """
-        <div id="cc-counter" style="position:fixed;top:10px;right:10px;background:#ff5722;color:white;padding:10px 20px;border-radius:5px;font-size:20px;font-weight:bold;z-index:9999;">
-            카운트: 0
-        </div>
+        <style>
+        .mapping-field {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 3px;
+            padding: 1px 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .mapping-field:hover {
+            background-color: #ffe69c;
+        }
+        .mapping-field.selected {
+            background-color: #d4edda;
+            border-color: #28a745;
+        }
+        </style>
+        """
+
+    def _get_highlight_script(self) -> str:
+        """필드 클릭 이벤트 JavaScript 반환"""
+        return """
         <script>
         (function() {
-            let count = 0;
-            const counter = document.getElementById('cc-counter');
+            // 모든 필드에 클릭 이벤트 추가
+            document.querySelectorAll('.mapping-field').forEach(function(el) {
+                el.addEventListener('click', function() {
+                    const fieldId = this.getAttribute('data-field');
+                    console.log('Field clicked:', fieldId);
 
-            setInterval(function() {
-                count++;
-                if (counter) {
-                    counter.textContent = '카운트: ' + count;
-                }
-            }, 1000);
+                    // 선택 상태 토글
+                    document.querySelectorAll('.mapping-field').forEach(function(f) {
+                        f.classList.remove('selected');
+                    });
+                    this.classList.add('selected');
+                });
+            });
 
             window.highlightField = function(fieldId) {
-                console.log('highlightField called:', fieldId);
+                document.querySelectorAll('.mapping-field').forEach(function(el) {
+                    el.classList.remove('selected');
+                    if (el.getAttribute('data-field') === fieldId) {
+                        el.classList.add('selected');
+                    }
+                });
             };
         })();
         </script>
