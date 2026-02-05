@@ -293,22 +293,35 @@ class MainWindow(QMainWindow):
             # 템플릿 목록을 safety_indicator 순서로 정렬 (RULA→REBA→OWAS→NLE→SI)
             all_templates = self._template_storage.get_all_templates()
             sorted_templates = sorted(all_templates, key=self._get_template_sort_key)
-            templates = [
-                (t.id, t.name)
-                for t in sorted_templates
-            ]
+
+            # 활성화된 템플릿만 표시
+            templates = []
+            for t in sorted_templates:
+                is_active = True
+                if t.metadata and hasattr(t.metadata, 'is_active'):
+                    is_active = t.metadata.is_active
+                if is_active:
+                    templates.append((t.id, t.name))
+
             self._toolbar.set_templates(templates)
 
     def _load_initial_template(self):
-        """앱 시작 시 첫 번째 템플릿 로드"""
+        """앱 시작 시 첫 번째 활성화된 템플릿 로드"""
         if self._template_storage and not self._current_template_id:
             all_templates = self._template_storage.get_all_templates()
             if all_templates:
                 # 안전지표 순서로 정렬
                 sorted_templates = sorted(all_templates, key=self._get_template_sort_key)
-                first_template = sorted_templates[0]
-                self._toolbar.set_current_template(first_template.id)
-                self._on_toolbar_template_selected(first_template.id)
+
+                # 첫 번째 활성화된 템플릿 찾기
+                for template in sorted_templates:
+                    is_active = True
+                    if template.metadata and hasattr(template.metadata, 'is_active'):
+                        is_active = template.metadata.is_active
+                    if is_active:
+                        self._toolbar.set_current_template(template.id)
+                        self._on_toolbar_template_selected(template.id)
+                        break
 
     def _on_data_sheet_toggled(self, visible: bool):
         """데이터 시트 표시/숨김 토글"""
