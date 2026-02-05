@@ -156,6 +156,7 @@ class TemplateManagerDialog(QDialog):
         self._storage = template_storage
         self._selected_template: Optional[ExtendedTemplate] = None
         self._pending_changes: Dict[str, Dict[str, Any]] = {}  # 템플릿별 변경사항
+        self._original_values: Dict[str, Dict[str, Any]] = {}  # 템플릿별 원본 값
         self._skip_save_prompt = False  # 취소 시 저장 확인 건너뛰기
 
         self.setWindowTitle("템플릿 설정")
@@ -362,20 +363,42 @@ class TemplateManagerDialog(QDialog):
             self._template_list.setCurrentRow(0)
 
     def _save_current_to_pending(self):
-        """현재 템플릿의 변경사항을 pending에 저장"""
+        """현재 템플릿의 변경사항을 pending에 저장 (원본과 다른 경우에만)"""
         if not self._selected_template:
             return
 
         template_id = self._selected_template.id
-        if template_id not in self._pending_changes:
-            self._pending_changes[template_id] = {}
+        original = self._original_values.get(template_id, {})
 
-        # 활성화 상태
-        self._pending_changes[template_id]['is_active'] = self._active_toggle.isChecked()
+        # 현재 값
+        current_is_active = self._active_toggle.isChecked()
+        current_name = self._name_edit.text().strip()
+        current_desc = self._desc_edit.toPlainText().strip()
 
-        # 이름/설명 저장
-        self._pending_changes[template_id]['name'] = self._name_edit.text().strip()
-        self._pending_changes[template_id]['description'] = self._desc_edit.toPlainText().strip()
+        # 원본과 비교하여 변경된 것만 pending에 저장
+        has_changes = False
+
+        if current_is_active != original.get('is_active', True):
+            if template_id not in self._pending_changes:
+                self._pending_changes[template_id] = {}
+            self._pending_changes[template_id]['is_active'] = current_is_active
+            has_changes = True
+
+        if current_name != original.get('name', ''):
+            if template_id not in self._pending_changes:
+                self._pending_changes[template_id] = {}
+            self._pending_changes[template_id]['name'] = current_name
+            has_changes = True
+
+        if current_desc != original.get('description', ''):
+            if template_id not in self._pending_changes:
+                self._pending_changes[template_id] = {}
+            self._pending_changes[template_id]['description'] = current_desc
+            has_changes = True
+
+        # 변경사항이 없으면 pending에서 제거
+        if not has_changes and template_id in self._pending_changes:
+            del self._pending_changes[template_id]
 
     def _update_detail_panel(self, template: Optional[ExtendedTemplate]):
         """상세 패널 업데이트"""
@@ -395,11 +418,35 @@ class TemplateManagerDialog(QDialog):
             self._active_toggle.setChecked(False)
             self._active_toggle.setEnabled(False)
         else:
-            # pending 변경사항이 있으면 그 값 사용
+            # 원본 값 저장 (아직 저장되지 않은 경우에만)
+            if template.id not in self._original_values:
+                # 원본 이름
+                orig_name = template.name
+                # 원본 설명
+                if template.metadata and template.metadata.description:
+                    orig_desc = template.metadata.description
+                elif template.description:
+                    orig_desc = template.description
+                else:
+                    orig_desc = ""
+                # 원본 활성화 상태
+                if template.metadata and hasattr(template.metadata, 'is_active'):
+                    orig_active = template.metadata.is_active
+                else:
+                    orig_active = True
+
+                self._original_values[template.id] = {
+                    'name': orig_name,
+                    'description': orig_desc,
+                    'is_active': orig_active,
+                }
+
+            # pending 변경사항이 있으면 그 값 사용, 없으면 원본 사용
             pending = self._pending_changes.get(template.id, {})
+            original = self._original_values[template.id]
 
             # 이름
-            name = pending.get('name', template.name)
+            name = pending.get('name', original['name'])
             self._name_edit.setText(name)
             self._name_edit.setReadOnly(False)
 
@@ -408,19 +455,12 @@ class TemplateManagerDialog(QDialog):
             self._fields_label.setText(str(len(template.fields)))
 
             # 설명
-            if 'description' in pending:
-                desc = pending['description']
-            elif template.metadata and template.metadata.description:
-                desc = template.metadata.description
-            elif template.description:
-                desc = template.description
-            else:
-                desc = ""
+            desc = pending.get('description', original['description'])
             self._desc_edit.setText(desc)
             self._desc_edit.setReadOnly(False)
 
             # 활성화 상태
-            is_active = self._get_template_active_state(template)
+            is_active = pending.get('is_active', original['is_active'])
             self._active_toggle.setChecked(is_active)
             self._active_toggle.setEnabled(True)
 
