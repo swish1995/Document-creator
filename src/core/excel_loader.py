@@ -180,3 +180,12 @@ class ExcelLoader:
         """
         self._ensure_loaded()
         return [(i, h) for i, h in enumerate(self._headers)]
+
+    def get_all_rows_by_index(self) -> list[list[Any]]:
+        """전체 행 데이터 인덱스 기반 반환
+
+        Returns:
+            모든 행의 리스트
+        """
+        self._ensure_loaded()
+        return [row.copy() for row in self._data_by_index]
