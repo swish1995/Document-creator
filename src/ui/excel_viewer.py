@@ -23,10 +23,40 @@ from PyQt6.QtWidgets import (
     QProgressDialog,
     QApplication,
     QDialog,
+    QStyledItemDelegate,
+    QStyle,
 )
 
 from src.core.excel_loader import ExcelLoader, ExcelLoaderError
 from src.core.logger import get_logger
+
+
+class ImageDelegate(QStyledItemDelegate):
+    """이미지 셀을 가운데 정렬하는 delegate"""
+
+    def paint(self, painter, option, index):
+        # 이미지인지 확인
+        pixmap = index.data(Qt.ItemDataRole.DecorationRole)
+        if pixmap and not pixmap.isNull():
+            # 이미지를 셀 중앙에 그리기
+            painter.save()
+
+            # 배경 그리기
+            if option.state & QStyle.StateFlag.State_Selected:
+                painter.fillRect(option.rect, option.palette.highlight())
+            else:
+                bg = index.data(Qt.ItemDataRole.BackgroundRole)
+                if bg:
+                    painter.fillRect(option.rect, bg)
+
+            # 이미지 중앙 위치 계산
+            x = option.rect.x() + (option.rect.width() - pixmap.width()) // 2
+            y = option.rect.y() + (option.rect.height() - pixmap.height()) // 2
+            painter.drawPixmap(x, y, pixmap)
+
+            painter.restore()
+        else:
+            super().paint(painter, option, index)
 
 
 class ImagePreviewDialog(QDialog):
@@ -394,6 +424,7 @@ class ExcelViewer(QWidget):
         self._table_view = QTableView()
         self._model = ExcelTableModel(self)
         self._table_view.setModel(self._model)
+        self._table_view.setItemDelegate(ImageDelegate(self))  # 이미지 가운데 정렬
         self._table_view.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
         self._table_view.setAlternatingRowColors(True)
         self._table_view.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -501,12 +532,15 @@ class ExcelViewer(QWidget):
             self._row_count_label.setText(f"/ {len(data)}")
             self._update_selection_count()
 
-            # 첫 번째 컬럼 너비 조정
+            # 첫 번째 컬럼(체크박스) 너비 조정
             self._table_view.setColumnWidth(0, 50)
 
-            # 이미지가 있으면 행 높이 조절
+            # 이미지가 있으면 행 높이 및 이미지 컬럼 너비 조절
             if self._loader.images_dir.exists():
                 self._table_view.verticalHeader().setDefaultSectionSize(50)
+                # 이미지 컬럼 너비 조절 (Frame=1, Skeleton=2)
+                self._table_view.setColumnWidth(1, 60)  # Frame
+                self._table_view.setColumnWidth(2, 60)  # Skeleton
 
             self.file_loaded.emit(file_path.name, len(data))
         finally:
