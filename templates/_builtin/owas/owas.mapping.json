@@ -5,11 +5,11 @@
   "safety_indicator": "OWAS",
   "description": "Ovako Working Posture Analysis System",
   "fields": [
-    {"id": "back", "label": "허리", "excel_column": "Back"},
-    {"id": "arms", "label": "상지", "excel_column": "Arms"},
-    {"id": "legs", "label": "하지", "excel_column": "Legs"},
-    {"id": "load", "label": "무게", "excel_column": "Load"},
-    {"id": "ac", "label": "AC값", "excel_column": "AC"},
-    {"id": "result", "label": "평가결과", "excel_column": "Result"}
+    {"id": "back", "label": "허리", "excel_column": "Back", "excel_index": 60},
+    {"id": "arms", "label": "상지", "excel_column": "Arms", "excel_index": 61},
+    {"id": "legs", "label": "하지", "excel_column": "Legs", "excel_index": 62},
+    {"id": "load", "label": "무게", "excel_column": "Load", "excel_index": 63},
+    {"id": "ac", "label": "AC값", "excel_column": "AC", "excel_index": 65},
+    {"id": "result", "label": "평가결과", "excel_column": "Risk", "excel_index": 66}
   ]
 }

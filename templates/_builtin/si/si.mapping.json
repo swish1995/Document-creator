@@ -5,15 +5,15 @@
   "safety_indicator": "SI",
   "description": "Strain Index",
   "fields": [
-    {"id": "frame", "label": "프레임", "excel_column": "Frame"},
-    {"id": "time", "label": "시간", "excel_column": "Time"},
-    {"id": "ie", "label": "노력 강도 (IE)", "excel_column": "SI_IE"},
-    {"id": "de", "label": "노력 지속시간 (DE)", "excel_column": "SI_DE"},
-    {"id": "em", "label": "분당 노력 횟수 (EM)", "excel_column": "SI_EM"},
-    {"id": "hwp", "label": "손/손목 자세 (HWP)", "excel_column": "SI_HWP"},
-    {"id": "sw", "label": "작업 속도 (SW)", "excel_column": "SI_SW"},
-    {"id": "dd", "label": "일일 작업 시간 (DD)", "excel_column": "SI_DD"},
-    {"id": "score", "label": "SI 점수", "excel_column": "SI_Score"},
-    {"id": "risk", "label": "위험 수준", "excel_column": "SI_Risk"}
+    {"id": "frame", "label": "프레임", "excel_column": "Frame", "excel_index": 0},
+    {"id": "time", "label": "시간", "excel_column": "Time", "excel_index": 2},
+    {"id": "ie", "label": "노력 강도 (IE)", "excel_column": "IE", "excel_index": 77},
+    {"id": "de", "label": "노력 지속시간 (DE)", "excel_column": "DE", "excel_index": 78},
+    {"id": "em", "label": "분당 노력 횟수 (EM)", "excel_column": "EM", "excel_index": 79},
+    {"id": "hwp", "label": "손/손목 자세 (HWP)", "excel_column": "HWP", "excel_index": 80},
+    {"id": "sw", "label": "작업 속도 (SW)", "excel_column": "SW", "excel_index": 81},
+    {"id": "dd", "label": "일일 작업 시간 (DD)", "excel_column": "DD", "excel_index": 82},
+    {"id": "score", "label": "SI 점수", "excel_column": "Score", "excel_index": 83},
+    {"id": "risk", "label": "위험 수준", "excel_column": "Risk", "excel_index": 84}
   ]
 }

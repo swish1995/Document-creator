@@ -584,14 +584,15 @@ class MainWindow(QMainWindow):
     def _update_previews(self, row_index: int):
         """모든 템플릿 패널 미리보기 업데이트"""
         row_data = self._excel_viewer.get_row_data(row_index)
+        row_data_by_index = self._excel_viewer.get_row_data_by_index(row_index)
         if row_data:
             # 기존 TemplatePanel 업데이트 (호환성)
             for panel in self._template_panels:
                 if panel.is_active:
                     panel.update_preview(row_data)
 
-            # EditorWidget 미리보기 데이터 업데이트
-            self._editor_widget.set_preview_data(row_data)
+            # EditorWidget 미리보기 데이터 업데이트 (인덱스 기반 데이터 포함)
+            self._editor_widget.set_preview_data(row_data, row_data_by_index)
 
     def _on_selection_changed(self, selected_rows: list):
         """선택 변경"""

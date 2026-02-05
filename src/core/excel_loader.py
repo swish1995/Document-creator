@@ -31,6 +31,7 @@ class ExcelLoader:
         self._sheet = None
         self._headers: list[str] = []
         self._data: list[dict[str, Any]] = []
+        self._data_by_index: list[list[Any]] = []  # 인덱스 기반 데이터
         self._file_path: Path | None = None
 
     @property
@@ -92,12 +93,15 @@ class ExcelLoader:
 
         # 데이터 행 읽기
         self._data = []
+        self._data_by_index = []
         for row in rows[1:]:
             row_dict = {}
+            row_list = list(row)  # 인덱스 기반 데이터
             for i, value in enumerate(row):
                 if i < len(self._headers):
                     row_dict[self._headers[i]] = value
             self._data.append(row_dict)
+            self._data_by_index.append(row_list)
 
     def _ensure_loaded(self) -> None:
         """데이터가 로드되었는지 확인"""
@@ -151,3 +155,28 @@ class ExcelLoader:
         """
         self._ensure_loaded()
         return [row.copy() for row in self._data]
+
+    def get_row_by_index(self, row_index: int) -> list[Any]:
+        """인덱스 기반 행 데이터 반환 (중복 헤더 지원)
+
+        Args:
+            row_index: 행 인덱스 (0부터 시작)
+
+        Returns:
+            값 리스트 (컬럼 인덱스로 접근)
+        """
+        self._ensure_loaded()
+
+        if row_index < 0 or row_index >= len(self._data_by_index):
+            raise ExcelLoaderError(f"잘못된 행 인덱스입니다: {row_index}")
+
+        return self._data_by_index[row_index].copy()
+
+    def get_headers_with_index(self) -> list[tuple[int, str]]:
+        """인덱스와 함께 헤더 목록 반환
+
+        Returns:
+            [(인덱스, 헤더명), ...] 리스트
+        """
+        self._ensure_loaded()
+        return [(i, h) for i, h in enumerate(self._headers)]
