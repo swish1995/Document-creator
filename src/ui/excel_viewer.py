@@ -34,14 +34,16 @@ class ExcelTableModel(QAbstractTableModel):
         self._logger = get_logger("excel_model")
         self._headers: List[str] = []
         self._data: List[Dict[str, Any]] = []
+        self._data_by_index: List[List[Any]] = []  # 인덱스 기반 데이터
         self._selected_rows: Set[int] = set()
         self._preview_row: int = 0
 
-    def load_data(self, headers: List[str], data: List[Dict[str, Any]]):
+    def load_data(self, headers: List[str], data: List[Dict[str, Any]], data_by_index: List[List[Any]] = None):
         """데이터 로드"""
         self.beginResetModel()
         self._headers = headers
         self._data = data
+        self._data_by_index = data_by_index or []
         self._selected_rows.clear()
         self._preview_row = 0
         self.endResetModel()
@@ -65,8 +67,14 @@ class ExcelTableModel(QAbstractTableModel):
                 # 체크박스 컬럼 - 텍스트 없음
                 return None
             else:
-                header = self._headers[col - 1]
-                return str(self._data[row].get(header, ""))
+                # 인덱스 기반으로 값 가져오기 (중복 헤더 지원)
+                col_index = col - 1
+                if self._data_by_index and row < len(self._data_by_index):
+                    row_data = self._data_by_index[row]
+                    if col_index < len(row_data):
+                        value = row_data[col_index]
+                        return str(value) if value is not None else ""
+                return ""
 
         elif role == Qt.ItemDataRole.CheckStateRole:
             if col == 0:
@@ -385,8 +393,9 @@ class ExcelViewer(QWidget):
 
         headers = self._loader.get_headers()
         data = self._loader.get_all_rows()
+        data_by_index = self._loader.get_all_rows_by_index()
 
-        self._model.load_data(headers, data)
+        self._model.load_data(headers, data, data_by_index)
 
         # UI 업데이트
         self._select_all_button.setEnabled(True)
