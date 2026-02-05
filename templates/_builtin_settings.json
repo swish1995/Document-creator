@@ -1,7 +1,7 @@
 {
   "active_states": {
-    "nle": true,
-    "si": true,
+    "nle": false,
+    "si": false,
     "rula": true,
     "owas": true,
     "reba": true
