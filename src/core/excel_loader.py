@@ -2,16 +2,20 @@
 
 Skeleton Analyzer에서 생성된 엑셀 파일을 로드하고 데이터를 제공합니다.
 수식이 포함된 셀은 formulas 라이브러리를 사용하여 계산합니다.
+이미지가 포함된 셀은 임시 디렉토리에 추출하여 경로를 제공합니다.
 """
 
 from __future__ import annotations
 
+import shutil
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Optional, List, Dict, Union
 
 import openpyxl
 from openpyxl.utils.exceptions import InvalidFileException
 import formulas
+from PIL import Image
 
 from src.core.logger import get_logger
 
@@ -29,8 +33,9 @@ class ExcelLoader:
     """
 
     DEFAULT_SHEET_NAME = "Capture Data"
+    IMAGES_DIR_NAME = ".images"
 
-    def __init__(self):
+    def __init__(self, base_dir: Path | str | None = None):
         self._logger = get_logger("excel_loader")
         self._workbook = None
         self._sheet = None
@@ -39,6 +44,38 @@ class ExcelLoader:
         self._data_by_index: list[list[Any]] = []  # 인덱스 기반 데이터
         self._file_path: Path | None = None
         self._calculated_values: dict = {}  # 수식 계산 결과 캐시
+        self._image_map: dict[str, Path] = {}  # 셀 주소 → 이미지 경로 매핑
+
+        # 이미지 디렉토리 설정
+        if base_dir is None:
+            base_dir = Path(__file__).parent.parent.parent
+        self._base_dir = Path(base_dir)
+        self._images_dir = self._base_dir / self.IMAGES_DIR_NAME
+
+    @property
+    def images_dir(self) -> Path:
+        """이미지 디렉토리 경로"""
+        return self._images_dir
+
+    def get_image_path(self, row: int, col: int) -> Path | None:
+        """특정 셀의 이미지 경로 반환
+
+        Args:
+            row: 행 인덱스 (0부터 시작, 데이터 행 기준)
+            col: 열 인덱스 (0부터 시작)
+
+        Returns:
+            이미지 경로, 없으면 None
+        """
+        # 엑셀 행은 1-based, 헤더가 1행이므로 데이터는 2행부터
+        cell_key = f"{row + 2}_{col}"
+        return self._image_map.get(cell_key)
+
+    def cleanup_images(self) -> None:
+        """이미지 디렉토리 정리"""
+        if self._images_dir.exists():
+            shutil.rmtree(self._images_dir)
+            self._logger.info(f"이미지 디렉토리 삭제: {self._images_dir}")
 
     @property
     def is_loaded(self) -> bool:
@@ -65,7 +102,8 @@ class ExcelLoader:
                 - step 1: 엑셀 모델 로드 중
                 - step 2: 수식 계산 중
                 - step 3: 값 변환 중
-                - step 4: 데이터 로드 중
+                - step 4: 이미지 추출 중
+                - step 5: 데이터 로드 중
 
         Raises:
             ExcelLoaderError: 파일을 찾을 수 없거나 형식이 잘못된 경우
@@ -75,18 +113,25 @@ class ExcelLoader:
         if not file_path.exists():
             raise ExcelLoaderError(f"파일을 찾을 수 없습니다: {file_path}")
 
+        # 기존 이미지 디렉토리 정리
+        self.cleanup_images()
+
         def update_progress(step: int, message: str):
             if progress_callback:
                 progress_callback(step, message)
 
         try:
-            # 1단계: formulas로 수식 계산
+            # 1~3단계: formulas로 수식 계산
             self._logger.info(f"수식 계산 시작: {file_path}")
             self._calculate_formulas(file_path, update_progress)
             self._logger.info("수식 계산 완료")
 
-            # 4단계: openpyxl로 구조 로드
-            update_progress(4, "데이터 로드 중...")
+            # 4단계: 이미지 추출 (read_only=False로 열어야 이미지 접근 가능)
+            update_progress(4, "이미지 추출 중...")
+            self._extract_images(file_path)
+
+            # 5단계: openpyxl로 구조 로드
+            update_progress(5, "데이터 로드 중...")
             self._workbook = openpyxl.load_workbook(file_path, read_only=True, data_only=False)
         except InvalidFileException as e:
             raise ExcelLoaderError(f"잘못된 엑셀 파일 형식입니다: {e}")
@@ -96,6 +141,61 @@ class ExcelLoader:
 
         self._file_path = file_path
         self._load_sheet()
+
+    def _extract_images(self, file_path: Path) -> None:
+        """엑셀 파일에서 이미지 추출"""
+        self._image_map = {}
+
+        try:
+            # read_only=False로 열어야 이미지 접근 가능
+            wb = openpyxl.load_workbook(file_path, read_only=False)
+
+            # 대상 시트 선택
+            if self.DEFAULT_SHEET_NAME in wb.sheetnames:
+                sheet = wb[self.DEFAULT_SHEET_NAME]
+            else:
+                sheet = wb.active
+
+            images = sheet._images
+            if not images:
+                self._logger.info("이미지 없음")
+                wb.close()
+                return
+
+            # 이미지 디렉토리 생성
+            self._images_dir.mkdir(parents=True, exist_ok=True)
+
+            for i, img in enumerate(images):
+                try:
+                    # 이미지 위치 추출
+                    anchor = img.anchor
+                    if hasattr(anchor, '_from'):
+                        col = anchor._from.col
+                        row = anchor._from.row + 1  # 0-based to 1-based
+                    else:
+                        continue
+
+                    # 이미지 데이터 추출 및 저장
+                    img_data = img._data()
+                    img_path = self._images_dir / f"img_{row}_{col}.png"
+
+                    # PIL로 이미지 처리 및 저장
+                    pil_img = Image.open(BytesIO(img_data))
+                    pil_img.save(img_path, "PNG")
+
+                    # 매핑 저장 (row_col 형식, 데이터 행 기준으로 변환)
+                    cell_key = f"{row}_{col}"
+                    self._image_map[cell_key] = img_path
+                    self._logger.debug(f"이미지 추출: {cell_key} → {img_path}")
+
+                except Exception as e:
+                    self._logger.warning(f"이미지 {i} 추출 실패: {e}")
+
+            wb.close()
+            self._logger.info(f"이미지 추출 완료: {len(self._image_map)}개")
+
+        except Exception as e:
+            self._logger.warning(f"이미지 추출 중 오류: {e}")
 
     def _calculate_formulas(self, file_path: Path, update_progress: callable = None) -> None:
         """formulas 라이브러리로 수식 계산"""
@@ -214,8 +314,13 @@ class ExcelLoader:
             self._data_by_index.append(row_list)
 
     def _get_cell_value(self, cell, sheet_name: str, row: int, col: int) -> Any:
-        """셀 값 가져오기 (수식인 경우 계산된 값 사용)"""
+        """셀 값 가져오기 (수식인 경우 계산된 값, 이미지인 경우 경로 사용)"""
         from openpyxl.utils import get_column_letter
+
+        # 이미지가 있는 셀인지 확인
+        cell_key = f"{row}_{col}"
+        if cell_key in self._image_map:
+            return self._image_map[cell_key]
 
         # 수식 셀인지 확인
         if cell.data_type == 'f' or (isinstance(cell.value, str) and cell.value.startswith('=')):
