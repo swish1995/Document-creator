@@ -1,6 +1,6 @@
-"""템플릿 관리 다이얼로그 모듈
+"""템플릿 설정 다이얼로그 모듈
 
-기본/사용자 템플릿을 관리하는 다이얼로그입니다.
+기본/사용자 템플릿의 이름, 설명, 활성화 상태를 관리하는 다이얼로그입니다.
 """
 
 from __future__ import annotations
@@ -23,10 +23,10 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QTextEdit,
     QMessageBox,
-    QFileDialog,
     QGroupBox,
     QFormLayout,
     QSplitter,
+    QCheckBox,
 )
 
 from src.core.template_storage import TemplateStorage, ExtendedTemplate
@@ -35,12 +35,8 @@ from src.core.template_manager import SAFETY_INDICATORS
 
 # 버튼별 색상 정의 (기본색, 어두운색, 밝은색)
 BUTTON_COLORS = {
-    'copy': ('#8a5ab8', '#7a4aa8', '#9a6ac8'),     # 보라색 (복사)
-    'new': ('#5ab87a', '#4aa86a', '#6ac88a'),      # 초록색 (새로만들기)
-    'delete': ('#c55a5a', '#b54a4a', '#d56a6a'),   # 빨간색 (삭제)
-    'import': ('#5a8ab8', '#4a7aa8', '#6a9ac8'),   # 하늘색 (가져오기)
-    'export': ('#b8825a', '#a8724a', '#c8926a'),   # 주황색 (내보내기)
-    'close': ('#7a7a7a', '#6a6a6a', '#8a8a8a'),    # 회색 (닫기)
+    'save': ('#5ab87a', '#4aa86a', '#6ac88a'),      # 초록색 (저장)
+    'cancel': ('#7a7a7a', '#6a6a6a', '#8a8a8a'),    # 회색 (취소)
 }
 
 
@@ -51,7 +47,7 @@ def _get_icon_path(icon_name: str) -> str:
 
 def _get_button_style(color_key: str) -> str:
     """버튼 스타일 생성 (그라데이션)"""
-    colors = BUTTON_COLORS.get(color_key, BUTTON_COLORS['close'])
+    colors = BUTTON_COLORS.get(color_key, BUTTON_COLORS['cancel'])
     base, dark, light = colors
 
     return f"""
@@ -81,9 +77,9 @@ def _get_button_style(color_key: str) -> str:
 
 
 class TemplateManagerDialog(QDialog):
-    """템플릿 관리 다이얼로그
+    """템플릿 설정 다이얼로그
 
-    기본 템플릿 목록과 사용자 템플릿 목록을 관리합니다.
+    템플릿의 이름, 설명, 활성화 상태를 관리합니다.
     """
 
     # 시그널
@@ -96,8 +92,9 @@ class TemplateManagerDialog(QDialog):
         super().__init__(parent)
         self._storage = template_storage
         self._selected_template: Optional[ExtendedTemplate] = None
+        self._has_changes = False
 
-        self.setWindowTitle("템플릿 관리")
+        self.setWindowTitle("템플릿 설정")
         self.setMinimumSize(700, 500)
         self._setup_ui()
         self._load_templates()
@@ -145,6 +142,10 @@ class TemplateManagerDialog(QDialog):
                 border-radius: 4px;
                 padding: 4px;
             }
+            QLineEdit:read-only, QTextEdit:read-only {
+                background-color: #2a2a2a;
+                color: #888888;
+            }
             QGroupBox {
                 border: 1px solid #444444;
                 border-radius: 4px;
@@ -158,6 +159,24 @@ class TemplateManagerDialog(QDialog):
             }
             QLabel {
                 color: #ffffff;
+            }
+            QCheckBox {
+                color: #ffffff;
+                spacing: 8px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 3px;
+                border: 1px solid #555555;
+                background-color: #333333;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #5ab87a;
+                border: 1px solid #4aa86a;
+            }
+            QCheckBox::indicator:hover {
+                border: 1px solid #666666;
             }
         """)
 
@@ -184,19 +203,6 @@ class TemplateManagerDialog(QDialog):
         self._builtin_list.itemSelectionChanged.connect(self._on_builtin_selected)
         builtin_layout.addWidget(self._builtin_list)
 
-        # 기본 템플릿 버튼
-        builtin_buttons = QHBoxLayout()
-        self._copy_builtin_btn = QPushButton(" 복사하여 새로 만들기")
-        self._copy_builtin_btn.setIcon(QIcon(_get_icon_path("copy")))
-        self._copy_builtin_btn.setIconSize(QSize(14, 14))
-        self._copy_builtin_btn.setFixedHeight(28)
-        self._copy_builtin_btn.setStyleSheet(_get_button_style('copy'))
-        self._copy_builtin_btn.setEnabled(False)
-        self._copy_builtin_btn.clicked.connect(self._on_copy_builtin)
-        builtin_buttons.addWidget(self._copy_builtin_btn)
-        builtin_buttons.addStretch()
-        builtin_layout.addLayout(builtin_buttons)
-
         self._tab_widget.addTab(builtin_tab, "기본 템플릿")
 
         # 사용자 템플릿 탭
@@ -205,37 +211,6 @@ class TemplateManagerDialog(QDialog):
         self._user_list = QListWidget()
         self._user_list.itemSelectionChanged.connect(self._on_user_selected)
         user_layout.addWidget(self._user_list)
-
-        # 사용자 템플릿 버튼
-        user_buttons = QHBoxLayout()
-        self._new_btn = QPushButton(" 새로 만들기")
-        self._new_btn.setIcon(QIcon(_get_icon_path("add")))
-        self._new_btn.setIconSize(QSize(14, 14))
-        self._new_btn.setFixedHeight(28)
-        self._new_btn.setStyleSheet(_get_button_style('new'))
-        self._new_btn.clicked.connect(self._on_new_template)
-        user_buttons.addWidget(self._new_btn)
-
-        self._copy_user_btn = QPushButton(" 복사")
-        self._copy_user_btn.setIcon(QIcon(_get_icon_path("copy")))
-        self._copy_user_btn.setIconSize(QSize(14, 14))
-        self._copy_user_btn.setFixedHeight(28)
-        self._copy_user_btn.setStyleSheet(_get_button_style('copy'))
-        self._copy_user_btn.setEnabled(False)
-        self._copy_user_btn.clicked.connect(self._on_copy_user)
-        user_buttons.addWidget(self._copy_user_btn)
-
-        self._delete_btn = QPushButton(" 삭제")
-        self._delete_btn.setIcon(QIcon(_get_icon_path("delete")))
-        self._delete_btn.setIconSize(QSize(14, 14))
-        self._delete_btn.setFixedHeight(28)
-        self._delete_btn.setStyleSheet(_get_button_style('delete'))
-        self._delete_btn.setEnabled(False)
-        self._delete_btn.clicked.connect(self._on_delete)
-        user_buttons.addWidget(self._delete_btn)
-
-        user_buttons.addStretch()
-        user_layout.addLayout(user_buttons)
 
         self._tab_widget.addTab(user_tab, "사용자 템플릿")
 
@@ -252,73 +227,74 @@ class TemplateManagerDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
-        self._import_btn = QPushButton(" 가져오기")
-        self._import_btn.setIcon(QIcon(_get_icon_path("import")))
-        self._import_btn.setIconSize(QSize(14, 14))
-        self._import_btn.setFixedHeight(28)
-        self._import_btn.setStyleSheet(_get_button_style('import'))
-        self._import_btn.clicked.connect(self._on_import)
-        button_layout.addWidget(self._import_btn)
+        self._save_btn = QPushButton(" 저장")
+        self._save_btn.setIcon(QIcon(_get_icon_path("confirm")))
+        self._save_btn.setIconSize(QSize(14, 14))
+        self._save_btn.setFixedHeight(28)
+        self._save_btn.setStyleSheet(_get_button_style('save'))
+        self._save_btn.clicked.connect(self._on_save)
+        button_layout.addWidget(self._save_btn)
 
-        self._export_btn = QPushButton(" 내보내기")
-        self._export_btn.setIcon(QIcon(_get_icon_path("export")))
-        self._export_btn.setIconSize(QSize(14, 14))
-        self._export_btn.setFixedHeight(28)
-        self._export_btn.setStyleSheet(_get_button_style('export'))
-        self._export_btn.setEnabled(False)
-        self._export_btn.clicked.connect(self._on_export)
-        button_layout.addWidget(self._export_btn)
-
-        close_btn = QPushButton(" 닫기")
-        close_btn.setIcon(QIcon(_get_icon_path("close")))
-        close_btn.setIconSize(QSize(14, 14))
-        close_btn.setFixedHeight(28)
-        close_btn.setStyleSheet(_get_button_style('close'))
-        close_btn.clicked.connect(self.close)
-        button_layout.addWidget(close_btn)
+        cancel_btn = QPushButton(" 취소")
+        cancel_btn.setIcon(QIcon(_get_icon_path("cancel")))
+        cancel_btn.setIconSize(QSize(14, 14))
+        cancel_btn.setFixedHeight(28)
+        cancel_btn.setStyleSheet(_get_button_style('cancel'))
+        cancel_btn.clicked.connect(self.close)
+        button_layout.addWidget(cancel_btn)
 
         layout.addLayout(button_layout)
 
     def _create_detail_panel(self) -> QWidget:
         """상세 정보 패널 생성"""
         panel = QGroupBox("템플릿 정보")
-        layout = QFormLayout(panel)
-        layout.setSpacing(8)
+        main_layout = QVBoxLayout(panel)
+        main_layout.setSpacing(8)
+        main_layout.setContentsMargins(12, 16, 12, 12)
+
+        # 상단 폼 레이아웃
+        form_layout = QFormLayout()
+        form_layout.setSpacing(8)
+        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
+        form_layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+
+        # 활성화 체크박스
+        self._active_checkbox = QCheckBox("활성화")
+        self._active_checkbox.setChecked(True)
+        self._active_checkbox.stateChanged.connect(self._on_value_changed)
+        form_layout.addRow("상태:", self._active_checkbox)
 
         # 이름
         self._name_edit = QLineEdit()
-        self._name_edit.setReadOnly(True)
-        layout.addRow("이름:", self._name_edit)
-
-        # ID
-        self._id_label = QLabel("-")
-        layout.addRow("ID:", self._id_label)
-
-        # 버전
-        self._version_label = QLabel("-")
-        layout.addRow("버전:", self._version_label)
+        self._name_edit.textChanged.connect(self._on_value_changed)
+        form_layout.addRow("이름:", self._name_edit)
 
         # 타입
         self._type_label = QLabel("-")
-        layout.addRow("타입:", self._type_label)
+        form_layout.addRow("타입:", self._type_label)
 
         # 안전지표
         self._indicator_label = QLabel("-")
-        layout.addRow("안전지표:", self._indicator_label)
-
-        # 기반 템플릿
-        self._based_on_label = QLabel("-")
-        layout.addRow("기반:", self._based_on_label)
+        form_layout.addRow("안전지표:", self._indicator_label)
 
         # 필드 수
         self._fields_label = QLabel("-")
-        layout.addRow("필드 수:", self._fields_label)
+        form_layout.addRow("필드 수:", self._fields_label)
 
-        # 설명
+        main_layout.addLayout(form_layout)
+
+        # 상하 여백
+        main_layout.addSpacing(8)
+
+        # 설명 라벨
+        desc_label = QLabel("설명:")
+        main_layout.addWidget(desc_label)
+
+        # 설명 (적당한 크기)
         self._desc_edit = QTextEdit()
-        self._desc_edit.setReadOnly(True)
-        self._desc_edit.setMaximumHeight(100)
-        layout.addRow("설명:", self._desc_edit)
+        self._desc_edit.setMinimumHeight(150)
+        self._desc_edit.textChanged.connect(self._on_value_changed)
+        main_layout.addWidget(self._desc_edit, 1)
 
         return panel
 
@@ -357,51 +333,69 @@ class TemplateManagerDialog(QDialog):
 
     def _update_detail_panel(self, template: Optional[ExtendedTemplate]):
         """상세 패널 업데이트"""
+        # 변경 감지 일시 중지
+        self._name_edit.blockSignals(True)
+        self._desc_edit.blockSignals(True)
+        self._active_checkbox.blockSignals(True)
+
         if template is None:
             self._name_edit.setText("")
-            self._id_label.setText("-")
-            self._version_label.setText("-")
+            self._name_edit.setReadOnly(True)
             self._type_label.setText("-")
             self._indicator_label.setText("-")
-            self._based_on_label.setText("-")
             self._fields_label.setText("-")
             self._desc_edit.setText("")
-            return
-
-        self._name_edit.setText(template.name)
-        self._name_edit.setReadOnly(template.is_readonly)
-        self._id_label.setText(template.id)
-        self._version_label.setText(template.version)
-        self._type_label.setText(template.template_type)
-        self._indicator_label.setText(template.safety_indicator or "-")
-
-        if template.metadata and template.metadata.based_on:
-            self._based_on_label.setText(template.metadata.based_on)
+            self._desc_edit.setReadOnly(True)
+            self._active_checkbox.setChecked(False)
+            self._active_checkbox.setEnabled(False)
         else:
-            self._based_on_label.setText("-")
+            self._name_edit.setText(template.name)
+            self._name_edit.setReadOnly(template.is_readonly)
+            self._type_label.setText(template.template_type)
+            self._indicator_label.setText(template.safety_indicator or "-")
+            self._fields_label.setText(str(len(template.fields)))
 
-        self._fields_label.setText(str(len(template.fields)))
+            # 설명: metadata 우선, 없으면 template.description 사용
+            desc = ""
+            if template.metadata and template.metadata.description:
+                desc = template.metadata.description
+            elif template.description:
+                desc = template.description
+            self._desc_edit.setText(desc)
+            self._desc_edit.setReadOnly(template.is_readonly)
 
-        desc = ""
-        if template.metadata and template.metadata.description:
-            desc = template.metadata.description
-        self._desc_edit.setText(desc)
-        self._desc_edit.setReadOnly(template.is_readonly)
+            # 활성화 상태 (metadata에서 가져오기, 기본값 True)
+            is_active = True
+            if template.metadata and hasattr(template.metadata, 'is_active'):
+                is_active = template.metadata.is_active
+            self._active_checkbox.setChecked(is_active)
+            self._active_checkbox.setEnabled(not template.is_readonly)
+
+        # 변경 감지 재개
+        self._name_edit.blockSignals(False)
+        self._desc_edit.blockSignals(False)
+        self._active_checkbox.blockSignals(False)
+
+        self._has_changes = False
+
+    def _on_value_changed(self):
+        """값 변경 감지"""
+        self._has_changes = True
 
     def _on_builtin_selected(self):
         """기본 템플릿 선택"""
+        # 변경사항 확인
+        if self._has_changes:
+            self._prompt_save_changes()
+
         items = self._builtin_list.selectedItems()
         if not items:
             self._selected_template = None
-            self._copy_builtin_btn.setEnabled(False)
-            self._export_btn.setEnabled(False)
             self._update_detail_panel(None)
             return
 
         template_id = items[0].data(Qt.ItemDataRole.UserRole)
         self._selected_template = self._storage.get_template(template_id)
-        self._copy_builtin_btn.setEnabled(True)
-        self._export_btn.setEnabled(True)
         self._update_detail_panel(self._selected_template)
 
         # 사용자 목록 선택 해제
@@ -409,179 +403,98 @@ class TemplateManagerDialog(QDialog):
 
     def _on_user_selected(self):
         """사용자 템플릿 선택"""
+        # 변경사항 확인
+        if self._has_changes:
+            self._prompt_save_changes()
+
         items = self._user_list.selectedItems()
         if not items:
             self._selected_template = None
-            self._copy_user_btn.setEnabled(False)
-            self._delete_btn.setEnabled(False)
-            self._export_btn.setEnabled(False)
             self._update_detail_panel(None)
             return
 
         template_id = items[0].data(Qt.ItemDataRole.UserRole)
         self._selected_template = self._storage.get_template(template_id)
-        self._copy_user_btn.setEnabled(True)
-        self._delete_btn.setEnabled(True)
-        self._export_btn.setEnabled(True)
         self._update_detail_panel(self._selected_template)
 
         # 기본 목록 선택 해제
         self._builtin_list.clearSelection()
 
-    def _on_copy_builtin(self):
-        """기본 템플릿 복사"""
-        if not self._selected_template:
-            return
-
-        name, ok = self._get_new_name(f"{self._selected_template.name} (복사본)")
-        if not ok or not name:
-            return
-
-        try:
-            new_template = self._storage.copy_template(
-                self._selected_template.id, name
-            )
-            self._load_templates()
-            self.templates_changed.emit()
-            QMessageBox.information(
-                self, "성공", f"템플릿 '{name}'이(가) 생성되었습니다."
-            )
-        except Exception as e:
-            QMessageBox.critical(self, "오류", f"템플릿 복사 실패:\n{e}")
-
-    def _on_copy_user(self):
-        """사용자 템플릿 복사"""
-        self._on_copy_builtin()  # 동일한 로직
-
-    def _on_new_template(self):
-        """새 템플릿 만들기"""
-        name, ok = self._get_new_name("새 템플릿")
-        if not ok or not name:
-            return
-
-        try:
-            default_html = """<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>{{ title }}</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; }
-    </style>
-</head>
-<body>
-    <h1>{{ title }}</h1>
-    <p>내용을 입력하세요.</p>
-</body>
-</html>
-"""
-            new_template = self._storage.create_template(
-                name=name,
-                html_content=default_html,
-                fields=[{"id": "title", "label": "제목", "excel_column": "Title"}],
-                description="새로 생성된 템플릿",
-            )
-            self._load_templates()
-            self.templates_changed.emit()
-
-            # 사용자 탭으로 전환
-            self._tab_widget.setCurrentIndex(1)
-
-            QMessageBox.information(
-                self, "성공", f"템플릿 '{name}'이(가) 생성되었습니다."
-            )
-        except Exception as e:
-            QMessageBox.critical(self, "오류", f"템플릿 생성 실패:\n{e}")
-
-    def _on_delete(self):
-        """템플릿 삭제"""
-        if not self._selected_template:
-            return
-
-        if self._selected_template.is_builtin:
-            QMessageBox.warning(self, "경고", "기본 템플릿은 삭제할 수 없습니다.")
-            return
-
+    def _prompt_save_changes(self):
+        """변경사항 저장 여부 확인"""
         reply = QMessageBox.question(
             self,
-            "삭제 확인",
-            f"'{self._selected_template.name}' 템플릿을 삭제하시겠습니까?\n이 작업은 취소할 수 없습니다.",
+            "변경사항 저장",
+            "변경사항이 있습니다. 저장하시겠습니까?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
-        if reply != QMessageBox.StandardButton.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
+            self._save_current_template()
+
+        self._has_changes = False
+
+    def _save_current_template(self):
+        """현재 템플릿 저장"""
+        if not self._selected_template or self._selected_template.is_readonly:
             return
 
         try:
-            self._storage.delete_template(self._selected_template.id)
-            self._selected_template = None
-            self._load_templates()
-            self._update_detail_panel(None)
-            self.templates_changed.emit()
-            QMessageBox.information(self, "성공", "템플릿이 삭제되었습니다.")
-        except Exception as e:
-            QMessageBox.critical(self, "오류", f"템플릿 삭제 실패:\n{e}")
+            # 이름 업데이트
+            new_name = self._name_edit.text().strip()
+            if new_name and new_name != self._selected_template.name:
+                self._storage.update_template_name(self._selected_template.id, new_name)
 
-    def _on_import(self):
-        """템플릿 가져오기"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "템플릿 가져오기",
-            str(Path.home()),
-            "ZIP Files (*.zip);;All Files (*)",
-        )
+            # 설명 업데이트
+            new_desc = self._desc_edit.toPlainText().strip()
+            self._storage.update_template_description(self._selected_template.id, new_desc)
 
-        if not file_path:
-            return
+            # 활성화 상태 업데이트
+            is_active = self._active_checkbox.isChecked()
+            self._storage.update_template_active(self._selected_template.id, is_active)
 
-        try:
-            new_template = self._storage.import_template(Path(file_path))
+            self._has_changes = False
             self._load_templates()
             self.templates_changed.emit()
 
-            # 사용자 탭으로 전환
-            self._tab_widget.setCurrentIndex(1)
-
-            QMessageBox.information(
-                self, "성공", f"템플릿 '{new_template.name}'이(가) 가져와졌습니다."
-            )
         except Exception as e:
-            QMessageBox.critical(self, "오류", f"템플릿 가져오기 실패:\n{e}")
+            QMessageBox.critical(self, "오류", f"템플릿 저장 실패:\n{e}")
 
-    def _on_export(self):
-        """템플릿 내보내기"""
+    def _on_save(self):
+        """저장 버튼 클릭"""
         if not self._selected_template:
+            QMessageBox.warning(self, "알림", "저장할 템플릿을 선택하세요.")
             return
 
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "템플릿 내보내기",
-            str(Path.home() / f"{self._selected_template.name}.zip"),
-            "ZIP Files (*.zip)",
-        )
-
-        if not file_path:
+        if self._selected_template.is_readonly:
+            QMessageBox.warning(self, "알림", "기본 템플릿은 수정할 수 없습니다.")
             return
 
-        try:
-            self._storage.export_template(self._selected_template.id, Path(file_path))
-            QMessageBox.information(
-                self, "성공", f"템플릿이 '{file_path}'로 내보내졌습니다."
-            )
-        except Exception as e:
-            QMessageBox.critical(self, "오류", f"템플릿 내보내기 실패:\n{e}")
-
-    def _get_new_name(self, default: str) -> tuple:
-        """새 이름 입력 받기"""
-        from PyQt6.QtWidgets import QInputDialog
-
-        name, ok = QInputDialog.getText(
-            self, "템플릿 이름", "템플릿 이름을 입력하세요:", text=default
-        )
-        return name, ok
+        self._save_current_template()
+        QMessageBox.information(self, "성공", "템플릿이 저장되었습니다.")
 
     def get_selected_template_id(self) -> Optional[str]:
         """선택된 템플릿 ID 반환"""
         if self._selected_template:
             return self._selected_template.id
         return None
+
+    def closeEvent(self, event):
+        """다이얼로그 닫기 이벤트"""
+        if self._has_changes:
+            reply = QMessageBox.question(
+                self,
+                "변경사항 저장",
+                "저장하지 않은 변경사항이 있습니다. 저장하시겠습니까?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                self._save_current_template()
+                event.accept()
+            elif reply == QMessageBox.StandardButton.No:
+                event.accept()
+            else:
+                event.ignore()
+        else:
+            event.accept()
