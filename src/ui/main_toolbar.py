@@ -130,14 +130,17 @@ class MainToolbar(QToolBar):
 
     def _setup_style(self):
         """툴바 스타일 설정 (스켈레톤 분석기와 동일)"""
-        self.setStyleSheet("""
-            QToolBar {
+        # 드롭다운 화살표 아이콘 경로
+        arrow_icon_path = self._get_icon_path("dropdown-arrow").replace("\\", "/")
+
+        self.setStyleSheet(f"""
+            QToolBar {{
                 background-color: #333333;
                 border: none;
                 padding: 8px 10px;
                 spacing: 8px;
-            }
-            QComboBox {
+            }}
+            QComboBox {{
                 background-color: #3a3a3a;
                 border: 1px solid #555555;
                 border-radius: 4px;
@@ -145,33 +148,31 @@ class MainToolbar(QToolBar):
                 color: #ffffff;
                 min-width: 100px;
                 font-size: 11px;
-            }
-            QComboBox:hover {
+            }}
+            QComboBox:hover {{
                 border: 1px solid #666666;
                 background-color: #4a4a4a;
-            }
-            QComboBox::drop-down {
+            }}
+            QComboBox::drop-down {{
                 border: none;
                 width: 20px;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 5px solid #888888;
-                margin-right: 8px;
-            }
-            QComboBox QAbstractItemView {
+            }}
+            QComboBox::down-arrow {{
+                image: url({arrow_icon_path});
+                width: 10px;
+                height: 10px;
+            }}
+            QComboBox QAbstractItemView {{
                 background-color: #3a3a3a;
                 border: 1px solid #555555;
                 selection-background-color: #0d47a1;
                 color: #ffffff;
-            }
-            QLabel {
+            }}
+            QLabel {{
                 color: #888888;
                 font-size: 10px;
                 padding: 0 4px;
-            }
+            }}
         """)
 
     def _setup_ui(self):
