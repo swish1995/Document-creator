@@ -56,11 +56,16 @@ class ExcelLoader:
         self._ensure_loaded()
         return len(self._data)
 
-    def load(self, file_path: Path | str) -> None:
+    def load(self, file_path: Path | str, progress_callback: callable = None) -> None:
         """엑셀 파일 로드
 
         Args:
             file_path: 엑셀 파일 경로
+            progress_callback: 진행 상황 콜백 (step: int, message: str)
+                - step 1: 엑셀 모델 로드 중
+                - step 2: 수식 계산 중
+                - step 3: 값 변환 중
+                - step 4: 데이터 로드 중
 
         Raises:
             ExcelLoaderError: 파일을 찾을 수 없거나 형식이 잘못된 경우
@@ -70,13 +75,18 @@ class ExcelLoader:
         if not file_path.exists():
             raise ExcelLoaderError(f"파일을 찾을 수 없습니다: {file_path}")
 
+        def update_progress(step: int, message: str):
+            if progress_callback:
+                progress_callback(step, message)
+
         try:
             # 1단계: formulas로 수식 계산
             self._logger.info(f"수식 계산 시작: {file_path}")
-            self._calculate_formulas(file_path)
+            self._calculate_formulas(file_path, update_progress)
             self._logger.info("수식 계산 완료")
 
-            # 2단계: openpyxl로 구조 로드 (수식 텍스트 포함)
+            # 4단계: openpyxl로 구조 로드
+            update_progress(4, "데이터 로드 중...")
             self._workbook = openpyxl.load_workbook(file_path, read_only=True, data_only=False)
         except InvalidFileException as e:
             raise ExcelLoaderError(f"잘못된 엑셀 파일 형식입니다: {e}")
@@ -87,16 +97,23 @@ class ExcelLoader:
         self._file_path = file_path
         self._load_sheet()
 
-    def _calculate_formulas(self, file_path: Path) -> None:
+    def _calculate_formulas(self, file_path: Path, update_progress: callable = None) -> None:
         """formulas 라이브러리로 수식 계산"""
         import time
+
+        def progress(step: int, message: str):
+            if update_progress:
+                update_progress(step, message)
+
         try:
             t0 = time.time()
+            progress(1, "엑셀 모델 로드 중...")
             self._logger.info("엑셀 모델 로드 중...")
             xl_model = formulas.ExcelModel().loads(str(file_path)).finish()
             self._logger.info(f"엑셀 모델 로드 완료 ({time.time() - t0:.1f}초)")
 
             t1 = time.time()
+            progress(2, "수식 계산 중...")
             self._logger.info("수식 계산 중...")
             solution = xl_model.calculate()
             self._logger.info(f"수식 계산 완료 ({time.time() - t1:.1f}초)")
@@ -104,6 +121,7 @@ class ExcelLoader:
             # 계산된 값을 딕셔너리로 저장
             # key 형식: '[파일명]시트명'!A1 → 시트명!A1 로 정규화
             t2 = time.time()
+            progress(3, "값 변환 중...")
             self._calculated_values = {}
             for key, value in solution.items():
                 # 키에서 시트명과 셀 주소 추출
