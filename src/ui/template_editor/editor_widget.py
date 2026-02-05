@@ -420,15 +420,14 @@ class EditorWidget(QWidget):
             if self._web_view:
                 self._web_view.setHtml(rendered)
 
-            # 매핑 미리보기 뷰 업데이트 (필드 하이라이트 포함)
+            # 매핑 미리보기 뷰 업데이트 (JavaScript로 하이라이트)
             if self._mapping_web_view:
-                # 먼저 템플릿에 하이라이트 span 추가 후 렌더링
-                highlighted_template = self._add_field_highlights_to_template(self._html_content)
-                mapping_template = Jinja2Template(highlighted_template)
-                mapping_rendered = mapping_template.render(**self._preview_data)
-
-                # 추가 스타일과 스크립트 적용
-                mapping_rendered = self._add_field_highlights(mapping_rendered)
+                # 기본 HTML + 가벼운 하이라이트 스크립트
+                highlight_script = self._get_highlight_script()
+                if "</body>" in rendered:
+                    mapping_rendered = rendered.replace("</body>", f"{highlight_script}</body>")
+                else:
+                    mapping_rendered = f"{rendered}{highlight_script}"
                 self._mapping_web_view.setHtml(mapping_rendered)
 
         except Exception as e:
@@ -540,6 +539,31 @@ class EditorWidget(QWidget):
             html = f"{html}{highlight_js}"
 
         return html
+
+    def _get_highlight_script(self) -> str:
+        """가벼운 하이라이트 JavaScript 반환 (테스트용 카운터 포함)"""
+        return """
+        <div id="cc-counter" style="position:fixed;top:10px;right:10px;background:#ff5722;color:white;padding:10px 20px;border-radius:5px;font-size:20px;font-weight:bold;z-index:9999;">
+            카운트: 0
+        </div>
+        <script>
+        (function() {
+            let count = 0;
+            const counter = document.getElementById('cc-counter');
+
+            setInterval(function() {
+                count++;
+                if (counter) {
+                    counter.textContent = '카운트: ' + count;
+                }
+            }, 1000);
+
+            window.highlightField = function(fieldId) {
+                console.log('highlightField called:', fieldId);
+            };
+        })();
+        </script>
+        """
 
     def highlight_field(self, field_id: str):
         """특정 필드 하이라이트"""
