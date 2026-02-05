@@ -28,9 +28,14 @@ except ImportError:
     HAS_WEBENGINE = False
     QWebEngineView = None
 
+import re
+
 from jinja2 import Template as Jinja2Template
 
 from .auto_save import AutoSaveManager
+from src.core.logger import get_logger
+
+_logger = get_logger(__name__)
 
 
 class EditorWidget(QWidget):
@@ -57,6 +62,7 @@ class EditorWidget(QWidget):
         self._html_content: str = ""
         self._preview_data: Dict[str, Any] = {}
         self._fields: List[Dict[str, Any]] = []
+        self._has_excel_data: bool = False  # 엑셀 데이터 로드 여부
         self._modified: bool = False
         self._current_mode: int = self.MODE_PREVIEW
         self._zoom_level: int = 100
@@ -215,9 +221,18 @@ class EditorWidget(QWidget):
         header_view.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
         self._field_tree.setColumnWidth(0, 120)
 
+        # 필드 클릭 시 하이라이트
+        self._field_tree.itemClicked.connect(self._on_field_clicked)
+
         layout.addWidget(self._field_tree, 1)
 
         return panel
+
+    def _on_field_clicked(self, item: QTreeWidgetItem, column: int):
+        """필드 목록에서 아이템 클릭"""
+        field_id = item.data(0, Qt.ItemDataRole.UserRole)
+        if field_id:
+            self.highlight_field(field_id)
 
     def _create_mapping_preview(self) -> QWidget:
         """매핑용 미리보기 패널 생성"""
@@ -233,7 +248,12 @@ class EditorWidget(QWidget):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 8, 8, 8)
 
-        # 헤더
+        # 헤더 영역 (타이틀 + 경고 라벨)
+        header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(8)
+
+        # 타이틀
         header = QLabel("🎯 매핑 미리보기 (클릭하여 필드 삽입)")
         header.setStyleSheet("""
             QLabel {
@@ -243,9 +263,27 @@ class EditorWidget(QWidget):
                 padding: 4px;
             }
         """)
-        layout.addWidget(header)
+        header_layout.addWidget(header)
+        header_layout.addStretch()
 
-        # 미리보기 영역 (TODO: Phase 3에서 MappingOverlay 추가)
+        # 경고 라벨 (엑셀 파일 없을 때 표시) - 오른쪽에 배치
+        self._no_excel_warning = QLabel("⚠ 엑셀 파일을 열어주세요")
+        self._no_excel_warning.setStyleSheet("""
+            QLabel {
+                color: #ffffff;
+                background-color: #c62828;
+                font-weight: bold;
+                font-size: 11px;
+                padding: 4px 8px;
+                border-radius: 3px;
+            }
+        """)
+        self._no_excel_warning.setVisible(True)  # 기본적으로 표시
+        header_layout.addWidget(self._no_excel_warning)
+
+        layout.addLayout(header_layout)
+
+        # 미리보기 영역
         if HAS_WEBENGINE:
             self._mapping_web_view = QWebEngineView()
             layout.addWidget(self._mapping_web_view, 1)
@@ -309,9 +347,12 @@ class EditorWidget(QWidget):
             return
 
         for field in self._fields:
-            label = field.get("label", field.get("id", ""))
+            field_id = field.get("id", "")
+            label = field.get("label", field_id)
             excel_column = field.get("excel_column", "")
             item = QTreeWidgetItem([label, excel_column])
+            item.setData(0, Qt.ItemDataRole.UserRole, field_id)  # 필드 ID 저장
+            item.setToolTip(0, f"클릭하여 위치 확인: {field_id}")
             self._field_tree.addTopLevelItem(item)
 
     def load_template_from_path(self, template_path: Path):
@@ -350,6 +391,10 @@ class EditorWidget(QWidget):
             data: 템플릿에 바인딩할 데이터
         """
         self._preview_data = data
+        self._has_excel_data = bool(data)  # 데이터가 있으면 True
+        # 경고 라벨 가시성 업데이트
+        self._no_excel_warning.setVisible(not self._has_excel_data)
+
         self._update_preview()
 
     def _update_preview(self):
@@ -375,9 +420,16 @@ class EditorWidget(QWidget):
             if self._web_view:
                 self._web_view.setHtml(rendered)
 
-            # 매핑 미리보기 뷰 업데이트
+            # 매핑 미리보기 뷰 업데이트 (필드 하이라이트 포함)
             if self._mapping_web_view:
-                self._mapping_web_view.setHtml(rendered)
+                # 먼저 템플릿에 하이라이트 span 추가 후 렌더링
+                highlighted_template = self._add_field_highlights_to_template(self._html_content)
+                mapping_template = Jinja2Template(highlighted_template)
+                mapping_rendered = mapping_template.render(**self._preview_data)
+
+                # 추가 스타일과 스크립트 적용
+                mapping_rendered = self._add_field_highlights(mapping_rendered)
+                self._mapping_web_view.setHtml(mapping_rendered)
 
         except Exception as e:
             error_html = f"""
@@ -390,6 +442,110 @@ class EditorWidget(QWidget):
             """
             if self._web_view:
                 self._web_view.setHtml(error_html)
+
+    def _add_field_highlights_to_template(self, html_template: str) -> str:
+        """템플릿의 {{ field_id }} 패턴을 하이라이트 span으로 감싸기"""
+        # 필드 ID를 라벨로 매핑
+        field_labels = {f.get("id", ""): f.get("label", f.get("id", "")) for f in self._fields}
+
+        def replace_field(match):
+            field_id = match.group(1).strip()
+            label = field_labels.get(field_id, field_id)
+            # 하이라이트 span으로 감싸기
+            return f'<span class="mapping-field" data-field="{field_id}" title="{label}">{{{{ {field_id} }}}}</span>'
+
+        # {{ field_id }} 패턴을 찾아서 span으로 감싸기
+        pattern = r'\{\{\s*(\w+)\s*\}\}'
+        return re.sub(pattern, replace_field, html_template)
+
+    def _add_field_highlights(self, html: str) -> str:
+        """매핑 모드용 필드 하이라이트 추가 (렌더링된 HTML)"""
+        # 필드 ID를 라벨로 매핑
+        field_labels = {f.get("id", ""): f.get("label", f.get("id", "")) for f in self._fields}
+
+        # 하이라이트 스타일 CSS
+        highlight_css = """
+        <style>
+            .mapping-field {
+                background-color: #ffeb3b !important;
+                color: #000000 !important;
+                padding: 1px 4px !important;
+                border-radius: 3px !important;
+                border: 1px solid #ffc107 !important;
+                cursor: pointer !important;
+                font-weight: bold !important;
+                display: inline-block !important;
+                min-width: 20px !important;
+                text-align: center !important;
+            }
+            .mapping-field:hover {
+                background-color: #ffc107 !important;
+            }
+            .mapping-field.highlighted {
+                background-color: #ff5722 !important;
+                border-color: #e64a19 !important;
+                color: #ffffff !important;
+                animation: pulse 0.5s ease-in-out 3;
+            }
+            .mapping-field.empty {
+                background-color: #ef5350 !important;
+                border-color: #c62828 !important;
+                color: #ffffff !important;
+            }
+            @keyframes pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.1); }
+            }
+        </style>
+        """
+
+        # HTML에서 필드 값을 찾아서 하이라이트 span으로 감싸기
+        for field in self._fields:
+            field_id = field.get("id", "")
+            label = field.get("label", field_id)
+
+            if field_id in self._preview_data:
+                value = str(self._preview_data[field_id])
+                if value and value.strip():
+                    # 값이 있으면 하이라이트
+                    escaped_value = re.escape(value)
+                    pattern = f'(?<!["\'>])({escaped_value})(?![<"\'])'
+                    replacement = f'<span class="mapping-field" data-field="{field_id}" title="{label}">{value}</span>'
+                    html = re.sub(pattern, replacement, html, count=1)
+
+        # CSS 삽입
+        if "</head>" in html:
+            html = html.replace("</head>", f"{highlight_css}</head>")
+        else:
+            html = f"{highlight_css}{html}"
+
+        # JavaScript 추가
+        highlight_js = """
+        <script>
+            function highlightField(fieldId) {
+                document.querySelectorAll('.mapping-field.highlighted').forEach(el => {
+                    el.classList.remove('highlighted');
+                });
+                const field = document.querySelector('[data-field="' + fieldId + '"]');
+                if (field) {
+                    field.classList.add('highlighted');
+                    field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        </script>
+        """
+        if "</body>" in html:
+            html = html.replace("</body>", f"{highlight_js}</body>")
+        else:
+            html = f"{html}{highlight_js}"
+
+        return html
+
+    def highlight_field(self, field_id: str):
+        """특정 필드 하이라이트"""
+        if self._mapping_web_view:
+            js_code = f'highlightField("{field_id}");'
+            self._mapping_web_view.page().runJavaScript(js_code)
 
     def save_template(self) -> bool:
         """템플릿 저장
