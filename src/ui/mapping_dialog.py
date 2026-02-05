@@ -337,14 +337,15 @@ class MappingDialog(QDialog):
 
     def _on_reset_clicked(self) -> None:
         """초기화 버튼"""
-        reply = QMessageBox.question(
-            self,
-            "확인",
-            "모든 수동 매핑을 제거하시겠습니까?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("확인")
+        msg_box.setText("모든 수동 매핑을 제거하시겠습니까?")
+        msg_box.setIcon(QMessageBox.Icon.Question)
+        yes_btn = msg_box.addButton("예", QMessageBox.ButtonRole.YesRole)
+        no_btn = msg_box.addButton("아니오", QMessageBox.ButtonRole.NoRole)
+        msg_box.exec()
 
-        if reply == QMessageBox.StandardButton.Yes:
+        if msg_box.clickedButton() == yes_btn:
             self._mapper.reset_to_auto()
             self._load_current_mappings()
             self._update_status()

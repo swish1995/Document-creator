@@ -539,14 +539,15 @@ class TemplateManagerDialog(QDialog):
         self._save_current_to_pending()
 
         if self._pending_changes:
-            reply = QMessageBox.question(
-                self,
-                "저장",
-                "저장하시겠습니까?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("저장")
+            msg_box.setText("저장하시겠습니까?")
+            msg_box.setIcon(QMessageBox.Icon.Question)
+            yes_btn = msg_box.addButton("예", QMessageBox.ButtonRole.YesRole)
+            no_btn = msg_box.addButton("아니오", QMessageBox.ButtonRole.NoRole)
+            msg_box.exec()
 
-            if reply == QMessageBox.StandardButton.Yes:
+            if msg_box.clickedButton() == yes_btn:
                 self._save_all_changes()
             event.accept()
         else:
