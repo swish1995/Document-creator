@@ -8,9 +8,11 @@ Skeleton Analyzer에서 생성된 엑셀 파일을 로드하고 데이터를 제
 from __future__ import annotations
 
 import shutil
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Optional, List, Dict, Union
+from typing import Any, Optional, List, Dict, Union, Tuple
 
 import openpyxl
 from openpyxl.utils.exceptions import InvalidFileException
@@ -34,6 +36,7 @@ class ExcelLoader:
 
     DEFAULT_SHEET_NAME = "Capture Data"
     IMAGES_DIR_NAME = ".images"
+    THUMBNAIL_SIZE = 40  # 썸네일 크기
 
     def __init__(self, base_dir: Path | str | None = None):
         self._logger = get_logger("excel_loader")
@@ -45,6 +48,7 @@ class ExcelLoader:
         self._file_path: Path | None = None
         self._calculated_values: dict = {}  # 수식 계산 결과 캐시
         self._image_map: dict[str, Path] = {}  # 셀 주소 → 이미지 경로 매핑
+        self._thumbnail_map: dict[str, Path] = {}  # 셀 주소 → 썸네일 경로 매핑
 
         # 이미지 디렉토리 설정
         if base_dir is None:
@@ -56,6 +60,11 @@ class ExcelLoader:
     def images_dir(self) -> Path:
         """이미지 디렉토리 경로"""
         return self._images_dir
+
+    @property
+    def thumbnail_map(self) -> dict[str, Path]:
+        """썸네일 경로 매핑"""
+        return self._thumbnail_map.copy()
 
     def get_image_path(self, row: int, col: int) -> Path | None:
         """특정 셀의 이미지 경로 반환
@@ -70,6 +79,19 @@ class ExcelLoader:
         # 엑셀 행은 1-based, 헤더가 1행이므로 데이터는 2행부터
         cell_key = f"{row + 2}_{col}"
         return self._image_map.get(cell_key)
+
+    def get_thumbnail_path(self, row: int, col: int) -> Path | None:
+        """특정 셀의 썸네일 경로 반환
+
+        Args:
+            row: 행 인덱스 (0부터 시작, 데이터 행 기준)
+            col: 열 인덱스 (0부터 시작)
+
+        Returns:
+            썸네일 경로, 없으면 None
+        """
+        cell_key = f"{row + 2}_{col}"
+        return self._thumbnail_map.get(cell_key)
 
     def cleanup_images(self) -> None:
         """이미지 디렉토리 정리"""
@@ -142,13 +164,43 @@ class ExcelLoader:
         self._file_path = file_path
         self._load_sheet()
 
+    def _process_single_image(self, img_data: bytes, row: int, col: int) -> Tuple[str, Path, Path]:
+        """단일 이미지 처리 (병렬 처리용)
+
+        Args:
+            img_data: 이미지 바이트 데이터
+            row: 행 번호 (1-based)
+            col: 열 번호
+
+        Returns:
+            (cell_key, 이미지 경로, 썸네일 경로)
+        """
+        cell_key = f"{row}_{col}"
+        img_path = self._images_dir / f"img_{row}_{col}.png"
+        thumb_path = self._images_dir / f"thumb_{row}_{col}.png"
+
+        # PIL로 이미지 처리 및 저장
+        pil_img = Image.open(BytesIO(img_data))
+        pil_img.save(img_path, "PNG")
+
+        # 썸네일 생성 및 저장
+        thumb_img = pil_img.copy()
+        thumb_img.thumbnail((self.THUMBNAIL_SIZE, self.THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
+        thumb_img.save(thumb_path, "PNG")
+
+        return cell_key, img_path, thumb_path
+
     def _extract_images(self, file_path: Path) -> None:
-        """엑셀 파일에서 이미지 추출"""
+        """엑셀 파일에서 이미지 추출 (병렬 처리 + 썸네일 미리 생성)"""
+        t0 = time.time()
         self._image_map = {}
+        self._thumbnail_map = {}
 
         try:
             # read_only=False로 열어야 이미지 접근 가능
+            t_open = time.time()
             wb = openpyxl.load_workbook(file_path, read_only=False)
+            self._logger.info(f"이미지용 워크북 열기: {time.time() - t_open:.2f}초")
 
             # 대상 시트 선택
             if self.DEFAULT_SHEET_NAME in wb.sheetnames:
@@ -165,34 +217,41 @@ class ExcelLoader:
             # 이미지 디렉토리 생성
             self._images_dir.mkdir(parents=True, exist_ok=True)
 
-            for i, img in enumerate(images):
+            # 이미지 데이터 수집 (메인 스레드에서)
+            t_collect = time.time()
+            image_tasks = []
+            for img in images:
                 try:
-                    # 이미지 위치 추출
                     anchor = img.anchor
                     if hasattr(anchor, '_from'):
                         col = anchor._from.col
                         row = anchor._from.row + 1  # 0-based to 1-based
-                    else:
-                        continue
-
-                    # 이미지 데이터 추출 및 저장
-                    img_data = img._data()
-                    img_path = self._images_dir / f"img_{row}_{col}.png"
-
-                    # PIL로 이미지 처리 및 저장
-                    pil_img = Image.open(BytesIO(img_data))
-                    pil_img.save(img_path, "PNG")
-
-                    # 매핑 저장 (row_col 형식, 데이터 행 기준으로 변환)
-                    cell_key = f"{row}_{col}"
-                    self._image_map[cell_key] = img_path
-                    self._logger.debug(f"이미지 추출: {cell_key} → {img_path}")
-
+                        img_data = img._data()
+                        image_tasks.append((img_data, row, col))
                 except Exception as e:
-                    self._logger.warning(f"이미지 {i} 추출 실패: {e}")
-
+                    self._logger.warning(f"이미지 데이터 수집 실패: {e}")
             wb.close()
-            self._logger.info(f"이미지 추출 완료: {len(self._image_map)}개")
+            self._logger.info(f"이미지 데이터 수집: {time.time() - t_collect:.2f}초, {len(image_tasks)}개")
+
+            # 병렬 이미지 처리
+            t_process = time.time()
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                futures = {
+                    executor.submit(self._process_single_image, img_data, row, col): (row, col)
+                    for img_data, row, col in image_tasks
+                }
+
+                for future in as_completed(futures):
+                    row, col = futures[future]
+                    try:
+                        cell_key, img_path, thumb_path = future.result()
+                        self._image_map[cell_key] = img_path
+                        self._thumbnail_map[cell_key] = thumb_path
+                    except Exception as e:
+                        self._logger.warning(f"이미지 처리 실패 ({row}, {col}): {e}")
+
+            self._logger.info(f"이미지 처리(병렬): {time.time() - t_process:.2f}초")
+            self._logger.info(f"이미지 추출 완료: {len(self._image_map)}개, 총 {time.time() - t0:.2f}초")
 
         except Exception as e:
             self._logger.warning(f"이미지 추출 중 오류: {e}")
