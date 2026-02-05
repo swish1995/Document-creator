@@ -520,6 +520,11 @@ class MainWindow(QMainWindow):
 
         if reply == QMessageBox.StandardButton.Yes:
             self._logger.info("앱 종료")
+
+            # 이미지 디렉토리 정리
+            if self._excel_viewer._loader:
+                self._excel_viewer._loader.cleanup_images()
+
             # 윈도우 위치/크기 저장
             self._settings.setValue("geometry", self.saveGeometry())
             self._settings.setValue("windowState", self.saveState())

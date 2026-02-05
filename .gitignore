@@ -51,3 +51,6 @@ htmlcov/
 # Temporary files
 *.tmp
 .cache/
+
+# 임시 이미지 디렉토리
+.images/

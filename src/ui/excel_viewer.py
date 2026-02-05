@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from PyQt6.QtCore import Qt, pyqtSignal, QAbstractTableModel, QModelIndex, QSize
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QPixmap, QImage
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -22,14 +22,54 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QProgressDialog,
     QApplication,
+    QDialog,
 )
 
 from src.core.excel_loader import ExcelLoader, ExcelLoaderError
 from src.core.logger import get_logger
 
 
+class ImagePreviewDialog(QDialog):
+    """이미지 미리보기 다이얼로그"""
+
+    def __init__(self, image_path: Path, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("이미지 미리보기")
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        # 이미지 표시
+        label = QLabel()
+        pixmap = QPixmap(str(image_path))
+        if not pixmap.isNull():
+            # 최대 크기 제한 (800x600)
+            max_size = QSize(800, 600)
+            if pixmap.width() > max_size.width() or pixmap.height() > max_size.height():
+                pixmap = pixmap.scaled(
+                    max_size,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+            label.setPixmap(pixmap)
+        else:
+            label.setText("이미지를 로드할 수 없습니다.")
+
+        layout.addWidget(label)
+
+        # 닫기 버튼
+        close_btn = QPushButton("닫기")
+        close_btn.clicked.connect(self.close)
+        layout.addWidget(close_btn)
+
+        self.adjustSize()
+
+
 class ExcelTableModel(QAbstractTableModel):
     """엑셀 데이터 테이블 모델"""
+
+    THUMBNAIL_SIZE = 40  # 썸네일 크기
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -39,6 +79,7 @@ class ExcelTableModel(QAbstractTableModel):
         self._data_by_index: List[List[Any]] = []  # 인덱스 기반 데이터
         self._selected_rows: Set[int] = set()
         self._preview_row: int = 0
+        self._thumbnail_cache: Dict[str, QPixmap] = {}  # 썸네일 캐시
 
     def load_data(self, headers: List[str], data: List[Dict[str, Any]], data_by_index: List[List[Any]] = None):
         """데이터 로드"""
@@ -48,6 +89,7 @@ class ExcelTableModel(QAbstractTableModel):
         self._data_by_index = data_by_index or []
         self._selected_rows.clear()
         self._preview_row = 0
+        self._thumbnail_cache.clear()  # 썸네일 캐시 초기화
         self.endResetModel()
 
     def rowCount(self, parent=QModelIndex()) -> int:
@@ -64,19 +106,33 @@ class ExcelTableModel(QAbstractTableModel):
         row = index.row()
         col = index.column()
 
+        # 셀 값 가져오기
+        value = None
+        if col > 0:
+            col_index = col - 1
+            if self._data_by_index and row < len(self._data_by_index):
+                row_data = self._data_by_index[row]
+                if col_index < len(row_data):
+                    value = row_data[col_index]
+
+        # 이미지 경로인지 확인
+        from pathlib import Path
+        is_image = isinstance(value, Path) and value.exists()
+
         if role == Qt.ItemDataRole.DisplayRole:
             if col == 0:
                 # 체크박스 컬럼 - 텍스트 없음
                 return None
+            elif is_image:
+                # 이미지 셀 - 텍스트 없음 (DecorationRole에서 처리)
+                return None
             else:
-                # 인덱스 기반으로 값 가져오기 (중복 헤더 지원)
-                col_index = col - 1
-                if self._data_by_index and row < len(self._data_by_index):
-                    row_data = self._data_by_index[row]
-                    if col_index < len(row_data):
-                        value = row_data[col_index]
-                        return str(value) if value is not None else ""
-                return ""
+                return str(value) if value is not None else ""
+
+        elif role == Qt.ItemDataRole.DecorationRole:
+            if is_image:
+                # 썸네일 반환
+                return self._get_thumbnail(value)
 
         elif role == Qt.ItemDataRole.CheckStateRole:
             if col == 0:
@@ -91,7 +147,28 @@ class ExcelTableModel(QAbstractTableModel):
         elif role == Qt.ItemDataRole.TextAlignmentRole:
             return Qt.AlignmentFlag.AlignCenter
 
+        elif role == Qt.ItemDataRole.UserRole:
+            # 이미지 경로 반환 (클릭 시 미리보기용)
+            if is_image:
+                return value
+
         return None
+
+    def _get_thumbnail(self, image_path: Path) -> QPixmap:
+        """이미지 썸네일 생성 (캐시 사용)"""
+        cache_key = str(image_path)
+        if cache_key not in self._thumbnail_cache:
+            pixmap = QPixmap(str(image_path))
+            if not pixmap.isNull():
+                # 썸네일 크기로 축소
+                self._thumbnail_cache[cache_key] = pixmap.scaled(
+                    self.THUMBNAIL_SIZE, self.THUMBNAIL_SIZE,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+            else:
+                self._thumbnail_cache[cache_key] = QPixmap()
+        return self._thumbnail_cache[cache_key]
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole):
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
@@ -390,8 +467,8 @@ class ExcelViewer(QWidget):
 
     def load_file(self, file_path: Path):
         """파일 로드"""
-        # 프로그레스 다이얼로그 표시 (4단계)
-        progress = QProgressDialog("준비 중...", None, 0, 4, self)
+        # 프로그레스 다이얼로그 표시 (5단계)
+        progress = QProgressDialog("준비 중...", None, 0, 5, self)
         progress.setWindowTitle("파일 로드")
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)
@@ -427,6 +504,10 @@ class ExcelViewer(QWidget):
             # 첫 번째 컬럼 너비 조정
             self._table_view.setColumnWidth(0, 50)
 
+            # 이미지가 있으면 행 높이 조절
+            if self._loader.images_dir.exists():
+                self._table_view.verticalHeader().setDefaultSectionSize(50)
+
             self.file_loaded.emit(file_path.name, len(data))
         finally:
             progress.close()
@@ -445,11 +526,19 @@ class ExcelViewer(QWidget):
             self._model.toggle_row(index.row())
 
     def _on_table_clicked(self, index: QModelIndex):
-        """테이블 클릭 - 미리보기 행 변경"""
+        """테이블 클릭 - 미리보기 행 변경 또는 이미지 미리보기"""
         # 체크박스 컬럼(0번)은 pressed에서 이미 처리했으므로 무시
         if index.column() == 0:
             return
-        
+
+        # 이미지 셀인지 확인
+        image_path = self._model.data(index, Qt.ItemDataRole.UserRole)
+        if image_path is not None:
+            # 이미지 미리보기 다이얼로그 표시
+            dialog = ImagePreviewDialog(image_path, self)
+            dialog.exec()
+            return
+
         # 데이터 컬럼 클릭 - 미리보기 행 변경
         row = index.row()
         self._logger.debug(f"미리보기 행 변경: row={row}")
