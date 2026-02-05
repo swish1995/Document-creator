@@ -8,8 +8,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Optional, Any
 
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
-from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QRectF
+from PyQt6.QtGui import QIcon, QPainter, QColor, QPen
 from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -29,6 +29,71 @@ from PyQt6.QtWidgets import (
 
 from src.core.template_storage import TemplateStorage, ExtendedTemplate
 from src.core.template_manager import SAFETY_INDICATORS
+
+
+class ToggleSwitch(QWidget):
+    """스마트폰 스타일 토글 스위치"""
+
+    toggled = pyqtSignal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._checked = False
+        self.setFixedSize(36, 18)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def isChecked(self) -> bool:
+        return self._checked
+
+    def setChecked(self, checked: bool):
+        if self._checked != checked:
+            self._checked = checked
+            self.update()
+
+    def setEnabled(self, enabled: bool):
+        super().setEnabled(enabled)
+        self.update()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._checked = not self._checked
+            self.toggled.emit(self._checked)
+            self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # 배경 트랙
+        track_rect = QRectF(0, 0, self.width(), self.height())
+        track_radius = self.height() / 2
+
+        if not self.isEnabled():
+            track_color = QColor("#3a3a3a")
+            knob_color = QColor("#666666")
+        elif self._checked:
+            track_color = QColor("#5ab87a")
+            knob_color = QColor("#ffffff")
+        else:
+            track_color = QColor("#555555")
+            knob_color = QColor("#ffffff")
+
+        # 트랙 그리기
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(track_color)
+        painter.drawRoundedRect(track_rect, track_radius, track_radius)
+
+        # 노브 (원형)
+        knob_margin = 2
+        knob_diameter = self.height() - (knob_margin * 2)
+        if self._checked:
+            knob_x = self.width() - knob_diameter - knob_margin
+        else:
+            knob_x = knob_margin
+        knob_y = knob_margin
+
+        painter.setBrush(knob_color)
+        painter.drawEllipse(QRectF(knob_x, knob_y, knob_diameter, knob_diameter))
 
 
 # 버튼별 색상 정의 (기본색, 어두운색, 밝은색)
@@ -91,6 +156,7 @@ class TemplateManagerDialog(QDialog):
         self._storage = template_storage
         self._selected_template: Optional[ExtendedTemplate] = None
         self._pending_changes: Dict[str, Dict[str, Any]] = {}  # 템플릿별 변경사항
+        self._skip_save_prompt = False  # 취소 시 저장 확인 건너뛰기
 
         self.setWindowTitle("템플릿 설정")
         self.setMinimumSize(700, 500)
@@ -206,13 +272,10 @@ class TemplateManagerDialog(QDialog):
         form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         form_layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
-        # 활성화 토글 버튼
-        self._active_toggle = QPushButton("활성")
-        self._active_toggle.setCheckable(True)
+        # 활성화 토글 스위치
+        self._active_toggle = ToggleSwitch()
         self._active_toggle.setChecked(True)
-        self._active_toggle.setFixedSize(60, 28)
-        self._active_toggle.clicked.connect(self._on_toggle_active)
-        self._update_toggle_style(True)
+        self._active_toggle.toggled.connect(self._on_toggle_active)
         form_layout.addRow("상태:", self._active_toggle)
 
         # 이름
@@ -331,7 +394,6 @@ class TemplateManagerDialog(QDialog):
             self._desc_edit.setReadOnly(True)
             self._active_toggle.setChecked(False)
             self._active_toggle.setEnabled(False)
-            self._update_toggle_style(False)
         else:
             # pending 변경사항이 있으면 그 값 사용
             pending = self._pending_changes.get(template.id, {})
@@ -360,7 +422,6 @@ class TemplateManagerDialog(QDialog):
             # 활성화 상태
             is_active = self._get_template_active_state(template)
             self._active_toggle.setChecked(is_active)
-            self._update_toggle_style(is_active)
             self._active_toggle.setEnabled(True)
 
         # 변경 감지 재개
@@ -375,9 +436,7 @@ class TemplateManagerDialog(QDialog):
         self._refresh_current_item()
 
     def _on_toggle_active(self):
-        """활성화 토글 버튼 클릭"""
-        is_active = self._active_toggle.isChecked()
-        self._update_toggle_style(is_active)
+        """활성화 토글 스위치 변경"""
         self._save_current_to_pending()
         # 목록 업데이트 (비활성 표시 등)
         self._refresh_current_item()
@@ -401,39 +460,6 @@ class TemplateManagerDialog(QDialog):
         else:
             item.setText(f"  {name} (비활성)")
             item.setForeground(Qt.GlobalColor.gray)
-
-    def _update_toggle_style(self, is_active: bool):
-        """토글 버튼 스타일 업데이트"""
-        if is_active:
-            self._active_toggle.setText("활성")
-            self._active_toggle.setStyleSheet("""
-                QPushButton {
-                    background-color: #5ab87a;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    font-weight: bold;
-                    font-size: 11px;
-                }
-                QPushButton:hover {
-                    background-color: #6ac88a;
-                }
-            """)
-        else:
-            self._active_toggle.setText("비활성")
-            self._active_toggle.setStyleSheet("""
-                QPushButton {
-                    background-color: #666666;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    font-weight: bold;
-                    font-size: 11px;
-                }
-                QPushButton:hover {
-                    background-color: #777777;
-                }
-            """)
 
     def _on_template_selected(self):
         """템플릿 선택 (저장 확인 없이 바로 전환)"""
@@ -493,7 +519,7 @@ class TemplateManagerDialog(QDialog):
 
     def _on_cancel(self):
         """취소 버튼 클릭 - 저장 확인 없이 바로 닫기"""
-        self._pending_changes.clear()
+        self._skip_save_prompt = True
         self.close()
 
     def get_selected_template_id(self) -> Optional[str]:
@@ -504,6 +530,11 @@ class TemplateManagerDialog(QDialog):
 
     def closeEvent(self, event):
         """다이얼로그 닫기 이벤트"""
+        # 취소 버튼으로 닫는 경우 저장 확인 건너뛰기
+        if self._skip_save_prompt:
+            event.accept()
+            return
+
         # 현재 템플릿의 변경사항도 pending에 저장
         self._save_current_to_pending()
 
