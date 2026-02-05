@@ -188,7 +188,7 @@ class TemplateManagerDialog(QDialog):
         cancel_btn.setIconSize(QSize(14, 14))
         cancel_btn.setFixedHeight(28)
         cancel_btn.setStyleSheet(_get_button_style('cancel'))
-        cancel_btn.clicked.connect(self.close)
+        cancel_btn.clicked.connect(self._on_cancel)
         button_layout.addWidget(cancel_btn)
 
         layout.addLayout(button_layout)
@@ -490,6 +490,11 @@ class TemplateManagerDialog(QDialog):
 
         if self._save_all_changes():
             self.close()
+
+    def _on_cancel(self):
+        """취소 버튼 클릭 - 저장 확인 없이 바로 닫기"""
+        self._pending_changes.clear()
+        self.close()
 
     def get_selected_template_id(self) -> Optional[str]:
         """선택된 템플릿 ID 반환"""
