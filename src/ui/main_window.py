@@ -650,34 +650,38 @@ class MainWindow(QMainWindow):
         preview_row = self._excel_viewer.get_preview_row()
         self._update_previews(preview_row)
 
+    def _get_active_template_names(self) -> List[str]:
+        """활성화된 모든 템플릿 이름 목록 반환"""
+        if not self._template_storage:
+            return []
+
+        names = []
+        for template in self._template_storage.get_all_templates():
+            is_active = True
+            if template.metadata and hasattr(template.metadata, 'is_active'):
+                is_active = template.metadata.is_active
+            if is_active:
+                names.append(template.name)
+        return names
+
     def _on_export_clicked(self):
         """내보내기 버튼 클릭"""
         selected = self._excel_viewer.get_selected_rows()
-        active_panels = [p for p in self._template_panels if p.is_active]
 
         if not selected:
             self._logger.warning("내보내기 시도: 선택된 행 없음")
             QMessageBox.warning(self, "경고", "내보낼 행을 선택해주세요.")
             return
 
-        # EditorWidget의 템플릿도 확인
-        has_editor_template = self._current_template_id is not None
-        if not active_panels and not has_editor_template:
-            self._logger.warning("내보내기 시도: 선택된 템플릿 없음")
-            QMessageBox.warning(self, "경고", "내보낼 템플릿을 선택해주세요.")
+        # 활성화된 모든 템플릿 목록 가져오기
+        template_names = self._get_active_template_names()
+
+        if not template_names:
+            self._logger.warning("내보내기 시도: 활성화된 템플릿 없음")
+            QMessageBox.warning(self, "경고", "활성화된 템플릿이 없습니다.")
             return
 
-        total_templates = len(active_panels) + (1 if has_editor_template else 0)
-        self._logger.info(f"내보내기 시작: {len(selected)}행, {total_templates}개 템플릿")
-
-        # 템플릿 이름 목록
-        template_names = [p.current_template_name for p in active_panels if p.current_template_name]
-
-        # EditorWidget 템플릿 추가
-        if has_editor_template and self._template_storage:
-            template = self._template_storage.get_template(self._current_template_id)
-            if template:
-                template_names.append(template.name)
+        self._logger.info(f"내보내기 시작: {len(selected)}행, {len(template_names)}개 템플릿")
 
         # 내보내기 설정 다이얼로그
         export_dialog = ExportDialog(
@@ -695,6 +699,8 @@ class MainWindow(QMainWindow):
         rows_data = self._excel_viewer.get_selected_data()
         excel_headers = self._excel_viewer._loader.get_headers() if self._excel_viewer._loader else []
 
+        # TODO: 활성화된 모든 템플릿으로 실제 내보내기 구현 필요
+        # 현재는 기존 DocumentGenerator 사용 (단일 템플릿만 지원)
         # DocumentGenerator 생성
         generator = DocumentGenerator(self._template_manager)
 
