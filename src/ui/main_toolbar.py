@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QPoint
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
 from PyQt6.QtWidgets import (
     QToolBar,
@@ -23,6 +23,18 @@ from PyQt6.QtWidgets import (
     QLabel,
     QSizePolicy,
 )
+
+
+class ToolbarComboBox(QComboBox):
+    """팝업이 콤보박스 바로 아래에 나오는 커스텀 콤보박스"""
+
+    def showPopup(self):
+        """팝업 위치를 콤보박스 바로 아래로 조정"""
+        super().showPopup()
+        # 팝업 위치를 콤보박스 바로 아래로 이동
+        popup = self.view().window()
+        pos = self.mapToGlobal(QPoint(0, self.height()))
+        popup.move(pos)
 
 
 class MainToolbar(QToolBar):
@@ -130,7 +142,6 @@ class MainToolbar(QToolBar):
 
     def _setup_style(self):
         """툴바 스타일 설정 (스켈레톤 분석기와 동일)"""
-        # 드롭다운 화살표 아이콘 경로
         arrow_icon_path = self._get_icon_path("dropdown-arrow").replace("\\", "/")
 
         self.setStyleSheet(f"""
@@ -160,7 +171,7 @@ class MainToolbar(QToolBar):
             QComboBox::down-arrow {{
                 image: url({arrow_icon_path});
                 width: 10px;
-                height: 10px;
+                height: 6px;
             }}
             QComboBox QAbstractItemView {{
                 background-color: #3a3a3a;
@@ -201,7 +212,7 @@ class MainToolbar(QToolBar):
         self.addWidget(template_label)
 
         # 템플릿 선택 드롭다운
-        self.combo_template = QComboBox()
+        self.combo_template = ToolbarComboBox()
         self.combo_template.setToolTip("템플릿 선택")
         self.combo_template.setMinimumWidth(120)
         self.combo_template.setFixedHeight(28)
@@ -248,7 +259,7 @@ class MainToolbar(QToolBar):
         self.addWidget(self.btn_mode_mapping)
 
         # 줌 드롭다운
-        self.combo_zoom = QComboBox()
+        self.combo_zoom = ToolbarComboBox()
         self.combo_zoom.setToolTip("확대/축소")
         self.combo_zoom.addItems(["50%", "75%", "100%", "125%", "150%", "200%"])
         self.combo_zoom.setCurrentText("100%")
