@@ -144,9 +144,10 @@ class TemplateStorage:
         if not self._builtin_dir.exists():
             return
 
-        # 기본 템플릿 활성화 설정 로드
+        # 기본 템플릿 설정 로드
         builtin_settings = self._load_builtin_settings()
         active_states = builtin_settings.get("active_states", {})
+        metadata_overrides = builtin_settings.get("metadata", {})
 
         for template_dir in self._builtin_dir.iterdir():
             if not template_dir.is_dir() or template_dir.name.startswith("."):
@@ -160,18 +161,24 @@ class TemplateStorage:
                 template = Template.from_mapping_file(mapping_files[0])
                 template_id = template_dir.name  # 폴더명을 ID로 사용
 
+                # 설정 파일의 오버라이드 값 가져오기
+                overrides = metadata_overrides.get(template_id, {})
+
                 # 활성화 상태를 포함한 메타데이터 생성
                 is_active = active_states.get(template_id, True)
                 metadata = TemplateMetadata(
                     id=template_id,
-                    name=template.name,
-                    description=template.description,
+                    name=overrides.get("name", template.name),
+                    description=overrides.get("description", template.description),
                     is_active=is_active,
                 )
 
                 extended = ExtendedTemplate.from_template(
                     template, template_id, is_builtin=True, metadata=metadata
                 )
+                # 오버라이드된 이름도 ExtendedTemplate에 반영
+                if "name" in overrides:
+                    extended.name = overrides["name"]
                 self._templates[template_id] = extended
             except TemplateError:
                 continue
@@ -430,7 +437,15 @@ class TemplateStorage:
             template_id: 템플릿 ID
             name: 새 이름
         """
-        self.update_template(template_id, name=name)
+        template = self.get_template(template_id)
+        if template is None:
+            raise TemplateError(f"템플릿을 찾을 수 없습니다: {template_id}")
+
+        if template.is_builtin:
+            # 기본 템플릿: 별도 설정 파일에 저장
+            self._update_builtin_metadata(template_id, name=name)
+        else:
+            self.update_template(template_id, name=name)
 
     def update_template_description(self, template_id: str, description: str) -> None:
         """템플릿 설명 업데이트
@@ -439,7 +454,15 @@ class TemplateStorage:
             template_id: 템플릿 ID
             description: 새 설명
         """
-        self.update_template(template_id, description=description)
+        template = self.get_template(template_id)
+        if template is None:
+            raise TemplateError(f"템플릿을 찾을 수 없습니다: {template_id}")
+
+        if template.is_builtin:
+            # 기본 템플릿: 별도 설정 파일에 저장
+            self._update_builtin_metadata(template_id, description=description)
+        else:
+            self.update_template(template_id, description=description)
 
     def update_template_active(self, template_id: str, is_active: bool) -> None:
         """템플릿 활성화 상태 업데이트
@@ -503,6 +526,29 @@ class TemplateStorage:
         if "active_states" not in settings:
             settings["active_states"] = {}
         settings["active_states"][template_id] = is_active
+        self._save_builtin_settings(settings)
+
+        # 캐시 갱신
+        self._scan_builtin_templates()
+
+    def _update_builtin_metadata(
+        self,
+        template_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> None:
+        """기본 템플릿 메타데이터 업데이트 (이름, 설명)"""
+        settings = self._load_builtin_settings()
+        if "metadata" not in settings:
+            settings["metadata"] = {}
+        if template_id not in settings["metadata"]:
+            settings["metadata"][template_id] = {}
+
+        if name is not None:
+            settings["metadata"][template_id]["name"] = name
+        if description is not None:
+            settings["metadata"][template_id]["description"] = description
+
         self._save_builtin_settings(settings)
 
         # 캐시 갱신

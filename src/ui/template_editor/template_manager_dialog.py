@@ -310,10 +310,9 @@ class TemplateManagerDialog(QDialog):
         # 활성화 상태
         self._pending_changes[template_id]['is_active'] = self._active_toggle.isChecked()
 
-        # 사용자 템플릿만 이름/설명 저장
-        if not self._selected_template.is_readonly:
-            self._pending_changes[template_id]['name'] = self._name_edit.text().strip()
-            self._pending_changes[template_id]['description'] = self._desc_edit.toPlainText().strip()
+        # 이름/설명 저장
+        self._pending_changes[template_id]['name'] = self._name_edit.text().strip()
+        self._pending_changes[template_id]['description'] = self._desc_edit.toPlainText().strip()
 
     def _update_detail_panel(self, template: Optional[ExtendedTemplate]):
         """상세 패널 업데이트"""
@@ -340,7 +339,7 @@ class TemplateManagerDialog(QDialog):
             # 이름
             name = pending.get('name', template.name)
             self._name_edit.setText(name)
-            self._name_edit.setReadOnly(template.is_readonly)
+            self._name_edit.setReadOnly(False)
 
             self._type_label.setText(template.template_type)
             self._indicator_label.setText(template.safety_indicator or "-")
@@ -356,7 +355,7 @@ class TemplateManagerDialog(QDialog):
             else:
                 desc = ""
             self._desc_edit.setText(desc)
-            self._desc_edit.setReadOnly(template.is_readonly)
+            self._desc_edit.setReadOnly(False)
 
             # 활성화 상태
             is_active = self._get_template_active_state(template)
@@ -466,12 +465,11 @@ class TemplateManagerDialog(QDialog):
                 if 'is_active' in changes:
                     self._storage.update_template_active(template_id, changes['is_active'])
 
-                # 사용자 템플릿만 이름/설명 저장
-                if not template.is_readonly:
-                    if 'name' in changes and changes['name'] != template.name:
-                        self._storage.update_template_name(template_id, changes['name'])
-                    if 'description' in changes:
-                        self._storage.update_template_description(template_id, changes['description'])
+                # 이름/설명 저장
+                if 'name' in changes and changes['name'] != template.name:
+                    self._storage.update_template_name(template_id, changes['name'])
+                if 'description' in changes:
+                    self._storage.update_template_description(template_id, changes['description'])
 
             self._pending_changes.clear()
             self.templates_changed.emit()
