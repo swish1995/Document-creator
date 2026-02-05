@@ -473,6 +473,12 @@ class ExcelViewer(QWidget):
             return self._loader.get_row(row)
         return None
 
+    def get_row_data_by_index(self, row: int) -> Optional[List[Any]]:
+        """인덱스 기반 행 데이터 반환 (중복 헤더 지원)"""
+        if self._loader:
+            return self._loader.get_row_by_index(row)
+        return None
+
     def get_selected_data(self) -> List[Dict[str, Any]]:
         """선택된 행 데이터 목록"""
         if self._loader:

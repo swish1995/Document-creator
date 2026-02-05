@@ -5,17 +5,17 @@
   "safety_indicator": "NLE",
   "description": "NIOSH Lifting Equation",
   "fields": [
-    {"id": "frame", "label": "프레임", "excel_column": "Frame"},
-    {"id": "time", "label": "시간", "excel_column": "Time"},
-    {"id": "h", "label": "수평 거리 (H)", "excel_column": "NLE_H"},
-    {"id": "v", "label": "수직 높이 (V)", "excel_column": "NLE_V"},
-    {"id": "d", "label": "이동 거리 (D)", "excel_column": "NLE_D"},
-    {"id": "a", "label": "비대칭 각도 (A)", "excel_column": "NLE_A"},
-    {"id": "f", "label": "빈도 (F)", "excel_column": "NLE_F"},
-    {"id": "c", "label": "커플링 (C)", "excel_column": "NLE_C"},
-    {"id": "load", "label": "실제 하중", "excel_column": "NLE_Load"},
-    {"id": "rwl", "label": "권장 무게 한도 (RWL)", "excel_column": "NLE_RWL"},
-    {"id": "li", "label": "들기 지수 (LI)", "excel_column": "NLE_LI"},
-    {"id": "risk", "label": "위험 수준", "excel_column": "NLE_Risk"}
+    {"id": "frame", "label": "프레임", "excel_column": "Frame", "excel_index": 0},
+    {"id": "time", "label": "시간", "excel_column": "Time", "excel_index": 2},
+    {"id": "h", "label": "수평 거리 (H)", "excel_column": "H (cm)", "excel_index": 67},
+    {"id": "v", "label": "수직 높이 (V)", "excel_column": "V (cm)", "excel_index": 68},
+    {"id": "d", "label": "이동 거리 (D)", "excel_column": "D (cm)", "excel_index": 69},
+    {"id": "a", "label": "비대칭 각도 (A)", "excel_column": "A (°)", "excel_index": 70},
+    {"id": "f", "label": "빈도 (F)", "excel_column": "F (/min)", "excel_index": 71},
+    {"id": "c", "label": "커플링 (C)", "excel_column": "Coupling", "excel_index": 72},
+    {"id": "load", "label": "실제 하중", "excel_column": "Load (kg)", "excel_index": 73},
+    {"id": "rwl", "label": "권장 무게 한도 (RWL)", "excel_column": "RWL", "excel_index": 74},
+    {"id": "li", "label": "들기 지수 (LI)", "excel_column": "LI", "excel_index": 75},
+    {"id": "risk", "label": "위험 수준", "excel_column": "Risk", "excel_index": 76}
   ]
 }

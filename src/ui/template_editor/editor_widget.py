@@ -61,6 +61,7 @@ class EditorWidget(QWidget):
         self._template_path: Optional[Path] = None
         self._html_content: str = ""
         self._preview_data: Dict[str, Any] = {}
+        self._preview_data_by_index: List[Any] = []  # 인덱스 기반 데이터
         self._fields: List[Dict[str, Any]] = []
         self._has_excel_data: bool = False  # 엑셀 데이터 로드 여부
         self._modified: bool = False
@@ -369,39 +370,58 @@ class EditorWidget(QWidget):
         # 미리보기 업데이트
         self._update_preview()
 
-    def set_preview_data(self, data: Dict[str, Any]):
+    def set_preview_data(self, data: Dict[str, Any], data_by_index: Optional[List[Any]] = None):
         """미리보기 데이터 설정
 
         Args:
-            data: 템플릿에 바인딩할 데이터
+            data: 템플릿에 바인딩할 데이터 (헤더명 기반)
+            data_by_index: 인덱스 기반 데이터 (중복 헤더 지원)
         """
         self._preview_data = data
+        self._preview_data_by_index = data_by_index or []
         self._has_excel_data = bool(data)  # 데이터가 있으면 True
 
         self._update_preview()
 
     def _update_preview(self):
-        """미리보기 업데이트"""
+        """미리보기 업데이트 (JavaScript 기반 실시간 매핑)"""
         if not self._html_content:
             return
 
         try:
-            # Jinja2 렌더링 (미리보기용)
-            template = Jinja2Template(self._html_content)
-            rendered = template.render(**self._preview_data)
+            # {{ field_id }}를 data-field span으로 변환
+            preview_html = self._convert_to_data_fields(self._html_content)
+
+            # 데이터 바인딩 CSS 추가
+            data_binding_css = self._get_data_binding_css()
 
             # 줌 적용
+            zoom_css = ""
             if self._zoom_level != 100:
                 zoom_css = f"""
                 <style>
                     body {{ transform: scale({self._zoom_level / 100}); transform-origin: top left; }}
                 </style>
                 """
-                rendered = rendered.replace("</head>", f"{zoom_css}</head>")
+
+            # 데이터 바인딩 스크립트 생성 (엑셀 데이터가 있을 때만 값 주입)
+            data_binding_script = self._get_data_binding_script()
+
+            # CSS 삽입
+            if "</head>" in preview_html:
+                preview_html = preview_html.replace("</head>", f"{data_binding_css}{zoom_css}</head>")
+            else:
+                preview_html = f"{data_binding_css}{zoom_css}{preview_html}"
+
+            # Script 삽입
+            if "</body>" in preview_html:
+                preview_html = preview_html.replace("</body>", f"{data_binding_script}</body>")
+            else:
+                preview_html = f"{preview_html}{data_binding_script}"
 
             # 미리보기 뷰 업데이트
             if self._web_view:
-                self._web_view.setHtml(rendered)
+                self._web_view.setHtml(preview_html)
 
             # 매핑 미리보기 뷰 업데이트 (원본 템플릿 + 하이라이트)
             if self._mapping_web_view:
@@ -443,6 +463,107 @@ class EditorWidget(QWidget):
             """
             if self._web_view:
                 self._web_view.setHtml(error_html)
+
+    def _convert_to_data_fields(self, html_template: str) -> str:
+        """템플릿의 {{ field_id }}를 data-field span으로 변환
+
+        엑셀 데이터 유무와 관계없이 동일한 HTML 구조 생성
+        """
+        def replace_field(match):
+            field_id = match.group(1).strip()
+            return f'<span class="data-field" data-field="{field_id}"></span>'
+
+        pattern = r'\{\{\s*(\w+)\s*\}\}'
+        return re.sub(pattern, replace_field, html_template)
+
+    def _get_data_binding_css(self) -> str:
+        """데이터 바인딩용 CSS"""
+        return """
+        <style>
+        .data-field {
+            display: inline;
+        }
+        .data-field.empty {
+            background-color: #fff3cd;
+            border: 1px dashed #ffc107;
+            border-radius: 2px;
+            padding: 0 2px;
+            color: #856404;
+            font-size: 0.9em;
+        }
+        .data-field.filled {
+            /* 값이 채워지면 일반 텍스트처럼 표시 */
+        }
+        </style>
+        """
+
+    def _get_data_binding_script(self) -> str:
+        """데이터 바인딩 JavaScript 생성
+
+        엑셀 데이터가 있으면 값 주입, 없으면 빈 상태 유지
+        excel_index가 있으면 인덱스 기반, 없으면 excel_column 기반 매핑
+        """
+        import json
+
+        # 엑셀 데이터가 있으면 매핑된 값으로 변환
+        mapped_data = {}
+        if self._has_excel_data:
+            for field in self._fields:
+                field_id = field.get("id", "")
+                if not field_id:
+                    continue
+
+                value = None
+
+                # excel_index가 있으면 인덱스 기반 매핑 (우선)
+                excel_index = field.get("excel_index")
+                if excel_index is not None and self._preview_data_by_index:
+                    if 0 <= excel_index < len(self._preview_data_by_index):
+                        value = self._preview_data_by_index[excel_index]
+
+                # excel_index가 없으면 excel_column 기반 매핑
+                elif self._preview_data:
+                    excel_column = field.get("excel_column", "")
+                    if excel_column and excel_column in self._preview_data:
+                        value = self._preview_data[excel_column]
+
+                # 값이 있으면 저장
+                if value is not None:
+                    mapped_data[field_id] = str(value)
+
+        # JSON 직렬화
+        data_json = json.dumps(mapped_data, ensure_ascii=False)
+        has_data = "true" if self._has_excel_data else "false"
+
+        return f"""
+        <script>
+        (function() {{
+            const excelData = {data_json};
+            const hasExcelData = {has_data};
+
+            // 모든 data-field 요소에 값 바인딩
+            document.querySelectorAll('.data-field').forEach(function(el) {{
+                const fieldId = el.getAttribute('data-field');
+
+                if (hasExcelData && excelData[fieldId] !== undefined) {{
+                    // 엑셀 데이터가 있고 해당 필드 값이 있으면 표시
+                    el.textContent = excelData[fieldId];
+                    el.classList.add('filled');
+                    el.classList.remove('empty');
+                }} else if (!hasExcelData) {{
+                    // 엑셀 데이터가 없으면 빈 상태 (플레이스홀더 없음)
+                    el.textContent = '';
+                    el.classList.remove('empty', 'filled');
+                }} else {{
+                    // 엑셀 데이터는 있지만 해당 필드가 매핑 안됨
+                    el.textContent = '';
+                    el.classList.add('empty');
+                    el.classList.remove('filled');
+                }}
+            }});
+        }})();
+        </script>
+        """
 
     def _add_field_highlights_to_template(self, html_template: str) -> str:
         """템플릿의 {{ field_id }} 패턴을 하이라이트 span으로 감싸기"""
