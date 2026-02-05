@@ -1,7 +1,26 @@
 {
   "active_states": {
-    "nle": false,
-    "si": false,
-    "rula": true
+    "nle": true,
+    "si": true,
+    "rula": true,
+    "owas": true,
+    "reba": true
+  },
+  "metadata": {
+    "rula": {
+      "description": "Rapid Upper Limb Assessment"
+    },
+    "reba": {
+      "description": "Rapid Entire Body Assessment"
+    },
+    "owas": {
+      "description": "Ovako Working Posture Analysis System"
+    },
+    "nle": {
+      "description": "NIOSH Lifting Equation"
+    },
+    "si": {
+      "description": "Strain Index"
+    }
   }
 }
