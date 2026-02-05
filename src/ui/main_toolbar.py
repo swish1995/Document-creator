@@ -211,21 +211,21 @@ class MainToolbar(QToolBar):
         template_label.setStyleSheet("color: #999999; font-size: 12px; margin-right: 4px; background-color: transparent;")
         self.addWidget(template_label)
 
+        # 템플릿 설정 버튼
+        self.btn_manage_template = QPushButton(" 설정")
+        self.btn_manage_template.setIcon(QIcon(self._get_icon_path("settings")))
+        self.btn_manage_template.setIconSize(QSize(14, 14))
+        self.btn_manage_template.setFixedHeight(28)
+        self.btn_manage_template.setToolTip("템플릿 설정")
+        self.btn_manage_template.setStyleSheet(self._get_button_style('manage'))
+        self.addWidget(self.btn_manage_template)
+
         # 템플릿 선택 드롭다운
         self.combo_template = ToolbarComboBox()
         self.combo_template.setToolTip("템플릿 선택")
         self.combo_template.setMinimumWidth(120)
         self.combo_template.setFixedHeight(28)
         self.addWidget(self.combo_template)
-
-        # 템플릿 관리 버튼
-        self.btn_manage_template = QPushButton(" 관리")
-        self.btn_manage_template.setIcon(QIcon(self._get_icon_path("settings")))
-        self.btn_manage_template.setIconSize(QSize(14, 14))
-        self.btn_manage_template.setFixedHeight(28)
-        self.btn_manage_template.setToolTip("템플릿 관리")
-        self.btn_manage_template.setStyleSheet(self._get_button_style('manage'))
-        self.addWidget(self.btn_manage_template)
 
     def _setup_mode_group(self):
         """모드 그룹 (미리보기/매핑 + 줌)"""
