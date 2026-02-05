@@ -110,9 +110,17 @@ class ExcelTableModel(QAbstractTableModel):
         self._selected_rows: Set[int] = set()
         self._preview_row: int = 0
         self._thumbnail_cache: Dict[str, QPixmap] = {}  # 썸네일 캐시
+        self._thumbnail_paths: Dict[str, Path] = {}  # 미리 생성된 썸네일 경로
 
-    def load_data(self, headers: List[str], data: List[Dict[str, Any]], data_by_index: List[List[Any]] = None):
-        """데이터 로드"""
+    def load_data(self, headers: List[str], data: List[Dict[str, Any]], data_by_index: List[List[Any]] = None, thumbnail_paths: Dict[str, Path] = None):
+        """데이터 로드
+
+        Args:
+            headers: 헤더 목록
+            data: 데이터 딕셔너리 목록
+            data_by_index: 인덱스 기반 데이터
+            thumbnail_paths: 미리 생성된 썸네일 경로 (cell_key -> path)
+        """
         self.beginResetModel()
         self._headers = headers
         self._data = data
@@ -120,6 +128,7 @@ class ExcelTableModel(QAbstractTableModel):
         self._selected_rows.clear()
         self._preview_row = 0
         self._thumbnail_cache.clear()  # 썸네일 캐시 초기화
+        self._thumbnail_paths = thumbnail_paths or {}  # 미리 생성된 썸네일 경로
         self.endResetModel()
 
     def rowCount(self, parent=QModelIndex()) -> int:
@@ -185,19 +194,27 @@ class ExcelTableModel(QAbstractTableModel):
         return None
 
     def _get_thumbnail(self, image_path: Path) -> QPixmap:
-        """이미지 썸네일 생성 (캐시 사용)"""
+        """이미지 썸네일 반환 (미리 생성된 썸네일 사용, 없으면 생성)"""
         cache_key = str(image_path)
         if cache_key not in self._thumbnail_cache:
-            pixmap = QPixmap(str(image_path))
-            if not pixmap.isNull():
-                # 썸네일 크기로 축소
-                self._thumbnail_cache[cache_key] = pixmap.scaled(
-                    self.THUMBNAIL_SIZE, self.THUMBNAIL_SIZE,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation
-                )
+            # 미리 생성된 썸네일 경로 찾기
+            # image_path: .images/img_row_col.png -> 썸네일: .images/thumb_row_col.png
+            thumb_path = image_path.parent / image_path.name.replace("img_", "thumb_")
+
+            if thumb_path.exists():
+                # 미리 생성된 썸네일 사용
+                self._thumbnail_cache[cache_key] = QPixmap(str(thumb_path))
             else:
-                self._thumbnail_cache[cache_key] = QPixmap()
+                # 썸네일이 없으면 원본에서 생성
+                pixmap = QPixmap(str(image_path))
+                if not pixmap.isNull():
+                    self._thumbnail_cache[cache_key] = pixmap.scaled(
+                        self.THUMBNAIL_SIZE, self.THUMBNAIL_SIZE,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation
+                    )
+                else:
+                    self._thumbnail_cache[cache_key] = QPixmap()
         return self._thumbnail_cache[cache_key]
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole):
