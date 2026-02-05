@@ -294,7 +294,7 @@ class MainWindow(QMainWindow):
             all_templates = self._template_storage.get_all_templates()
             sorted_templates = sorted(all_templates, key=self._get_template_sort_key)
             templates = [
-                (t.id, f"{'[기본] ' if t.is_builtin else ''}{t.name}")
+                (t.id, t.name)
                 for t in sorted_templates
             ]
             self._toolbar.set_templates(templates)
@@ -304,7 +304,7 @@ class MainWindow(QMainWindow):
         if self._template_storage and not self._current_template_id:
             all_templates = self._template_storage.get_all_templates()
             if all_templates:
-                # 안전지표 순서로 정렬 (기본 템플릿 먼저)
+                # 안전지표 순서로 정렬
                 sorted_templates = sorted(all_templates, key=self._get_template_sort_key)
                 first_template = sorted_templates[0]
                 self._toolbar.set_current_template(first_template.id)
