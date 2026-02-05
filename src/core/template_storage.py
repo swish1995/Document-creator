@@ -144,6 +144,10 @@ class TemplateStorage:
         if not self._builtin_dir.exists():
             return
 
+        # 기본 템플릿 활성화 설정 로드
+        builtin_settings = self._load_builtin_settings()
+        active_states = builtin_settings.get("active_states", {})
+
         for template_dir in self._builtin_dir.iterdir():
             if not template_dir.is_dir() or template_dir.name.startswith("."):
                 continue
@@ -155,8 +159,18 @@ class TemplateStorage:
             try:
                 template = Template.from_mapping_file(mapping_files[0])
                 template_id = template_dir.name  # 폴더명을 ID로 사용
+
+                # 활성화 상태를 포함한 메타데이터 생성
+                is_active = active_states.get(template_id, True)
+                metadata = TemplateMetadata(
+                    id=template_id,
+                    name=template.name,
+                    description=template.description,
+                    is_active=is_active,
+                )
+
                 extended = ExtendedTemplate.from_template(
-                    template, template_id, is_builtin=True
+                    template, template_id, is_builtin=True, metadata=metadata
                 )
                 self._templates[template_id] = extended
             except TemplateError:
@@ -438,30 +452,66 @@ class TemplateStorage:
         if template is None:
             raise TemplateError(f"템플릿을 찾을 수 없습니다: {template_id}")
 
-        if template.is_readonly:
-            raise TemplateError("기본 템플릿은 수정할 수 없습니다.")
-
-        template_dir = self._user_dir / template_id
-        meta_path = template_dir / "meta.json"
-
         try:
-            if meta_path.exists():
-                with open(meta_path, "r", encoding="utf-8") as f:
-                    meta_data = json.load(f)
+            if template.is_builtin:
+                # 기본 템플릿: 별도 설정 파일에 저장
+                self._update_builtin_active(template_id, is_active)
             else:
-                meta_data = {"id": template_id}
+                # 사용자 템플릿: meta.json에 저장
+                template_dir = self._user_dir / template_id
+                meta_path = template_dir / "meta.json"
 
-            meta_data["is_active"] = is_active
-            meta_data["updated_at"] = datetime.now().isoformat()
+                if meta_path.exists():
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        meta_data = json.load(f)
+                else:
+                    meta_data = {"id": template_id}
 
-            with open(meta_path, "w", encoding="utf-8") as f:
-                json.dump(meta_data, f, ensure_ascii=False, indent=2)
+                meta_data["is_active"] = is_active
+                meta_data["updated_at"] = datetime.now().isoformat()
 
-            # 캐시 갱신
-            self._scan_user_templates()
+                with open(meta_path, "w", encoding="utf-8") as f:
+                    json.dump(meta_data, f, ensure_ascii=False, indent=2)
+
+                # 캐시 갱신
+                self._scan_user_templates()
 
         except Exception as e:
             raise TemplateError(f"템플릿 활성화 상태 업데이트 실패: {e}")
+
+    def _get_builtin_settings_path(self) -> Path:
+        """기본 템플릿 설정 파일 경로"""
+        return self._root / "_builtin_settings.json"
+
+    def _load_builtin_settings(self) -> Dict[str, Any]:
+        """기본 템플릿 설정 로드"""
+        settings_path = self._get_builtin_settings_path()
+        if settings_path.exists():
+            with open(settings_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return {}
+
+    def _save_builtin_settings(self, settings: Dict[str, Any]) -> None:
+        """기본 템플릿 설정 저장"""
+        settings_path = self._get_builtin_settings_path()
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(settings, f, ensure_ascii=False, indent=2)
+
+    def _update_builtin_active(self, template_id: str, is_active: bool) -> None:
+        """기본 템플릿 활성화 상태 업데이트"""
+        settings = self._load_builtin_settings()
+        if "active_states" not in settings:
+            settings["active_states"] = {}
+        settings["active_states"][template_id] = is_active
+        self._save_builtin_settings(settings)
+
+        # 캐시 갱신
+        self._scan_builtin_templates()
+
+    def get_builtin_active_state(self, template_id: str) -> bool:
+        """기본 템플릿의 활성화 상태 조회"""
+        settings = self._load_builtin_settings()
+        return settings.get("active_states", {}).get(template_id, True)
 
     # ========== Delete Operations ==========
 
