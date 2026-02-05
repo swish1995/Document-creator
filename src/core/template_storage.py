@@ -25,6 +25,7 @@ class TemplateMetadata:
     version: str = "1.0"
     description: str = ""
     based_on: Optional[str] = None
+    is_active: bool = True
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 
@@ -36,6 +37,7 @@ class TemplateMetadata:
             "version": self.version,
             "description": self.description,
             "based_on": self.based_on,
+            "is_active": self.is_active,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
@@ -49,6 +51,7 @@ class TemplateMetadata:
             version=data.get("version", "1.0"),
             description=data.get("description", ""),
             based_on=data.get("based_on"),
+            is_active=data.get("is_active", True),
             created_at=datetime.fromisoformat(data["created_at"])
             if "created_at" in data
             else datetime.now(),
@@ -84,6 +87,7 @@ class ExtendedTemplate(Template):
             mapping_path=template.mapping_path,
             fields=template.fields,
             safety_indicator=template.safety_indicator,
+            description=template.description,
             id=template_id,
             is_builtin=is_builtin,
             is_readonly=is_builtin,
@@ -404,6 +408,60 @@ class TemplateStorage:
 
         except Exception as e:
             raise TemplateError(f"템플릿 업데이트 실패: {e}")
+
+    def update_template_name(self, template_id: str, name: str) -> None:
+        """템플릿 이름 업데이트
+
+        Args:
+            template_id: 템플릿 ID
+            name: 새 이름
+        """
+        self.update_template(template_id, name=name)
+
+    def update_template_description(self, template_id: str, description: str) -> None:
+        """템플릿 설명 업데이트
+
+        Args:
+            template_id: 템플릿 ID
+            description: 새 설명
+        """
+        self.update_template(template_id, description=description)
+
+    def update_template_active(self, template_id: str, is_active: bool) -> None:
+        """템플릿 활성화 상태 업데이트
+
+        Args:
+            template_id: 템플릿 ID
+            is_active: 활성화 여부
+        """
+        template = self.get_template(template_id)
+        if template is None:
+            raise TemplateError(f"템플릿을 찾을 수 없습니다: {template_id}")
+
+        if template.is_readonly:
+            raise TemplateError("기본 템플릿은 수정할 수 없습니다.")
+
+        template_dir = self._user_dir / template_id
+        meta_path = template_dir / "meta.json"
+
+        try:
+            if meta_path.exists():
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    meta_data = json.load(f)
+            else:
+                meta_data = {"id": template_id}
+
+            meta_data["is_active"] = is_active
+            meta_data["updated_at"] = datetime.now().isoformat()
+
+            with open(meta_path, "w", encoding="utf-8") as f:
+                json.dump(meta_data, f, ensure_ascii=False, indent=2)
+
+            # 캐시 갱신
+            self._scan_user_templates()
+
+        except Exception as e:
+            raise TemplateError(f"템플릿 활성화 상태 업데이트 실패: {e}")
 
     # ========== Delete Operations ==========
 

@@ -32,6 +32,7 @@ class Template:
     mapping_path: Path
     fields: List[Dict[str, Any]] = field(default_factory=list)
     safety_indicator: Optional[str] = None  # RULA, REBA, OWAS, NLE, SI
+    description: str = ""
 
     @classmethod
     def from_mapping_file(cls, mapping_path: Path) -> "Template":
@@ -59,6 +60,7 @@ class Template:
         template_type = data.get("type", "html")
         fields = data.get("fields", [])
         safety_indicator = data.get("safety_indicator")
+        description = data.get("description", "")
 
         # 유효한 안전지표인지 확인
         if safety_indicator and safety_indicator not in SAFETY_INDICATORS:
@@ -82,6 +84,7 @@ class Template:
             mapping_path=mapping_path,
             fields=fields,
             safety_indicator=safety_indicator,
+            description=description,
         )
 
     @staticmethod
