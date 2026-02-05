@@ -1,6 +1,7 @@
 """엑셀 파일 로더 모듈
 
 Skeleton Analyzer에서 생성된 엑셀 파일을 로드하고 데이터를 제공합니다.
+수식이 포함된 셀은 formulas 라이브러리를 사용하여 계산합니다.
 """
 
 from __future__ import annotations
@@ -10,6 +11,9 @@ from typing import Any, Optional, List, Dict, Union
 
 import openpyxl
 from openpyxl.utils.exceptions import InvalidFileException
+import formulas
+
+from src.core.logger import get_logger
 
 
 class ExcelLoaderError(Exception):
@@ -27,12 +31,14 @@ class ExcelLoader:
     DEFAULT_SHEET_NAME = "Capture Data"
 
     def __init__(self):
+        self._logger = get_logger("excel_loader")
         self._workbook = None
         self._sheet = None
         self._headers: list[str] = []
         self._data: list[dict[str, Any]] = []
         self._data_by_index: list[list[Any]] = []  # 인덱스 기반 데이터
         self._file_path: Path | None = None
+        self._calculated_values: dict = {}  # 수식 계산 결과 캐시
 
     @property
     def is_loaded(self) -> bool:
@@ -65,43 +71,143 @@ class ExcelLoader:
             raise ExcelLoaderError(f"파일을 찾을 수 없습니다: {file_path}")
 
         try:
-            self._workbook = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+            # 1단계: formulas로 수식 계산
+            self._logger.info(f"수식 계산 시작: {file_path}")
+            self._calculate_formulas(file_path)
+            self._logger.info("수식 계산 완료")
+
+            # 2단계: openpyxl로 구조 로드 (수식 텍스트 포함)
+            self._workbook = openpyxl.load_workbook(file_path, read_only=True, data_only=False)
         except InvalidFileException as e:
             raise ExcelLoaderError(f"잘못된 엑셀 파일 형식입니다: {e}")
         except Exception as e:
+            self._logger.error(f"파일 로드 실패: {e}")
             raise ExcelLoaderError(f"파일 로드 실패: {e}")
 
         self._file_path = file_path
         self._load_sheet()
+
+    def _calculate_formulas(self, file_path: Path) -> None:
+        """formulas 라이브러리로 수식 계산"""
+        import time
+        try:
+            t0 = time.time()
+            self._logger.info("엑셀 모델 로드 중...")
+            xl_model = formulas.ExcelModel().loads(str(file_path)).finish()
+            self._logger.info(f"엑셀 모델 로드 완료 ({time.time() - t0:.1f}초)")
+
+            t1 = time.time()
+            self._logger.info("수식 계산 중...")
+            solution = xl_model.calculate()
+            self._logger.info(f"수식 계산 완료 ({time.time() - t1:.1f}초)")
+
+            # 계산된 값을 딕셔너리로 저장
+            # key 형식: '[파일명]시트명'!A1 → 시트명!A1 로 정규화
+            t2 = time.time()
+            self._calculated_values = {}
+            for key, value in solution.items():
+                # 키에서 시트명과 셀 주소 추출
+                # 예: "'[sample.xlsx]CAPTURE DATA'!J2" → "CAPTURE DATA!J2"
+                normalized_key = self._normalize_cell_key(key)
+
+                # 값 추출 (Ranges 객체 또는 중첩 리스트)
+                actual_value = self._extract_value(value)
+
+                self._calculated_values[normalized_key] = actual_value
+            self._logger.info(f"값 변환 완료 ({time.time() - t2:.1f}초), 총 {len(self._calculated_values)}개 셀")
+            self._logger.info(f"전체 소요 시간: {time.time() - t0:.1f}초")
+        except Exception as e:
+            self._logger.warning(f"수식 계산 중 오류 (무시하고 진행): {e}")
+            self._calculated_values = {}
+
+    def _normalize_cell_key(self, key: str) -> str:
+        """셀 키 정규화: '[파일명]시트명'!A1 → 시트명!A1"""
+        import re
+        # 패턴: '[파일명]시트명'!셀주소 또는 [파일명]시트명!셀주소
+        match = re.match(r"'?\[.*?\](.+?)'?!(.+)", key)
+        if match:
+            sheet_name = match.group(1).strip("'")
+            cell_addr = match.group(2)
+            return f"{sheet_name}!{cell_addr}".upper()
+        return key.upper()
+
+    def _extract_value(self, value: Any) -> Any:
+        """Ranges 객체, numpy 배열, 또는 중첩 리스트에서 실제 값 추출"""
+        import numpy as np
+
+        # Ranges 객체인 경우 .value 속성 사용
+        if hasattr(value, 'value'):
+            value = value.value
+
+        # numpy 배열인 경우 처리
+        if isinstance(value, np.ndarray):
+            if value.size == 1:
+                value = value.flat[0]
+            else:
+                value = value.tolist()
+
+        # 중첩 리스트인 경우 첫 번째 값 추출 ([[5.0]] → 5.0)
+        while isinstance(value, (list, tuple)) and len(value) > 0:
+            if isinstance(value[0], (list, tuple)):
+                value = value[0]
+            else:
+                value = value[0]
+                break
+
+        return value
 
     def _load_sheet(self) -> None:
         """시트 데이터 로드"""
         # Capture Data 시트 또는 첫 번째 시트 선택
         if self.DEFAULT_SHEET_NAME in self._workbook.sheetnames:
             self._sheet = self._workbook[self.DEFAULT_SHEET_NAME]
+            sheet_name = self.DEFAULT_SHEET_NAME
         else:
             self._sheet = self._workbook.active
+            sheet_name = self._sheet.title
 
         # 헤더 읽기 (첫 번째 행)
-        rows = list(self._sheet.iter_rows(values_only=True))
+        rows = list(self._sheet.iter_rows(values_only=False))
         if not rows:
             self._headers = []
             self._data = []
             return
 
-        self._headers = [str(cell) if cell is not None else "" for cell in rows[0]]
+        # 헤더 추출 (첫 번째 행)
+        self._headers = [str(cell.value) if cell.value is not None else "" for cell in rows[0]]
 
         # 데이터 행 읽기
         self._data = []
         self._data_by_index = []
-        for row in rows[1:]:
+        for row_idx, row in enumerate(rows[1:], start=2):  # 엑셀은 1-based, 헤더가 1행
             row_dict = {}
-            row_list = list(row)  # 인덱스 기반 데이터
-            for i, value in enumerate(row):
-                if i < len(self._headers):
-                    row_dict[self._headers[i]] = value
+            row_list = []
+            for col_idx, cell in enumerate(row):
+                # 셀 값 가져오기 (수식인 경우 계산된 값 사용)
+                value = self._get_cell_value(cell, sheet_name, row_idx, col_idx)
+                row_list.append(value)
+                if col_idx < len(self._headers):
+                    row_dict[self._headers[col_idx]] = value
             self._data.append(row_dict)
             self._data_by_index.append(row_list)
+
+    def _get_cell_value(self, cell, sheet_name: str, row: int, col: int) -> Any:
+        """셀 값 가져오기 (수식인 경우 계산된 값 사용)"""
+        from openpyxl.utils import get_column_letter
+
+        # 수식 셀인지 확인
+        if cell.data_type == 'f' or (isinstance(cell.value, str) and cell.value.startswith('=')):
+            # 계산된 값 조회
+            col_letter = get_column_letter(col + 1)  # 0-based to 1-based
+            cell_ref = f"{sheet_name}!{col_letter}{row}".upper()
+
+            if cell_ref in self._calculated_values:
+                return self._calculated_values[cell_ref]
+            else:
+                self._logger.debug(f"계산값 없음: {cell_ref}")
+                return cell.value  # 계산 실패 시 수식 텍스트 반환
+
+        return cell.value
 
     def _ensure_loaded(self) -> None:
         """데이터가 로드되었는지 확인"""
