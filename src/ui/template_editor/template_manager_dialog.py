@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional, Any
 
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtGui import QIcon
@@ -25,7 +25,6 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QFormLayout,
     QSplitter,
-    QCheckBox,
 )
 
 from src.core.template_storage import TemplateStorage, ExtendedTemplate
@@ -91,7 +90,7 @@ class TemplateManagerDialog(QDialog):
         super().__init__(parent)
         self._storage = template_storage
         self._selected_template: Optional[ExtendedTemplate] = None
-        self._has_changes = False
+        self._pending_changes: Dict[str, Dict[str, Any]] = {}  # 템플릿별 변경사항
 
         self.setWindowTitle("템플릿 설정")
         self.setMinimumSize(700, 500)
@@ -143,24 +142,6 @@ class TemplateManagerDialog(QDialog):
             }
             QLabel {
                 color: #ffffff;
-            }
-            QCheckBox {
-                color: #ffffff;
-                spacing: 8px;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 3px;
-                border: 1px solid #555555;
-                background-color: #333333;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #5ab87a;
-                border: 1px solid #4aa86a;
-            }
-            QCheckBox::indicator:hover {
-                border: 1px solid #666666;
             }
         """)
 
@@ -225,11 +206,14 @@ class TemplateManagerDialog(QDialog):
         form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
         form_layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
-        # 활성화 체크박스
-        self._active_checkbox = QCheckBox("활성화")
-        self._active_checkbox.setChecked(True)
-        self._active_checkbox.stateChanged.connect(self._on_value_changed)
-        form_layout.addRow("상태:", self._active_checkbox)
+        # 활성화 토글 버튼
+        self._active_toggle = QPushButton("활성")
+        self._active_toggle.setCheckable(True)
+        self._active_toggle.setChecked(True)
+        self._active_toggle.setFixedSize(60, 28)
+        self._active_toggle.clicked.connect(self._on_toggle_active)
+        self._update_toggle_style(True)
+        form_layout.addRow("상태:", self._active_toggle)
 
         # 이름
         self._name_edit = QLineEdit()
@@ -274,6 +258,18 @@ class TemplateManagerDialog(QDialog):
             order_index = len(SAFETY_INDICATORS)
         return (order_index, template.name.upper())
 
+    def _get_template_active_state(self, template: ExtendedTemplate) -> bool:
+        """템플릿의 활성화 상태 (pending 변경사항 포함)"""
+        # pending 변경사항이 있으면 그 값 사용
+        if template.id in self._pending_changes:
+            if 'is_active' in self._pending_changes[template.id]:
+                return self._pending_changes[template.id]['is_active']
+
+        # 없으면 원본 값 사용
+        if template.metadata and hasattr(template.metadata, 'is_active'):
+            return template.metadata.is_active
+        return True
+
     def _load_templates(self):
         """템플릿 목록 로드 (안전지표 순서로 정렬)"""
         self._template_list.clear()
@@ -285,10 +281,8 @@ class TemplateManagerDialog(QDialog):
         )
 
         for template in all_templates:
-            # 활성화 상태 확인
-            is_active = True
-            if template.metadata and hasattr(template.metadata, 'is_active'):
-                is_active = template.metadata.is_active
+            # 활성화 상태 확인 (pending 포함)
+            is_active = self._get_template_active_state(template)
 
             # 비활성화된 템플릿은 회색으로 표시
             if is_active:
@@ -300,12 +294,33 @@ class TemplateManagerDialog(QDialog):
             item.setData(Qt.ItemDataRole.UserRole, template.id)
             self._template_list.addItem(item)
 
+        # 첫 번째 템플릿 자동 선택
+        if self._template_list.count() > 0:
+            self._template_list.setCurrentRow(0)
+
+    def _save_current_to_pending(self):
+        """현재 템플릿의 변경사항을 pending에 저장"""
+        if not self._selected_template:
+            return
+
+        template_id = self._selected_template.id
+        if template_id not in self._pending_changes:
+            self._pending_changes[template_id] = {}
+
+        # 활성화 상태
+        self._pending_changes[template_id]['is_active'] = self._active_toggle.isChecked()
+
+        # 사용자 템플릿만 이름/설명 저장
+        if not self._selected_template.is_readonly:
+            self._pending_changes[template_id]['name'] = self._name_edit.text().strip()
+            self._pending_changes[template_id]['description'] = self._desc_edit.toPlainText().strip()
+
     def _update_detail_panel(self, template: Optional[ExtendedTemplate]):
         """상세 패널 업데이트"""
         # 변경 감지 일시 중지
         self._name_edit.blockSignals(True)
         self._desc_edit.blockSignals(True)
-        self._active_checkbox.blockSignals(True)
+        self._active_toggle.blockSignals(True)
 
         if template is None:
             self._name_edit.setText("")
@@ -315,47 +330,116 @@ class TemplateManagerDialog(QDialog):
             self._fields_label.setText("-")
             self._desc_edit.setText("")
             self._desc_edit.setReadOnly(True)
-            self._active_checkbox.setChecked(False)
-            self._active_checkbox.setEnabled(False)
+            self._active_toggle.setChecked(False)
+            self._active_toggle.setEnabled(False)
+            self._update_toggle_style(False)
         else:
-            self._name_edit.setText(template.name)
+            # pending 변경사항이 있으면 그 값 사용
+            pending = self._pending_changes.get(template.id, {})
+
+            # 이름
+            name = pending.get('name', template.name)
+            self._name_edit.setText(name)
             self._name_edit.setReadOnly(template.is_readonly)
+
             self._type_label.setText(template.template_type)
             self._indicator_label.setText(template.safety_indicator or "-")
             self._fields_label.setText(str(len(template.fields)))
 
-            # 설명: metadata 우선, 없으면 template.description 사용
-            desc = ""
-            if template.metadata and template.metadata.description:
+            # 설명
+            if 'description' in pending:
+                desc = pending['description']
+            elif template.metadata and template.metadata.description:
                 desc = template.metadata.description
             elif template.description:
                 desc = template.description
+            else:
+                desc = ""
             self._desc_edit.setText(desc)
             self._desc_edit.setReadOnly(template.is_readonly)
 
-            # 활성화 상태 (metadata에서 가져오기, 기본값 True)
-            is_active = True
-            if template.metadata and hasattr(template.metadata, 'is_active'):
-                is_active = template.metadata.is_active
-            self._active_checkbox.setChecked(is_active)
-            self._active_checkbox.setEnabled(not template.is_readonly)
+            # 활성화 상태
+            is_active = self._get_template_active_state(template)
+            self._active_toggle.setChecked(is_active)
+            self._update_toggle_style(is_active)
+            self._active_toggle.setEnabled(True)
 
         # 변경 감지 재개
         self._name_edit.blockSignals(False)
         self._desc_edit.blockSignals(False)
-        self._active_checkbox.blockSignals(False)
-
-        self._has_changes = False
+        self._active_toggle.blockSignals(False)
 
     def _on_value_changed(self):
-        """값 변경 감지"""
-        self._has_changes = True
+        """값 변경 시 pending에 저장"""
+        self._save_current_to_pending()
+        # 목록 업데이트 (비활성 표시 등)
+        self._refresh_current_item()
+
+    def _on_toggle_active(self):
+        """활성화 토글 버튼 클릭"""
+        is_active = self._active_toggle.isChecked()
+        self._update_toggle_style(is_active)
+        self._save_current_to_pending()
+        # 목록 업데이트 (비활성 표시 등)
+        self._refresh_current_item()
+
+    def _refresh_current_item(self):
+        """현재 선택된 아이템의 표시 업데이트"""
+        if not self._selected_template:
+            return
+
+        items = self._template_list.selectedItems()
+        if not items:
+            return
+
+        item = items[0]
+        is_active = self._active_toggle.isChecked()
+        name = self._name_edit.text().strip() or self._selected_template.name
+
+        if is_active:
+            item.setText(f"  {name}")
+            item.setForeground(Qt.GlobalColor.white)
+        else:
+            item.setText(f"  {name} (비활성)")
+            item.setForeground(Qt.GlobalColor.gray)
+
+    def _update_toggle_style(self, is_active: bool):
+        """토글 버튼 스타일 업데이트"""
+        if is_active:
+            self._active_toggle.setText("활성")
+            self._active_toggle.setStyleSheet("""
+                QPushButton {
+                    background-color: #5ab87a;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    font-size: 11px;
+                }
+                QPushButton:hover {
+                    background-color: #6ac88a;
+                }
+            """)
+        else:
+            self._active_toggle.setText("비활성")
+            self._active_toggle.setStyleSheet("""
+                QPushButton {
+                    background-color: #666666;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    font-size: 11px;
+                }
+                QPushButton:hover {
+                    background-color: #777777;
+                }
+            """)
 
     def _on_template_selected(self):
-        """템플릿 선택"""
-        # 변경사항 확인
-        if self._has_changes:
-            self._prompt_save_changes()
+        """템플릿 선택 (저장 확인 없이 바로 전환)"""
+        # 현재 템플릿의 변경사항을 pending에 저장
+        self._save_current_to_pending()
 
         items = self._template_list.selectedItems()
         if not items:
@@ -367,58 +451,47 @@ class TemplateManagerDialog(QDialog):
         self._selected_template = self._storage.get_template(template_id)
         self._update_detail_panel(self._selected_template)
 
-    def _prompt_save_changes(self):
-        """변경사항 저장 여부 확인"""
-        reply = QMessageBox.question(
-            self,
-            "변경사항 저장",
-            "변경사항이 있습니다. 저장하시겠습니까?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
-            self._save_current_template()
-
-        self._has_changes = False
-
-    def _save_current_template(self):
-        """현재 템플릿 저장"""
-        if not self._selected_template or self._selected_template.is_readonly:
-            return
+    def _save_all_changes(self):
+        """모든 변경사항 일괄 저장"""
+        if not self._pending_changes:
+            return True
 
         try:
-            # 이름 업데이트
-            new_name = self._name_edit.text().strip()
-            if new_name and new_name != self._selected_template.name:
-                self._storage.update_template_name(self._selected_template.id, new_name)
+            for template_id, changes in self._pending_changes.items():
+                template = self._storage.get_template(template_id)
+                if not template:
+                    continue
 
-            # 설명 업데이트
-            new_desc = self._desc_edit.toPlainText().strip()
-            self._storage.update_template_description(self._selected_template.id, new_desc)
+                # 활성화 상태 저장
+                if 'is_active' in changes:
+                    self._storage.update_template_active(template_id, changes['is_active'])
 
-            # 활성화 상태 업데이트
-            is_active = self._active_checkbox.isChecked()
-            self._storage.update_template_active(self._selected_template.id, is_active)
+                # 사용자 템플릿만 이름/설명 저장
+                if not template.is_readonly:
+                    if 'name' in changes and changes['name'] != template.name:
+                        self._storage.update_template_name(template_id, changes['name'])
+                    if 'description' in changes:
+                        self._storage.update_template_description(template_id, changes['description'])
 
-            self._has_changes = False
-            self._load_templates()
+            self._pending_changes.clear()
             self.templates_changed.emit()
+            return True
 
         except Exception as e:
-            QMessageBox.critical(self, "오류", f"템플릿 저장 실패:\n{e}")
+            QMessageBox.critical(self, "오류", f"저장 실패:\n{e}")
+            return False
 
     def _on_save(self):
         """저장 버튼 클릭"""
-        if not self._selected_template:
-            QMessageBox.warning(self, "알림", "저장할 템플릿을 선택하세요.")
+        # 현재 템플릿의 변경사항도 pending에 저장
+        self._save_current_to_pending()
+
+        if not self._pending_changes:
+            self.close()
             return
 
-        if self._selected_template.is_readonly:
-            QMessageBox.warning(self, "알림", "기본 템플릿은 수정할 수 없습니다.")
-            return
-
-        self._save_current_template()
-        QMessageBox.information(self, "성공", "템플릿이 저장되었습니다.")
+        if self._save_all_changes():
+            self.close()
 
     def get_selected_template_id(self) -> Optional[str]:
         """선택된 템플릿 ID 반환"""
@@ -428,20 +501,19 @@ class TemplateManagerDialog(QDialog):
 
     def closeEvent(self, event):
         """다이얼로그 닫기 이벤트"""
-        if self._has_changes:
+        # 현재 템플릿의 변경사항도 pending에 저장
+        self._save_current_to_pending()
+
+        if self._pending_changes:
             reply = QMessageBox.question(
                 self,
-                "변경사항 저장",
-                "저장하지 않은 변경사항이 있습니다. 저장하시겠습니까?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+                "저장",
+                "저장하시겠습니까?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
 
             if reply == QMessageBox.StandardButton.Yes:
-                self._save_current_template()
-                event.accept()
-            elif reply == QMessageBox.StandardButton.No:
-                event.accept()
-            else:
-                event.ignore()
+                self._save_all_changes()
+            event.accept()
         else:
             event.accept()
