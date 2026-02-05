@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import (
 
 from src.core.template_storage import TemplateStorage, ExtendedTemplate
 from src.core.template_manager import SAFETY_INDICATORS
+from src.ui.utils.styled_message_box import StyledMessageBox
 
 
 class ToggleSwitch(QWidget):
@@ -556,15 +557,7 @@ class TemplateManagerDialog(QDialog):
             return
 
         # 저장 확인
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("저장")
-        msg_box.setText("저장하시겠습니까?")
-        msg_box.setIcon(QMessageBox.Icon.Question)
-        yes_btn = msg_box.addButton("예", QMessageBox.ButtonRole.YesRole)
-        no_btn = msg_box.addButton("아니오", QMessageBox.ButtonRole.NoRole)
-        msg_box.exec()
-
-        if msg_box.clickedButton() == yes_btn:
+        if StyledMessageBox.confirm_save(self):
             self._save_all_changes()
         # "예" 또는 "아니오" 모두 닫기
         self._skip_save_prompt = True
@@ -592,15 +585,7 @@ class TemplateManagerDialog(QDialog):
         self._save_current_to_pending()
 
         if self._pending_changes:
-            msg_box = QMessageBox(self)
-            msg_box.setWindowTitle("저장")
-            msg_box.setText("저장하시겠습니까?")
-            msg_box.setIcon(QMessageBox.Icon.Question)
-            yes_btn = msg_box.addButton("예", QMessageBox.ButtonRole.YesRole)
-            no_btn = msg_box.addButton("아니오", QMessageBox.ButtonRole.NoRole)
-            msg_box.exec()
-
-            if msg_box.clickedButton() == yes_btn:
+            if StyledMessageBox.confirm_save(self):
                 self._save_all_changes()
             event.accept()
         else:

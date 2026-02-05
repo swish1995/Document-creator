@@ -523,16 +523,15 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """윈도우 닫기 이벤트"""
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("종료 확인")
-        msg_box.setText("프로그램을 종료하시겠습니까?")
-        msg_box.setIcon(QMessageBox.Icon.Question)
-        yes_btn = msg_box.addButton("예", QMessageBox.ButtonRole.YesRole)
-        no_btn = msg_box.addButton("아니오", QMessageBox.ButtonRole.NoRole)
-        msg_box.setDefaultButton(no_btn)
-        msg_box.exec()
+        from src.ui.utils.styled_message_box import StyledMessageBox
 
-        if msg_box.clickedButton() == yes_btn:
+        result = StyledMessageBox.question(
+            self,
+            "종료 확인",
+            "프로그램을 종료하시겠습니까?"
+        )
+
+        if result:
             self._logger.info("앱 종료")
 
             # 이미지 디렉토리 정리
