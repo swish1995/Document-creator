@@ -188,7 +188,8 @@ class MainToolbar(QToolBar):
         spacer.setStyleSheet("background-color: transparent;")
         self.addWidget(spacer)
 
-        # ========== 오른쪽 그룹 (종료) ==========
+        # ========== 오른쪽 그룹 (경고 + 종료) ==========
+        self._setup_warning_label()
         self._setup_exit_group()
 
     def _setup_template_group(self):
@@ -272,6 +273,28 @@ class MainToolbar(QToolBar):
         self.btn_data_toggle.setShortcut("Ctrl+D")
         self.btn_data_toggle.setStyleSheet(self._get_button_style('data', is_checkable=True))
         self.addWidget(self.btn_data_toggle)
+
+    def _setup_warning_label(self):
+        """경고 라벨 (엑셀 파일 없을 때 표시) - 스티커 스타일"""
+        self._no_excel_warning = QPushButton(" 엑셀 파일이 없습니다.")
+        self._no_excel_warning.setIcon(QIcon(self._get_icon_path("warning")))
+        self._no_excel_warning.setIconSize(QSize(16, 16))
+        self._no_excel_warning.setFixedHeight(28)
+        self._no_excel_warning.setEnabled(False)  # 클릭 비활성화
+        self._no_excel_warning.setStyleSheet("""
+            QPushButton:disabled {
+                color: #e57373;
+                background-color: #4a3535;
+                font-weight: bold;
+                font-size: 12px;
+                padding: 4px 14px;
+                border-radius: 14px;
+                border: 1px solid #5a4545;
+                margin-right: 8px;
+            }
+        """)
+        # QToolBar.addWidget()은 QAction을 반환하므로 저장
+        self._warning_action = self.addWidget(self._no_excel_warning)
 
     def _setup_exit_group(self):
         """종료 그룹"""
@@ -419,3 +442,12 @@ class MainToolbar(QToolBar):
     def is_data_sheet_visible(self) -> bool:
         """데이터 시트 표시 여부"""
         return self.btn_data_toggle.isChecked()
+
+    def set_excel_warning_visible(self, visible: bool):
+        """엑셀 파일 경고 표시/숨김
+
+        Args:
+            visible: 표시 여부
+        """
+        # QToolBar에서는 QAction의 setVisible()을 사용해야 함
+        self._warning_action.setVisible(visible)

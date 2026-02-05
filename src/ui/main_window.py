@@ -563,6 +563,9 @@ class MainWindow(QMainWindow):
         """파일 로드 완료"""
         self.statusBar().showMessage(f"파일 로드됨: {filename} ({row_count}행)")
 
+        # 엑셀 파일 경고 숨김
+        self._toolbar.set_excel_warning_visible(False)
+
         # 템플릿 패널에 엑셀 헤더 및 파일 경로 전달 (호환성 유지)
         headers = self._excel_viewer._loader.get_headers() if self._excel_viewer._loader else []
         for panel in self._template_panels:
