@@ -828,6 +828,8 @@ class MainWindow(QMainWindow):
                 shutil.copy2(result_path, save_path)
                 self._logger.info(f"파일 저장 완료: {save_path}")
                 self.statusBar().showMessage(f"내보내기 완료: {save_path}")
+                # 저장 완료 알림
+                QMessageBox.information(self, "저장 완료", f"파일이 저장되었습니다.\n\n{save_path}")
             except Exception as e:
                 self._logger.error(f"파일 저장 실패: {e}")
                 QMessageBox.critical(self, "오류", f"파일 저장 실패:\n{e}")
