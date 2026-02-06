@@ -5,10 +5,15 @@
 
 from __future__ import annotations
 
+import base64
 import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from src.core.logger import get_logger
+
+logger = get_logger("mapper")
 
 
 class MapperError(Exception):
@@ -100,19 +105,72 @@ class Mapper:
             field_id = field["id"]
             excel_column = mapping.get(field_id)
             excel_index = field.get("excel_index")
+            field_type = field.get("type", "text")
 
             # 인덱스 기반 데이터가 있고, excel_index가 정의된 경우 우선 사용 (중복 헤더 문제 해결)
             if row_data_by_index is not None and excel_index is not None:
                 if 0 <= excel_index < len(row_data_by_index):
-                    result[field_id] = row_data_by_index[excel_index]
+                    value = row_data_by_index[excel_index]
                 else:
-                    result[field_id] = None
+                    value = None
             elif excel_column is not None and excel_column in row_data:
-                result[field_id] = row_data[excel_column]
+                value = row_data[excel_column]
             else:
-                result[field_id] = None
+                value = None
+
+            # 이미지 타입인 경우 img 태그로 변환
+            if field_type == "image" and value is not None:
+                value = self._convert_image_to_img_tag(value)
+
+            result[field_id] = value
 
         return result
+
+    def _convert_image_to_img_tag(self, image_path) -> str:
+        """이미지 경로를 완전한 img 태그로 변환
+
+        Args:
+            image_path: 이미지 파일 경로 (Path 또는 str)
+
+        Returns:
+            <img src="data:..."> 형식의 HTML 태그, 실패시 빈 문자열
+        """
+        data_url = self._convert_image_to_data_url(image_path)
+        if data_url:
+            return f'<img src="{data_url}" style="width:100%;height:100%;object-fit:contain;">'
+        return ""
+
+    def _convert_image_to_data_url(self, image_path) -> str:
+        """이미지 경로를 Base64 data URL로 변환
+
+        Args:
+            image_path: 이미지 파일 경로 (Path 또는 str)
+
+        Returns:
+            data:image/png;base64,... 형식의 문자열, 실패시 빈 문자열
+        """
+        try:
+            path = Path(image_path) if not isinstance(image_path, Path) else image_path
+            if not path.exists():
+                return ""
+
+            with open(path, "rb") as f:
+                data = base64.b64encode(f.read()).decode("utf-8")
+
+            # 확장자로 MIME 타입 결정
+            suffix = path.suffix.lower()
+            mime_types = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+            }
+            mime_type = mime_types.get(suffix, "image/png")
+
+            return f"data:{mime_type};base64,{data}"
+        except Exception:
+            return ""
 
     def apply_batch(self, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """다중 행에 매핑 적용

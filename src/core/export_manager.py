@@ -184,21 +184,61 @@ class ExportManager:
 
     def _direct_map(self, fields: List[Dict], row_data: Dict[str, Any], row_by_index: List[Any] = None) -> Dict[str, Any]:
         """직접 매핑 (헤더 없을 때)"""
+        import base64
+
         mapped_data = {}
         for field in fields:
             field_id = field["id"]
             excel_col = field.get("excel_column", "")
             excel_index = field.get("excel_index")
+            field_type = field.get("type", "text")
 
             # 인덱스 기반 데이터 우선 사용
             if row_by_index is not None and excel_index is not None:
                 if 0 <= excel_index < len(row_by_index):
-                    mapped_data[field_id] = row_by_index[excel_index]
+                    value = row_by_index[excel_index]
                 else:
-                    mapped_data[field_id] = None
+                    value = None
             else:
-                mapped_data[field_id] = row_data.get(excel_col)
+                value = row_data.get(excel_col)
+
+            # 이미지 타입인 경우 img 태그로 변환
+            if field_type == "image" and value is not None:
+                value = self._convert_image_to_img_tag(value)
+
+            mapped_data[field_id] = value
         return mapped_data
+
+    def _convert_image_to_img_tag(self, image_path) -> str:
+        """이미지 경로를 완전한 img 태그로 변환"""
+        data_url = self._convert_image_to_data_url(image_path)
+        if data_url:
+            return f'<img src="{data_url}" style="width:100%;height:100%;object-fit:contain;">'
+        return ""
+
+    def _convert_image_to_data_url(self, image_path) -> str:
+        """이미지 경로를 Base64 data URL로 변환"""
+        import base64
+
+        try:
+            path = Path(image_path) if not isinstance(image_path, Path) else image_path
+            if not path.exists():
+                return ""
+
+            with open(path, "rb") as f:
+                data = base64.b64encode(f.read()).decode("utf-8")
+
+            suffix = path.suffix.lower()
+            mime_types = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+            }
+            mime_type = mime_types.get(suffix, "image/png")
+
+            return f"data:{mime_type};base64,{data}"
+        except Exception:
+            return ""
 
     def _render_html(self, template_path: Path, data: Dict[str, Any]) -> str:
         """HTML 템플릿 렌더링"""
