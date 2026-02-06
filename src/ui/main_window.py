@@ -25,14 +25,14 @@ from PyQt6.QtWidgets import (
 
 from src.core.template_manager import TemplateManager
 from src.core.template_storage import TemplateStorage
-from src.core.document_generator import DocumentGenerator
+from src.core.export_manager import ExportManager
 from src.core.logger import get_logger
 from src.ui.excel_viewer import ExcelViewer
 from src.ui.template_panel import TemplatePanel
 from src.ui.main_toolbar import MainToolbar
 from src.ui.template_editor import TemplateManagerDialog, EditorWidget
 from src.ui.export_dialog import ExportDialog
-from src.ui.export_progress_dialog import ExportProgressDialog
+from src.ui.export_overlay import ExportOverlay
 
 
 class MainWindow(QMainWindow):
@@ -57,6 +57,16 @@ class MainWindow(QMainWindow):
         self._data_sheet_visible = True
         self._current_template_id: Optional[str] = None
 
+        # 작업 디렉토리 설정 및 정리 (고아 파일 방지)
+        self._work_dir = Path(__file__).parent.parent.parent / "worked"
+        ExportManager.cleanup_work_dir(self._work_dir)
+        self._logger.debug(f"작업 디렉토리 정리: {self._work_dir}")
+
+        # 내보내기 관련 상태
+        self._export_manager: Optional[ExportManager] = None
+        self._export_overlay: Optional[ExportOverlay] = None
+        self._is_exporting = False
+
         # 템플릿 매니저 및 저장소 초기화
         if templates_dir is None:
             templates_dir = Path(__file__).parent.parent.parent / "templates"
@@ -72,6 +82,7 @@ class MainWindow(QMainWindow):
             self._logger.warning(f"템플릿 디렉토리 없음: {templates_dir}")
 
         self._setup_ui()
+        self._setup_overlay()
         self._setup_toolbar()
         self._setup_menu()
         self._setup_status_bar()
@@ -485,6 +496,12 @@ class MainWindow(QMainWindow):
         about_action.triggered.connect(self._on_about)
         self._help_menu.addAction(about_action)
 
+    def _setup_overlay(self):
+        """내보내기 오버레이 설정"""
+        self._export_overlay = ExportOverlay(self.centralWidget())
+        self._export_overlay.cancel_requested.connect(self._on_export_cancel)
+        self._export_overlay.hide()
+
     def _setup_status_bar(self):
         """상태바 설정"""
         status_bar = self.statusBar()
@@ -521,9 +538,22 @@ class MainWindow(QMainWindow):
         self._toolbar.set_mode(mode)
         self._editor_widget.set_mode(mode)
 
+    def resizeEvent(self, event):
+        """윈도우 크기 변경 이벤트"""
+        super().resizeEvent(event)
+        # 오버레이 크기 조정
+        if self._export_overlay and self._export_overlay.isVisible():
+            self._export_overlay.setGeometry(self.centralWidget().rect())
+
     def closeEvent(self, event):
         """윈도우 닫기 이벤트"""
         from src.ui.utils.styled_message_box import StyledMessageBox
+
+        # 내보내기 중이면 경고
+        if self._is_exporting:
+            QMessageBox.warning(self, "경고", "내보내기 진행 중입니다.\n완료 후 종료해주세요.")
+            event.ignore()
+            return
 
         result = StyledMessageBox.question(
             self,
@@ -537,6 +567,9 @@ class MainWindow(QMainWindow):
             # 이미지 디렉토리 정리
             if self._excel_viewer._loader:
                 self._excel_viewer._loader.cleanup_images()
+
+            # 작업 디렉토리 정리
+            ExportManager.cleanup_work_dir(self._work_dir)
 
             # 윈도우 위치/크기 저장
             self._settings.setValue("geometry", self.saveGeometry())
@@ -698,27 +731,129 @@ class MainWindow(QMainWindow):
         rows_data = self._excel_viewer.get_selected_data()
         excel_headers = self._excel_viewer._loader.get_headers() if self._excel_viewer._loader else []
 
-        # TODO: 활성화된 모든 템플릿으로 실제 내보내기 구현 필요
-        # 현재는 기존 DocumentGenerator 사용 (단일 템플릿만 지원)
-        # DocumentGenerator 생성
-        generator = DocumentGenerator(self._template_manager)
-
-        # 진행 다이얼로그 표시
-        progress_dialog = ExportProgressDialog(
-            generator=generator,
+        # 내보내기 실행
+        self._run_export(
             template_names=template_names,
             rows_data=rows_data,
-            output_dir=settings["output_dir"],
-            settings=settings,
             excel_headers=excel_headers,
-            parent=self
+            settings=settings,
         )
-        progress_dialog.exec()
 
-        # 결과 표시
-        files = progress_dialog.get_generated_files()
-        if files:
-            self.statusBar().showMessage(f"내보내기 완료: {len(files)}개 파일 생성됨")
+    def _run_export(
+        self,
+        template_names: List[str],
+        rows_data: list,
+        excel_headers: list,
+        settings: dict,
+    ):
+        """내보내기 실행"""
+        from PyQt6.QtCore import QTimer
+        from PyQt6.QtWidgets import QApplication
+
+        self._is_exporting = True
+
+        # 오버레이 표시
+        self._export_overlay.reset()
+        self._export_overlay.setGeometry(self.centralWidget().rect())
+        self._export_overlay.set_total(len(template_names) * len(rows_data))
+        self._export_overlay.show()
+        self._export_overlay.raise_()
+
+        # ExportManager 생성
+        self._export_manager = ExportManager(self._template_manager, self._work_dir)
+
+        # 진행 콜백
+        def on_progress(current: int, total: int, filename: str, row_data: dict):
+            self._export_overlay.set_progress(current, total, filename)
+            # 미리보기 업데이트 (현재 처리 중인 행)
+            if row_data:
+                row_data_by_index = {i: v for i, v in enumerate(row_data.values())}
+                self._editor_widget.set_preview_data(row_data, row_data_by_index)
+            QApplication.processEvents()
+
+        # 내보내기 실행 (별도 타이머로 UI 업데이트 후 실행)
+        def do_export():
+            try:
+                result_path = self._export_manager.export(
+                    template_names=template_names,
+                    rows_data=rows_data,
+                    excel_headers=excel_headers,
+                    output_format=settings["format"],
+                    single_file=settings["single_file"],
+                    filename_base=settings["filename"],
+                    progress_callback=on_progress,
+                )
+
+                if result_path:
+                    self._on_export_complete(result_path, settings)
+                else:
+                    if self._export_manager._cancelled:
+                        self._export_overlay.show_error("내보내기 취소됨")
+                    else:
+                        self._export_overlay.show_error("내보내기 실패")
+                    self._is_exporting = False
+
+            except Exception as e:
+                self._logger.error(f"내보내기 오류: {e}")
+                self._export_overlay.show_error(f"오류: {str(e)[:50]}")
+                self._is_exporting = False
+
+        QTimer.singleShot(100, do_export)
+
+    def _on_export_complete(self, result_path: Path, settings: dict):
+        """내보내기 완료 처리"""
+        self._export_overlay.show_completed()
+
+        # 저장 위치 선택 다이얼로그
+        if result_path.suffix == ".zip":
+            filter_str = "ZIP 파일 (*.zip)"
+            default_name = f"{settings['filename']}.zip"
+        elif result_path.suffix == ".png":
+            filter_str = "PNG 이미지 (*.png)"
+            default_name = f"{settings['filename']}.png"
+        else:
+            filter_str = "PDF 파일 (*.pdf)"
+            default_name = f"{settings['filename']}.pdf"
+
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "내보내기 파일 저장",
+            str(Path.home() / default_name),
+            filter_str,
+        )
+
+        if save_path:
+            import shutil
+            try:
+                shutil.copy2(result_path, save_path)
+                self._logger.info(f"파일 저장 완료: {save_path}")
+                self.statusBar().showMessage(f"내보내기 완료: {save_path}")
+            except Exception as e:
+                self._logger.error(f"파일 저장 실패: {e}")
+                QMessageBox.critical(self, "오류", f"파일 저장 실패:\n{e}")
+
+        # 작업 파일 정리
+        if self._export_manager:
+            self._export_manager.cleanup_work_files()
+            self._export_manager.cleanup()
+            self._export_manager = None
+
+        self._export_overlay.hide()
+        self._is_exporting = False
+
+    def _on_export_cancel(self):
+        """내보내기 취소"""
+        if self._is_exporting and self._export_manager:
+            self._export_manager.cancel()
+            self._logger.info("내보내기 취소 요청")
+        else:
+            # 이미 완료/에러 상태면 오버레이 닫기
+            self._export_overlay.hide()
+            if self._export_manager:
+                self._export_manager.cleanup_work_files()
+                self._export_manager.cleanup()
+                self._export_manager = None
+            self._is_exporting = False
 
     def _on_select_all(self):
         """전체 선택"""
