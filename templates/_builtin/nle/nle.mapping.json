@@ -4,6 +4,19 @@
   "type": "html",
   "safety_indicator": "NLE",
   "description": "NIOSH Lifting Equation",
+  "_meta": {
+    "field_schema": {
+      "id": "템플릿에서 {{id}}로 참조할 고유 식별자",
+      "label": "UI에 표시될 라벨",
+      "excel_column": "엑셀 컬럼 헤더명 (헤더 기반 매핑)",
+      "excel_index": "엑셀 컬럼 인덱스 (0부터 시작, 우선 적용)",
+      "type": "필드 타입 - 'image' 지정 시 이미지로 처리"
+    },
+    "example_image_fields": [
+      {"id": "frame_image", "label": "프레임 이미지", "type": "image", "excel_column": "Frame", "excel_index": 0},
+      {"id": "skeleton_image", "label": "스켈레톤 이미지", "type": "image", "excel_column": "Skeleton", "excel_index": 1}
+    ]
+  },
   "fields": [
     {"id": "frame", "label": "프레임", "excel_column": "Frame", "excel_index": 0},
     {"id": "time", "label": "시간", "excel_column": "Time", "excel_index": 2},

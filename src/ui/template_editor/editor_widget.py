@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QUrl
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -421,7 +421,11 @@ class EditorWidget(QWidget):
 
             # 미리보기 뷰 업데이트
             if self._web_view:
-                self._web_view.setHtml(preview_html)
+                if self._template_path:
+                    base_url = QUrl.fromLocalFile(str(self._template_path.parent) + "/")
+                    self._web_view.setHtml(preview_html, base_url)
+                else:
+                    self._web_view.setHtml(preview_html)
 
             # 매핑 미리보기 뷰 업데이트 (원본 템플릿 + 하이라이트)
             if self._mapping_web_view:
@@ -450,7 +454,11 @@ class EditorWidget(QWidget):
                 else:
                     mapping_html = f"{mapping_html}{highlight_script}"
 
-                self._mapping_web_view.setHtml(mapping_html)
+                if self._template_path:
+                    base_url = QUrl.fromLocalFile(str(self._template_path.parent) + "/")
+                    self._mapping_web_view.setHtml(mapping_html, base_url)
+                else:
+                    self._mapping_web_view.setHtml(mapping_html)
 
         except Exception as e:
             error_html = f"""
