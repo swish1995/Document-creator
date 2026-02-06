@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.9;
+            color: #f0f0f0;
+            background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
+            padding: 40px 60px;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        /* 헤더 영역 */
+        .header {
+            text-align: center;
+            padding: 30px 50px;
+            background: linear-gradient(135deg, #1e5a3f 0%, #0d2a1b 100%);
+            border-radius: 20px;
+            margin-bottom: 50px;
+            border: 2px solid #2d8858;
+            box-shadow: 0 10px 40px rgba(90, 184, 122, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #5ab87a 0%, #4aa86a 50%, #5ab87a 100%);
+        }
+
+        .header h1 {
+            font-size: 36px;
+            font-weight: 800;
+            color: #ffffff;
+            margin: 0;
+            letter-spacing: -0.8px;
+            text-shadow: 0 2px 10px rgba(90, 184, 122, 0.3);
+        }
+
+        /* 섹션 */
+        .section {
+            margin-bottom: 50px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #5ab87a;
+            margin: 0 0 25px 0;
+            padding-bottom: 16px;
+            border-bottom: 2px solid rgba(90, 184, 122, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title .icon {
+            font-size: 26px;
+            filter: drop-shadow(0 2px 4px rgba(90, 184, 122, 0.5));
+        }
+
+        /* 스텝 */
+        .step {
+            display: flex;
+            gap: 20px;
+            margin: 25px 0;
+            padding: 25px;
+            background: rgba(90, 184, 122, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(90, 184, 122, 0.15);
+        }
+
+        .step-number {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #5ab87a 0%, #4aa86a 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 800;
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 4px 15px rgba(90, 184, 122, 0.4);
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-content h3 {
+            color: #ffffff;
+            font-size: 18px;
+            margin: 0 0 10px 0;
+            font-weight: 600;
+        }
+
+        .step-content p {
+            color: #c0d0c0;
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.8;
+            padding: 0;
+        }
+
+        /* 단락 */
+        p {
+            margin: 0 0 18px 0;
+            color: #e0e0e0;
+            padding-left: 5px;
+            line-height: 2;
+        }
+
+        /* 리스트 */
+        ul {
+            margin: 15px 0;
+            padding-left: 25px;
+            list-style: none;
+        }
+
+        ul li {
+            position: relative;
+            padding: 8px 0 8px 25px;
+            color: #d0d0d0;
+        }
+
+        ul li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #5ab87a;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* 팁 박스 */
+        .tip-box {
+            background: rgba(90, 184, 122, 0.1);
+            border-left: 4px solid #5ab87a;
+            border-radius: 0 12px 12px 0;
+            padding: 20px 25px;
+            margin: 20px 0;
+        }
+
+        .tip-box h4 {
+            color: #5ab87a;
+            font-size: 16px;
+            margin: 0 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tip-box p {
+            color: #c0d0c0;
+            margin: 0;
+            padding: 0;
+            font-size: 14px;
+        }
+
+        /* 경고 박스 */
+        .warning-box {
+            background: rgba(255, 159, 67, 0.1);
+            border-left: 4px solid #ff9f43;
+            border-radius: 0 12px 12px 0;
+            padding: 20px 25px;
+            margin: 20px 0;
+        }
+
+        .warning-box h4 {
+            color: #ff9f43;
+            font-size: 16px;
+            margin: 0 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .warning-box p {
+            color: #d0c0b0;
+            margin: 0;
+            padding: 0;
+            font-size: 14px;
+        }
+
+        /* 키보드 단축키 */
+        kbd {
+            background: #3a3a3a;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #e0e0e0;
+            box-shadow: 0 2px 0 #2a2a2a;
+        }
+
+        /* 옵션 그리드 */
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .option-item {
+            background: rgba(90, 184, 122, 0.05);
+            border-radius: 10px;
+            padding: 18px 20px;
+            border: 1px solid rgba(90, 184, 122, 0.2);
+        }
+
+        .option-item strong {
+            color: #ffffff;
+            display: block;
+            margin-bottom: 6px;
+            font-size: 15px;
+        }
+
+        .option-item span {
+            color: #a0c0b0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* 단축키 테이블 */
+        .shortcut-table {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .shortcut-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .shortcut-key {
+            width: 180px;
+            flex-shrink: 0;
+        }
+
+        .shortcut-desc {
+            color: #c0c0c0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <div class="header">
+        <h1>📖 사용 방법</h1>
+    </div>
+
+    <!-- 시작하기 -->
+    <div class="section">
+        <h2 class="section-title"><span class="icon">🚀</span> 시작하기</h2>
+
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                <h3>Excel 파일 열기</h3>
+                <p>
+                    툴바의 <strong style="color: #5ab87a;">📂 열기</strong> 버튼을 클릭하거나
+                    <kbd>Ctrl</kbd> + <kbd>O</kbd> (macOS: <kbd>Cmd</kbd> + <kbd>O</kbd>)를 눌러
+                    Skeleton Analyzer에서 내보낸 Excel 파일을 선택합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                <h3>템플릿 선택</h3>
+                <p>
+                    오른쪽 패널에서 사용할 템플릿을 선택합니다.
+                    <strong style="color: #5ab87a;">+ 패널 추가</strong> 버튼으로 여러 템플릿을 동시에 선택할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+                <h3>행 선택</h3>
+                <p>
+                    Excel 뷰어에서 문서를 생성할 행을 선택합니다.
+                    체크박스로 개별 선택하거나, <kbd>Ctrl</kbd> + <kbd>A</kbd>로 전체 선택할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+                <h3>내보내기</h3>
+                <p>
+                    툴바의 <strong style="color: #5ab87a;">📤 내보내기</strong> 버튼을 클릭하여
+                    출력 형식과 옵션을 설정한 후 문서를 생성합니다.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 매핑 설정 -->
+    <div class="section">
+        <h2 class="section-title"><span class="icon">🔧</span> 매핑 설정</h2>
+
+        <p>
+            매핑은 Excel 컬럼과 템플릿 필드를 연결하는 작업입니다.
+            프로그램이 자동으로 매핑을 시도하지만, 필요한 경우 수동으로 조정할 수 있습니다.
+        </p>
+
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                <h3>매핑 상태 확인</h3>
+                <p>
+                    각 템플릿 패널에 매핑 상태가 표시됩니다.
+                    <strong style="color: #52c41a;">매핑: 완료</strong>는 모든 필드가 연결됨을,
+                    <strong style="color: #ff9f43;">매핑: 5/8</strong>은 일부 필드가 미연결됨을 의미합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                <h3>매핑 편집</h3>
+                <p>
+                    <strong style="color: #5ab87a;">🔧 매핑</strong> 버튼을 클릭하여 매핑 다이얼로그를 엽니다.
+                    각 템플릿 필드에 대해 연결할 Excel 컬럼을 선택할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="tip-box">
+            <h4>💡 팁</h4>
+            <p>
+                매핑은 Excel 파일별, 템플릿별로 저장됩니다.
+                같은 Excel 파일을 다시 열면 이전 매핑 설정이 자동으로 적용됩니다.
+            </p>
+        </div>
+    </div>
+
+    <!-- 내보내기 옵션 -->
+    <div class="section">
+        <h2 class="section-title"><span class="icon">📤</span> 내보내기 옵션</h2>
+
+        <div class="option-grid">
+            <div class="option-item">
+                <strong>출력 형식</strong>
+                <span>PDF 또는 PNG 형식 선택. PDF는 인쇄용, PNG는 웹/프레젠테이션용에 적합</span>
+            </div>
+            <div class="option-item">
+                <strong>단일 파일로 병합</strong>
+                <span>PDF 선택 시 모든 문서를 하나의 PDF로 통합 (PNG는 해당 없음)</span>
+            </div>
+            <div class="option-item">
+                <strong>템플릿별로 묶음</strong>
+                <span>체크 시 템플릿별로 그룹화, 해제 시 행별로 그룹화</span>
+            </div>
+            <div class="option-item">
+                <strong>ZIP 아카이브</strong>
+                <span>여러 파일 생성 시 자동으로 ZIP으로 압축</span>
+            </div>
+        </div>
+
+        <div class="warning-box">
+            <h4>⚠️ 주의</h4>
+            <p>
+                많은 수의 문서를 생성할 경우 시간이 오래 걸릴 수 있습니다.
+                진행 중 취소 버튼으로 작업을 중단할 수 있습니다.
+            </p>
+        </div>
+    </div>
+
+    <!-- 미리보기 -->
+    <div class="section">
+        <h2 class="section-title"><span class="icon">👁️</span> 미리보기</h2>
+
+        <p>
+            Excel 뷰어에서 행을 클릭하면 해당 행의 데이터로 미리보기가 업데이트됩니다.
+            실제 내보내기 전에 문서가 어떻게 생성될지 확인할 수 있습니다.
+        </p>
+
+        <ul>
+            <li>미리보기는 선택된 모든 템플릿에 적용됩니다</li>
+            <li>여러 패널을 추가하여 다양한 템플릿을 동시에 확인 가능</li>
+            <li>× 버튼으로 불필요한 패널 제거 가능</li>
+        </ul>
+
+        <div class="tip-box">
+            <h4>💡 팁</h4>
+            <p>
+                미리보기에서 데이터가 표시되지 않는 필드가 있다면 매핑 설정을 확인하세요.
+            </p>
+        </div>
+    </div>
+
+    <!-- 단축키 -->
+    <div class="section">
+        <h2 class="section-title"><span class="icon">⌨️</span> 단축키</h2>
+
+        <div class="shortcut-table">
+            <div class="shortcut-row">
+                <div class="shortcut-key"><kbd>Ctrl</kbd> + <kbd>O</kbd></div>
+                <div class="shortcut-desc">Excel 파일 열기</div>
+            </div>
+            <div class="shortcut-row">
+                <div class="shortcut-key"><kbd>Ctrl</kbd> + <kbd>E</kbd></div>
+                <div class="shortcut-desc">내보내기</div>
+            </div>
+            <div class="shortcut-row">
+                <div class="shortcut-key"><kbd>Ctrl</kbd> + <kbd>A</kbd></div>
+                <div class="shortcut-desc">전체 선택</div>
+            </div>
+            <div class="shortcut-row">
+                <div class="shortcut-key"><kbd>Ctrl</kbd> + <kbd>D</kbd></div>
+                <div class="shortcut-desc">선택 해제</div>
+            </div>
+            <div class="shortcut-row">
+                <div class="shortcut-key"><kbd>Ctrl</kbd> + <kbd>Q</kbd></div>
+                <div class="shortcut-desc">프로그램 종료</div>
+            </div>
+        </div>
+
+        <p style="margin-top: 15px; color: #888; font-size: 13px;">
+            * macOS에서는 <kbd>Ctrl</kbd> 대신 <kbd>Cmd</kbd>를 사용합니다.
+        </p>
+    </div>
+
+    <!-- 문제 해결 -->
+    <div class="section">
+        <h2 class="section-title"><span class="icon">🔍</span> 문제 해결</h2>
+
+        <div class="step">
+            <div class="step-number">?</div>
+            <div class="step-content">
+                <h3>Excel 파일이 열리지 않아요</h3>
+                <p>
+                    .xlsx 또는 .xls 형식인지 확인하세요.
+                    파일이 다른 프로그램에서 열려 있으면 닫고 다시 시도하세요.
+                </p>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">?</div>
+            <div class="step-content">
+                <h3>미리보기에 데이터가 표시되지 않아요</h3>
+                <p>
+                    매핑 설정을 확인하세요. 🔧 매핑 버튼을 클릭하여
+                    Excel 컬럼과 템플릿 필드가 올바르게 연결되어 있는지 확인합니다.
+                </p>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">?</div>
+            <div class="step-content">
+                <h3>내보내기가 실패해요</h3>
+                <p>
+                    저장 위치에 쓰기 권한이 있는지 확인하세요.
+                    디스크 공간이 충분한지도 확인해 주세요.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
