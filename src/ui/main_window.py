@@ -786,6 +786,7 @@ class MainWindow(QMainWindow):
                     filename_base=settings["filename"],
                     progress_callback=on_progress,
                     rows_data_by_index=rows_data_by_index,
+                    group_by_template=settings.get("group_by_template", True),
                 )
 
                 if result_path:

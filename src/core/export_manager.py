@@ -73,6 +73,7 @@ class ExportManager:
         filename_base: str,
         progress_callback: Optional[Callable[[int, int, str, Dict[str, Any]], None]] = None,
         rows_data_by_index: Optional[List[List[Any]]] = None,
+        group_by_template: bool = True,
     ) -> Optional[Path]:
         """내보내기 실행
 
@@ -85,6 +86,7 @@ class ExportManager:
             filename_base: 기본 파일명
             progress_callback: 진행 콜백 (current, total, filename, row_data)
             rows_data_by_index: 인덱스 기반 행 데이터 (중복 헤더 지원)
+            group_by_template: True면 템플릿별, False면 행별 순서
 
         Returns:
             최종 출력 파일 경로 (ZIP 또는 단일 파일)
@@ -96,10 +98,18 @@ class ExportManager:
         current = 0
         generated_files: List[Path] = []
 
-        self._logger.info(f"내보내기 시작: {len(template_names)}개 템플릿 × {len(rows_data)}행")
+        self._logger.info(f"내보내기 시작: {len(template_names)}개 템플릿 × {len(rows_data)}행, 순서: {'템플릿별' if group_by_template else '행별'}")
 
         # 1. 각 템플릿 × 행 조합에 대해 PDF 생성
-        for template_name in template_names:
+        # 순서: group_by_template=True면 템플릿별, False면 행별
+        if group_by_template:
+            # 템플릿별: 템플릿1의 모든 행 → 템플릿2의 모든 행 → ...
+            iterations = [(t, r, row) for t in template_names for r, row in enumerate(rows_data)]
+        else:
+            # 행별: 행1의 모든 템플릿 → 행2의 모든 템플릿 → ...
+            iterations = [(t, r, row) for r, row in enumerate(rows_data) for t in template_names]
+
+        for template_name, row_idx, row_data in iterations:
             if self._cancelled:
                 break
 
@@ -108,41 +118,37 @@ class ExportManager:
                 self._logger.error(f"템플릿 없음: {template_name}")
                 continue
 
-            for row_idx, row_data in enumerate(rows_data):
-                if self._cancelled:
-                    break
+            current += 1
+            filename = f"{filename_base}_{template_name}_{row_idx + 1:03d}"
 
-                current += 1
-                filename = f"{filename_base}_{template_name}_{row_idx + 1:03d}"
+            if progress_callback:
+                progress_callback(current, total, f"{filename}.pdf", row_data)
 
-                if progress_callback:
-                    progress_callback(current, total, f"{filename}.pdf", row_data)
+            # 매핑 적용
+            row_by_index = rows_data_by_index[row_idx] if rows_data_by_index else None
+            if excel_headers:
+                mapper = Mapper(template.fields, excel_headers)
+                mapped_data = mapper.apply(row_data, row_by_index)
+            else:
+                mapped_data = self._direct_map(template.fields, row_data, row_by_index)
 
-                # 매핑 적용
-                row_by_index = rows_data_by_index[row_idx] if rows_data_by_index else None
-                if excel_headers:
-                    mapper = Mapper(template.fields, excel_headers)
-                    mapped_data = mapper.apply(row_data, row_by_index)
-                else:
-                    mapped_data = self._direct_map(template.fields, row_data, row_by_index)
+            # HTML 렌더링
+            html_content = self._render_html(template.template_path, mapped_data)
 
-                # HTML 렌더링
-                html_content = self._render_html(template.template_path, mapped_data)
+            # HTML → PDF 변환
+            pdf_path = self._work_dir / f"{filename}.pdf"
+            converter = self._get_pdf_converter()
+            success = converter.convert_html_string_to_pdf(
+                html_content=html_content,
+                output_path=pdf_path,
+                base_url=template.template_path.parent,
+            )
 
-                # HTML → PDF 변환
-                pdf_path = self._work_dir / f"{filename}.pdf"
-                converter = self._get_pdf_converter()
-                success = converter.convert_html_string_to_pdf(
-                    html_content=html_content,
-                    output_path=pdf_path,
-                    base_url=template.template_path.parent,
-                )
-
-                if success:
-                    generated_files.append(pdf_path)
-                    self._logger.debug(f"PDF 생성: {pdf_path}")
-                else:
-                    self._logger.error(f"PDF 변환 실패: {filename}")
+            if success:
+                generated_files.append(pdf_path)
+                self._logger.debug(f"PDF 생성: {pdf_path}")
+            else:
+                self._logger.error(f"PDF 변환 실패: {filename}")
 
         if self._cancelled:
             self._logger.info("내보내기 취소됨")
