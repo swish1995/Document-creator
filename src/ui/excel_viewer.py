@@ -653,3 +653,9 @@ class ExcelViewer(QWidget):
         if self._loader:
             return self._loader.get_rows(self.get_selected_rows())
         return []
+
+    def get_selected_data_by_index(self) -> List[List[Any]]:
+        """선택된 행 데이터 목록 (인덱스 기반, 중복 헤더 지원)"""
+        if self._loader:
+            return [self._loader.get_row_by_index(row) for row in self.get_selected_rows()]
+        return []

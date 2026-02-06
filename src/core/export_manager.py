@@ -72,17 +72,19 @@ class ExportManager:
         single_file: bool,
         filename_base: str,
         progress_callback: Optional[Callable[[int, int, str, Dict[str, Any]], None]] = None,
+        rows_data_by_index: Optional[List[List[Any]]] = None,
     ) -> Optional[Path]:
         """내보내기 실행
 
         Args:
             template_names: 템플릿 이름 목록
-            rows_data: 행 데이터 목록
+            rows_data: 행 데이터 목록 (헤더명 기반)
             excel_headers: 엑셀 헤더
             output_format: 출력 형식 ("pdf" 또는 "png")
             single_file: PDF 통합 여부
             filename_base: 기본 파일명
             progress_callback: 진행 콜백 (current, total, filename, row_data)
+            rows_data_by_index: 인덱스 기반 행 데이터 (중복 헤더 지원)
 
         Returns:
             최종 출력 파일 경로 (ZIP 또는 단일 파일)
@@ -117,11 +119,12 @@ class ExportManager:
                     progress_callback(current, total, f"{filename}.pdf", row_data)
 
                 # 매핑 적용
+                row_by_index = rows_data_by_index[row_idx] if rows_data_by_index else None
                 if excel_headers:
                     mapper = Mapper(template.fields, excel_headers)
-                    mapped_data = mapper.apply(row_data)
+                    mapped_data = mapper.apply(row_data, row_by_index)
                 else:
-                    mapped_data = self._direct_map(template.fields, row_data)
+                    mapped_data = self._direct_map(template.fields, row_data, row_by_index)
 
                 # HTML 렌더링
                 html_content = self._render_html(template.template_path, mapped_data)
@@ -173,13 +176,22 @@ class ExportManager:
             zip_path = self._work_dir / f"{filename_base}.zip"
             return self._create_zip(generated_files, zip_path)
 
-    def _direct_map(self, fields: List[Dict], row_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _direct_map(self, fields: List[Dict], row_data: Dict[str, Any], row_by_index: List[Any] = None) -> Dict[str, Any]:
         """직접 매핑 (헤더 없을 때)"""
         mapped_data = {}
         for field in fields:
             field_id = field["id"]
             excel_col = field.get("excel_column", "")
-            mapped_data[field_id] = row_data.get(excel_col)
+            excel_index = field.get("excel_index")
+
+            # 인덱스 기반 데이터 우선 사용
+            if row_by_index is not None and excel_index is not None:
+                if 0 <= excel_index < len(row_by_index):
+                    mapped_data[field_id] = row_by_index[excel_index]
+                else:
+                    mapped_data[field_id] = None
+            else:
+                mapped_data[field_id] = row_data.get(excel_col)
         return mapped_data
 
     def _render_html(self, template_path: Path, data: Dict[str, Any]) -> str:

@@ -729,12 +729,14 @@ class MainWindow(QMainWindow):
 
         # 선택된 행 데이터 가져오기
         rows_data = self._excel_viewer.get_selected_data()
+        rows_data_by_index = self._excel_viewer.get_selected_data_by_index()
         excel_headers = self._excel_viewer._loader.get_headers() if self._excel_viewer._loader else []
 
         # 내보내기 실행
         self._run_export(
             template_names=template_names,
             rows_data=rows_data,
+            rows_data_by_index=rows_data_by_index,
             excel_headers=excel_headers,
             settings=settings,
         )
@@ -743,6 +745,7 @@ class MainWindow(QMainWindow):
         self,
         template_names: List[str],
         rows_data: list,
+        rows_data_by_index: list,
         excel_headers: list,
         settings: dict,
     ):
@@ -782,6 +785,7 @@ class MainWindow(QMainWindow):
                     single_file=settings["single_file"],
                     filename_base=settings["filename"],
                     progress_callback=on_progress,
+                    rows_data_by_index=rows_data_by_index,
                 )
 
                 if result_path:
