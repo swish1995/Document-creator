@@ -25,7 +25,7 @@ class LicenseDialog(QDialog):
     def _init_ui(self):
         """UI 초기화"""
         self.setWindowTitle("라이센스 등록")
-        self.setFixedSize(500, 380)
+        self.setFixedSize(500, 420)
         self.setModal(True)
 
         # 다크 테마 스타일
@@ -36,6 +36,7 @@ class LicenseDialog(QDialog):
             }
             QLabel {
                 color: #e0e0e0;
+                background-color: transparent;
             }
             QLineEdit {
                 background-color: #2a2a2a;
@@ -134,6 +135,11 @@ class LicenseDialog(QDialog):
         hw_desc.setStyleSheet("color: #666666; font-size: 12px;")
         layout.addWidget(hw_desc)
 
+        # 개발자 연락처
+        contact_label = QLabel("라이센스 문의: swish1995@gmail.com")
+        contact_label.setStyleSheet("color: #4a9eff; font-size: 12px; margin-top: 4px;")
+        layout.addWidget(contact_label)
+
         # 라이센스 키 입력 섹션
         key_label = QLabel("라이센스 키")
         key_label.setStyleSheet("font-weight: 500; margin-top: 16px;")
@@ -149,10 +155,6 @@ class LicenseDialog(QDialog):
 
         button_layout = QHBoxLayout()
         button_layout.setSpacing(12)
-
-        self._unregister_btn = QPushButton("등록 해제")
-        self._unregister_btn.clicked.connect(self._unregister)
-        button_layout.addWidget(self._unregister_btn)
 
         button_layout.addStretch()
 
@@ -174,26 +176,22 @@ class LicenseDialog(QDialog):
             self._status_label.setStyleSheet("color: #ffa500; font-size: 13px;")
             self._key_edit.setEnabled(False)
             self._register_btn.setEnabled(False)
-            self._unregister_btn.setVisible(False)
         elif self._manager.license_mode == LicenseMode.LICENSED:
             self._status_label.setText("강제 등록 모드")
             self._status_label.setStyleSheet("color: #4a9eff; font-size: 13px;")
             self._key_edit.setEnabled(False)
             self._register_btn.setEnabled(False)
-            self._unregister_btn.setVisible(False)
         elif self._manager.is_licensed:
             self._status_label.setText("등록됨")
             self._status_label.setStyleSheet("color: #4ade80; font-size: 13px;")
             self._key_edit.setText(self._manager.license_key or "")
             self._key_edit.setEnabled(False)
             self._register_btn.setEnabled(False)
-            self._unregister_btn.setVisible(True)
         else:
             self._status_label.setText("미등록 - 문서 생성 기능이 제한됩니다")
             self._status_label.setStyleSheet("color: #f87171; font-size: 13px;")
             self._key_edit.setEnabled(True)
             self._register_btn.setEnabled(False)
-            self._unregister_btn.setVisible(False)
 
     def _on_key_changed(self, text: str):
         """키 입력 변경"""
@@ -251,18 +249,3 @@ class LicenseDialog(QDialog):
                 message = "라이센스 등록에 실패했습니다."
 
             QMessageBox.warning(self, "등록 실패", message)
-
-    def _unregister(self):
-        """라이센스 등록 해제"""
-        reply = QMessageBox.question(
-            self,
-            "등록 해제",
-            "라이센스 등록을 해제하시겠습니까?\n문서 생성 기능이 제한됩니다.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
-            self._manager.unregister()
-            self._key_edit.clear()
-            self._update_state()
