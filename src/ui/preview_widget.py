@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QScrollArea
@@ -28,6 +28,7 @@ class PreviewWidget(QWidget):
         super().__init__(parent)
         self._template: Optional[Template] = None
         self._data: Dict[str, Any] = {}
+        self._image_fields: List[str] = []  # 이미지 타입 필드 ID 목록
         self._setup_ui()
 
     def _setup_ui(self):
@@ -86,6 +87,12 @@ class PreviewWidget(QWidget):
     def set_template(self, template: Optional[Template]):
         """템플릿 설정"""
         self._template = template
+        # 이미지 타입 필드 추출
+        self._image_fields = []
+        if template and template.fields:
+            for field in template.fields:
+                if field.get("type") == "image":
+                    self._image_fields.append(field.get("id", ""))
         self._render()
 
     def update_data(self, data: Dict[str, Any]):
@@ -117,22 +124,45 @@ class PreviewWidget(QWidget):
             """)
 
     def _render_html(self):
-        """HTML 템플릿 렌더링 (QWebEngineView 사용)"""
+        """HTML 템플릿 렌더링 (Jinja2 사용)"""
         template_path = self._template.template_path
 
         with open(template_path, "r", encoding="utf-8") as f:
             html_content = f.read()
 
+        # 이미지 필드를 플레이스홀더로 변환한 데이터 준비
+        preview_data = self._prepare_preview_data()
+
         # Jinja2로 데이터 바인딩
         jinja_template = Jinja2Template(html_content)
-        rendered_html = jinja_template.render(**self._data)
+        rendered_html = jinja_template.render(**preview_data)
 
         # 웹뷰 표시, 스크롤 영역 숨김
         self._scroll_area.hide()
         self._web_view.show()
 
-        # QWebEngineView로 HTML 렌더링
-        self._web_view.setHtml(rendered_html)
+        # QWebEngineView로 HTML 렌더링 (baseUrl 설정으로 상대 경로 리소스 로드)
+        base_url = QUrl.fromLocalFile(str(template_path.parent) + "/")
+        self._web_view.setHtml(rendered_html, base_url)
+
+    def _prepare_preview_data(self) -> Dict[str, Any]:
+        """미리보기용 데이터 준비 - 이미지 필드는 플레이스홀더로 변환"""
+        preview_data = {}
+
+        for key, value in self._data.items():
+            if key in self._image_fields:
+                # 이미지 필드: 플레이스홀더 HTML로 변환
+                if value and str(value).strip():
+                    # 값이 있으면 초록 플레이스홀더
+                    preview_data[key] = '<div style="width:100%;height:100%;min-width:30px;min-height:30px;background:#d4edda;border:2px dashed #28a745;display:flex;align-items:center;justify-content:center;color:#28a745;font-size:10px;">[IMG]</div>'
+                else:
+                    # 값이 없으면 빨간 플레이스홀더
+                    preview_data[key] = '<div style="width:100%;height:100%;min-width:30px;min-height:30px;background:#f8d7da;border:2px dashed #dc3545;display:flex;align-items:center;justify-content:center;color:#dc3545;font-size:10px;">[NO IMG]</div>'
+            else:
+                # 일반 필드: 그대로 전달
+                preview_data[key] = value
+
+        return preview_data
 
     def _render_image(self):
         """이미지 템플릿 렌더링"""

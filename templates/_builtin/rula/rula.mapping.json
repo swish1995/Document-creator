@@ -5,6 +5,8 @@
   "safety_indicator": "RULA",
   "description": "Rapid Upper Limb Assessment",
   "fields": [
+    {"id": "frame_image", "label": "프레임 이미지", "excel_column": "Frame", "excel_index": 0, "type": "image"},
+    {"id": "skeleton_image", "label": "스켈레톤 이미지", "excel_column": "Skeleton", "excel_index": 1, "type": "image"},
     {"id": "upper_arm_score", "label": "상박 점수", "excel_column": "Base", "excel_index": 5},
     {"id": "upper_arm_adjust1", "label": "상박 가점1 (어깨 들림)", "excel_column": "+Raised", "excel_index": 6},
     {"id": "upper_arm_adjust2", "label": "상박 가점2 (벌어짐)", "excel_column": "+Abducted", "excel_index": 7},
