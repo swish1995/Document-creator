@@ -83,11 +83,12 @@ class Mapper:
         """
         self._manual_mappings.pop(field_id, None)
 
-    def apply(self, row_data: Dict[str, Any]) -> Dict[str, Any]:
+    def apply(self, row_data: Dict[str, Any], row_data_by_index: List[Any] = None) -> Dict[str, Any]:
         """매핑을 적용하여 데이터 변환
 
         Args:
             row_data: 엑셀 행 데이터 {column: value}
+            row_data_by_index: 인덱스 기반 행 데이터 [value, ...] (중복 헤더 지원)
 
         Returns:
             변환된 데이터 {field_id: value}
@@ -95,8 +96,18 @@ class Mapper:
         mapping = self.get_mapping()
         result = {}
 
-        for field_id, excel_column in mapping.items():
-            if excel_column is not None and excel_column in row_data:
+        for field in self._template_fields:
+            field_id = field["id"]
+            excel_column = mapping.get(field_id)
+            excel_index = field.get("excel_index")
+
+            # 인덱스 기반 데이터가 있고, excel_index가 정의된 경우 우선 사용 (중복 헤더 문제 해결)
+            if row_data_by_index is not None and excel_index is not None:
+                if 0 <= excel_index < len(row_data_by_index):
+                    result[field_id] = row_data_by_index[excel_index]
+                else:
+                    result[field_id] = None
+            elif excel_column is not None and excel_column in row_data:
                 result[field_id] = row_data[excel_column]
             else:
                 result[field_id] = None
