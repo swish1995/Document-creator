@@ -34,6 +34,8 @@ from src.ui.template_editor import TemplateManagerDialog, EditorWidget
 from src.ui.export_dialog import ExportDialog
 from src.ui.export_overlay import ExportOverlay
 from src.ui.help_dialog import HelpDialog
+from src.license import LicenseManager
+from src.license.license_dialog import LicenseDialog
 
 
 class MainWindow(QMainWindow):
@@ -499,6 +501,12 @@ class MainWindow(QMainWindow):
 
         self._help_menu.addSeparator()
 
+        license_action = QAction("라이센스 등록(&L)...", self)
+        license_action.triggered.connect(self._on_license)
+        self._help_menu.addAction(license_action)
+
+        self._help_menu.addSeparator()
+
         about_action = QAction("정보(&A)", self)
         about_action.triggered.connect(self._on_about)
         self._help_menu.addAction(about_action)
@@ -908,3 +916,8 @@ class MainWindow(QMainWindow):
         """정보 다이얼로그"""
         dialog = HelpDialog(self)
         dialog.show_about()
+
+    def _on_license(self):
+        """라이센스 등록 다이얼로그"""
+        dialog = LicenseDialog(self)
+        dialog.exec()

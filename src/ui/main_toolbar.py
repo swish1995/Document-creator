@@ -24,6 +24,8 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
 )
 
+from src.license import LicenseManager
+
 
 class ToolbarComboBox(QComboBox):
     """팝업이 콤보박스 바로 아래에 나오는 커스텀 콤보박스"""
@@ -77,9 +79,16 @@ class MainToolbar(QToolBar):
         self.setFloatable(False)
         self.setIconSize(QSize(14, 14))
 
+        # 라이센스 매니저
+        self._license_manager = LicenseManager.instance()
+
         self._setup_style()
         self._setup_ui()
         self._connect_signals()
+
+        # 라이센스 상태 변경 시 UI 업데이트
+        self._license_manager.license_changed.connect(self._update_license_state)
+        self._update_license_state()
 
     def _get_icon_path(self, icon_name: str) -> str:
         """아이콘 경로 반환"""
@@ -424,14 +433,6 @@ class MainToolbar(QToolBar):
         """
         self.combo_zoom.setCurrentText(f"{percent}%")
 
-    def set_generate_enabled(self, enabled: bool):
-        """문서 생성 버튼 활성화/비활성화
-
-        Args:
-            enabled: 활성화 여부
-        """
-        self.btn_generate.setEnabled(enabled)
-
     def set_generate_text(self, text: str):
         """문서 생성 버튼 텍스트 변경
 
@@ -463,3 +464,37 @@ class MainToolbar(QToolBar):
         """
         # QToolBar에서는 QAction의 setVisible()을 사용해야 함
         self._warning_action.setVisible(visible)
+
+    def _update_license_state(self):
+        """라이센스 상태에 따른 UI 업데이트"""
+        can_generate = self._license_manager.check_feature('document_generate')
+
+        if not can_generate:
+            # 라이센스 미등록 시 버튼 비활성화 및 툴팁 변경
+            self.btn_generate.setEnabled(False)
+            self.btn_generate.setToolTip("라이센스 등록이 필요합니다 (도움말 → 라이센스 등록)")
+        else:
+            # 라이센스 등록 시 원래 툴팁으로 복원
+            self.btn_generate.setToolTip("선택된 행으로 문서 생성 (Ctrl+G)")
+
+        self._can_generate_licensed = can_generate
+
+    def set_generate_enabled(self, enabled: bool):
+        """문서 생성 버튼 활성화/비활성화
+
+        Args:
+            enabled: 활성화 여부
+
+        Note:
+            라이센스가 없으면 enabled=True여도 비활성화 상태 유지
+        """
+        # 라이센스가 있는 경우에만 enabled 적용
+        if hasattr(self, '_can_generate_licensed') and self._can_generate_licensed:
+            self.btn_generate.setEnabled(enabled)
+        else:
+            self.btn_generate.setEnabled(False)
+
+    @property
+    def is_licensed(self) -> bool:
+        """문서 생성 라이센스 여부"""
+        return self._license_manager.check_feature('document_generate')
