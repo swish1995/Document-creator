@@ -755,6 +755,9 @@ class MainWindow(QMainWindow):
 
         self._is_exporting = True
 
+        # UI 비활성화
+        self._set_ui_enabled(False)
+
         # 오버레이 표시
         self._export_overlay.reset()
         self._export_overlay.setGeometry(self.centralWidget().rect())
@@ -797,11 +800,13 @@ class MainWindow(QMainWindow):
                     else:
                         self._export_overlay.show_error("내보내기 실패")
                     self._is_exporting = False
+                    self._set_ui_enabled(True)
 
             except Exception as e:
                 self._logger.error(f"내보내기 오류: {e}")
                 self._export_overlay.show_error(f"오류: {str(e)[:50]}")
                 self._is_exporting = False
+                self._set_ui_enabled(True)
 
         QTimer.singleShot(100, do_export)
 
@@ -847,6 +852,7 @@ class MainWindow(QMainWindow):
 
         self._export_overlay.hide()
         self._is_exporting = False
+        self._set_ui_enabled(True)
 
     def _on_export_cancel(self):
         """내보내기 취소"""
@@ -861,6 +867,14 @@ class MainWindow(QMainWindow):
                 self._export_manager.cleanup()
                 self._export_manager = None
             self._is_exporting = False
+            self._set_ui_enabled(True)
+
+    def _set_ui_enabled(self, enabled: bool):
+        """UI 활성화/비활성화"""
+        self._toolbar.setEnabled(enabled)
+        self.menuBar().setEnabled(enabled)
+        self._excel_viewer.setEnabled(enabled)
+        self._editor_widget.setEnabled(enabled)
 
     def _on_select_all(self):
         """전체 선택"""
