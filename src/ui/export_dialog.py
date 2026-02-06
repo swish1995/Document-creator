@@ -21,22 +21,12 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QLineEdit,
     QPushButton,
-    QFileDialog,
     QCheckBox,
-    QFrame,
-    QWidget,
 )
 
 
 class ExportDialog(QDialog):
     """내보내기 설정 다이얼로그"""
-
-    # 버튼별 색상 정의 (기본색, 어두운색, 밝은색)
-    BUTTON_COLORS = {
-        'export': ('#5ab87a', '#4aa86a', '#6ac88a'),   # 초록색 (내보내기)
-        'cancel': ('#7a7a7a', '#6a6a6a', '#8a8a8a'),   # 회색 (취소)
-        'browse': ('#5a7ab8', '#4a6aa8', '#6a8ac8'),   # 파란색 (찾아보기)
-    }
 
     def __init__(
         self,
@@ -47,11 +37,10 @@ class ExportDialog(QDialog):
         super().__init__(parent)
         self._row_count = row_count
         self._template_names = template_names
-        self._output_dir: Optional[Path] = None
 
         self.setWindowTitle("내보내기")
-        self.setMinimumWidth(600)
-        self.setMinimumHeight(450)
+        self.setMinimumWidth(500)
+        self.setMinimumHeight(350)
         self._setup_style()
         self._setup_ui()
         self._connect_signals()
@@ -59,37 +48,6 @@ class ExportDialog(QDialog):
     def _get_icon_path(self, icon_name: str) -> str:
         """아이콘 경로 반환"""
         return str(Path(__file__).parent.parent / "resources" / "icons" / f"{icon_name}.svg")
-
-    def _get_button_style(self, color_key: str) -> str:
-        """버튼 스타일 생성 (그라데이션)"""
-        colors = self.BUTTON_COLORS.get(color_key, self.BUTTON_COLORS['cancel'])
-        base, dark, light = colors
-
-        return f"""
-            QPushButton {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {base}, stop:1 {dark});
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-size: 12px;
-                font-weight: bold;
-                min-width: 100px;
-            }}
-            QPushButton:hover {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {light}, stop:1 {base});
-            }}
-            QPushButton:pressed {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {dark}, stop:1 {base});
-            }}
-            QPushButton:disabled {{
-                background: #444444;
-                color: #666666;
-            }}
-        """
 
     def _setup_style(self):
         """다이얼로그 스타일 설정"""
@@ -170,10 +128,6 @@ class ExportDialog(QDialog):
             QLineEdit:focus {
                 border: 1px solid #5a7ab8;
             }
-            QLineEdit:read-only {
-                background-color: #333333;
-                color: #999999;
-            }
             QCheckBox {
                 color: #cccccc;
                 font-size: 12px;
@@ -201,26 +155,6 @@ class ExportDialog(QDialog):
             QCheckBox::indicator:disabled {
                 background-color: #333333;
                 border: 1px solid #444444;
-            }
-            /* 찾아보기 버튼 - 파란색 */
-            QPushButton#browseButton {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #5a7ab8, stop:1 #4a6aa8);
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-size: 12px;
-                font-weight: bold;
-                min-width: 100px;
-            }
-            QPushButton#browseButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #6a8ac8, stop:1 #5a7ab8);
-            }
-            QPushButton#browseButton:pressed {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #4a6aa8, stop:1 #5a7ab8);
             }
             /* 취소 버튼 - 회색 */
             QPushButton#cancelButton {
@@ -262,10 +196,6 @@ class ExportDialog(QDialog):
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #4aa86a, stop:1 #5ab87a);
             }
-            QPushButton#exportButton:disabled {
-                background: #444444;
-                color: #666666;
-            }
         """)
 
     def _setup_ui(self):
@@ -294,7 +224,7 @@ class ExportDialog(QDialog):
         self._template_label = QLabel(f"{len(self._template_names)}개 ({', '.join(self._template_names)})")
         self._template_label.setProperty("class", "value")
         self._template_label.setWordWrap(True)
-        self._template_label.setMinimumWidth(400)
+        self._template_label.setMinimumWidth(350)
         summary_layout.addWidget(template_key, 1, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         summary_layout.addWidget(self._template_label, 1, 1, Qt.AlignmentFlag.AlignLeft)
 
@@ -329,46 +259,16 @@ class ExportDialog(QDialog):
         self._single_file_check.setEnabled(True)  # PDF가 기본 선택이므로 활성화
         options_layout.addWidget(self._single_file_check, 1, 0, 1, 2, Qt.AlignmentFlag.AlignLeft)
 
-        # 폴더 구조
-        structure_key = QLabel("폴더 구조")
-        structure_key.setProperty("class", "key")
-        self._structure_combo = QComboBox()
-        self._structure_combo.addItems([
-            "단일 폴더 (모든 파일)",
-            "템플릿별 폴더",
-            "행별 폴더"
-        ])
-        options_layout.addWidget(structure_key, 2, 0, Qt.AlignmentFlag.AlignLeft)
-        options_layout.addWidget(self._structure_combo, 2, 1, Qt.AlignmentFlag.AlignLeft)
-
         # 파일 이름
         filename_key = QLabel("파일 이름")
         filename_key.setProperty("class", "key")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self._filename_edit = QLineEdit(f"안전문서_{timestamp}")
         self._filename_edit.setMinimumWidth(250)
-        options_layout.addWidget(filename_key, 3, 0, Qt.AlignmentFlag.AlignLeft)
-        options_layout.addWidget(self._filename_edit, 3, 1, Qt.AlignmentFlag.AlignLeft)
+        options_layout.addWidget(filename_key, 2, 0, Qt.AlignmentFlag.AlignLeft)
+        options_layout.addWidget(self._filename_edit, 2, 1, Qt.AlignmentFlag.AlignLeft)
 
         layout.addWidget(options_group)
-
-        # 저장 경로
-        path_group = QGroupBox("저장 위치")
-        path_layout = QHBoxLayout(path_group)
-        path_layout.setSpacing(12)
-
-        self._path_edit = QLineEdit()
-        self._path_edit.setReadOnly(True)
-        self._path_edit.setPlaceholderText("저장 폴더를 선택하세요...")
-        path_layout.addWidget(self._path_edit)
-
-        self._browse_button = QPushButton(" 찾아보기")
-        self._browse_button.setObjectName("browseButton")
-        self._browse_button.setIcon(QIcon(self._get_icon_path("load")))
-        self._browse_button.clicked.connect(self._on_browse)
-        path_layout.addWidget(self._browse_button)
-
-        layout.addWidget(path_group)
 
         # 스페이서
         layout.addStretch()
@@ -389,8 +289,7 @@ class ExportDialog(QDialog):
         self._export_button = QPushButton(" 내보내기")
         self._export_button.setObjectName("exportButton")
         self._export_button.setIcon(QIcon(self._get_icon_path("export")))
-        self._export_button.setEnabled(False)  # 저장 위치가 없으면 비활성화
-        self._export_button.clicked.connect(self._on_accept)
+        self._export_button.clicked.connect(self.accept)
         button_layout.addWidget(self._export_button)
 
         layout.addLayout(button_layout)
@@ -407,35 +306,10 @@ class ExportDialog(QDialog):
         if not is_pdf:
             self._single_file_check.setChecked(False)
 
-    def _on_browse(self):
-        """폴더 선택"""
-        dir_path = QFileDialog.getExistingDirectory(
-            self,
-            "저장 폴더 선택",
-            str(Path.home())
-        )
-        if dir_path:
-            self._output_dir = Path(dir_path)
-            self._path_edit.setText(dir_path)
-            self._export_button.setEnabled(True)
-
-    def _on_accept(self):
-        """확인 버튼"""
-        if self._output_dir:
-            self.accept()
-
     def get_settings(self) -> dict:
         """설정값 반환"""
-        structure_map = {
-            0: "flat",
-            1: "by_template",
-            2: "by_row"
-        }
-
         return {
-            "output_dir": self._output_dir,
             "format": self._format_combo.currentText().lower(),
             "single_file": self._single_file_check.isChecked(),
-            "structure": structure_map.get(self._structure_combo.currentIndex(), "flat"),
             "filename": self._filename_edit.text(),
         }
