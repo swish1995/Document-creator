@@ -808,13 +808,13 @@ class MainWindow(QMainWindow):
                     else:
                         self._export_overlay.show_error("내보내기 실패")
                     self._is_exporting = False
-                    self._set_ui_enabled(True)
+                    # UI는 오버레이 닫기 버튼 클릭 시 활성화됨
 
             except Exception as e:
                 self._logger.error(f"내보내기 오류: {e}")
                 self._export_overlay.show_error(f"오류: {str(e)[:50]}")
                 self._is_exporting = False
-                self._set_ui_enabled(True)
+                # UI는 오버레이 닫기 버튼 클릭 시 활성화됨
 
         QTimer.singleShot(100, do_export)
 
