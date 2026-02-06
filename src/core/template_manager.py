@@ -198,8 +198,15 @@ class TemplateManager:
 
     @property
     def template_names(self) -> List[str]:
-        """템플릿 이름 목록"""
-        return list(self._templates.keys())
+        """템플릿 이름 목록 (SAFETY_INDICATORS 순서로 정렬)"""
+        names = list(self._templates.keys())
+        # SAFETY_INDICATORS 순서대로 정렬, 목록에 없는 템플릿은 뒤로
+        def sort_key(name: str) -> int:
+            try:
+                return SAFETY_INDICATORS.index(name)
+            except ValueError:
+                return len(SAFETY_INDICATORS)
+        return sorted(names, key=sort_key)
 
     def refresh(self) -> None:
         """템플릿 목록 새로고침"""

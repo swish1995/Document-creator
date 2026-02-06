@@ -683,7 +683,7 @@ class MainWindow(QMainWindow):
         self._update_previews(preview_row)
 
     def _get_active_template_names(self) -> List[str]:
-        """활성화된 모든 템플릿 이름 목록 반환"""
+        """활성화된 모든 템플릿 이름 목록 반환 (SAFETY_INDICATORS 순서)"""
         if not self._template_storage:
             return []
 
@@ -694,7 +694,15 @@ class MainWindow(QMainWindow):
                 is_active = template.metadata.is_active
             if is_active:
                 names.append(template.name)
-        return names
+
+        # SAFETY_INDICATORS 순서로 정렬: RULA → REBA → OWAS → NLE → SI
+        from src.core.template_manager import SAFETY_INDICATORS
+        def sort_key(name: str) -> int:
+            try:
+                return SAFETY_INDICATORS.index(name)
+            except ValueError:
+                return len(SAFETY_INDICATORS)
+        return sorted(names, key=sort_key)
 
     def _on_export_clicked(self):
         """내보내기 버튼 클릭"""
