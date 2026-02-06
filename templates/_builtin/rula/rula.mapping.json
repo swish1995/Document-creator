@@ -4,9 +4,20 @@
   "type": "html",
   "safety_indicator": "RULA",
   "description": "Rapid Upper Limb Assessment",
+  "_meta": {
+    "field_schema": {
+      "id": "템플릿에서 {{id}}로 참조할 고유 식별자",
+      "label": "UI에 표시될 라벨",
+      "excel_column": "엑셀 컬럼 헤더명 (헤더 기반 매핑)",
+      "excel_index": "엑셀 컬럼 인덱스 (0부터 시작, 우선 적용)",
+      "type": "필드 타입 - 'image' 지정 시 이미지로 처리"
+    },
+    "example_image_fields": [
+      {"id": "frame_image", "label": "프레임 이미지", "type": "image", "excel_column": "Frame", "excel_index": 0},
+      {"id": "skeleton_image", "label": "스켈레톤 이미지", "type": "image", "excel_column": "Skeleton", "excel_index": 1}
+    ]
+  },
   "fields": [
-    {"id": "frame_image", "label": "프레임 이미지", "excel_column": "Frame", "excel_index": 0, "type": "image"},
-    {"id": "skeleton_image", "label": "스켈레톤 이미지", "excel_column": "Skeleton", "excel_index": 1, "type": "image"},
     {"id": "upper_arm_score", "label": "상박 점수", "excel_column": "Base", "excel_index": 5},
     {"id": "upper_arm_adjust1", "label": "상박 가점1 (어깨 들림)", "excel_column": "+Raised", "excel_index": 6},
     {"id": "upper_arm_adjust2", "label": "상박 가점2 (벌어짐)", "excel_column": "+Abducted", "excel_index": 7},
