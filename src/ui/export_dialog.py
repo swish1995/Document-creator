@@ -50,6 +50,7 @@ class ExportDialog(QDialog):
 
     def _setup_style(self):
         """다이얼로그 스타일 설정"""
+        check_icon_path = self._get_icon_path("confirm").replace("\\", "/")
         self.setStyleSheet("""
             QDialog {
                 background-color: #2b2b2b;
@@ -133,6 +134,12 @@ class ExportDialog(QDialog):
             QCheckBox::indicator:checked {
                 background-color: #5ab87a;
                 border: 1px solid #4aa86a;
+                image: url(__CHECK_ICON__);
+            }
+            QCheckBox::indicator:checked:disabled {
+                background-color: #4a6a5a;
+                border: 1px solid #3a5a4a;
+                image: url(__CHECK_ICON__);
             }
             QCheckBox:disabled {
                 color: #666666;
@@ -181,7 +188,7 @@ class ExportDialog(QDialog):
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #4aa86a, stop:1 #5ab87a);
             }
-        """)
+        """.replace("__CHECK_ICON__", check_icon_path))
 
     def _setup_ui(self):
         """UI 초기화"""
@@ -245,6 +252,15 @@ class ExportDialog(QDialog):
         self._single_file_check.setChecked(True)  # 기본값: 체크
         options_layout.addWidget(self._single_file_check, 1, 0, 1, 2, Qt.AlignmentFlag.AlignLeft)
 
+        # 템플릿별 묶음 옵션
+        self._group_by_template_check = QCheckBox("템플릿별로 묶음")
+        self._group_by_template_check.setChecked(False)  # 기본값: 체크 해제 (행별로 출력)
+        self._group_by_template_check.setToolTip(
+            "체크 해제: 행별로 출력 (행1의 모든 템플릿 → 행2의 모든 템플릿)\n"
+            "체크: 템플릿별로 출력 (템플릿1의 모든 행 → 템플릿2의 모든 행)"
+        )
+        options_layout.addWidget(self._group_by_template_check, 2, 0, 1, 2, Qt.AlignmentFlag.AlignLeft)
+
         layout.addWidget(options_group)
 
         # 스페이서
@@ -280,14 +296,19 @@ class ExportDialog(QDialog):
         """출력 형식 변경"""
         is_pdf = text == "PDF"
         self._single_file_check.setEnabled(is_pdf)
-        if not is_pdf:
-            self._single_file_check.setChecked(False)
+        # PNG로 변경해도 체크 상태 유지 (비활성화만)
 
     def get_settings(self) -> dict:
         """설정값 반환"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_format = self._format_combo.currentText().lower()
+
+        # PNG일 때는 단일 파일 옵션 무시
+        single_file = self._single_file_check.isChecked() if output_format == "pdf" else False
+
         return {
-            "format": self._format_combo.currentText().lower(),
-            "single_file": self._single_file_check.isChecked(),
+            "format": output_format,
+            "single_file": single_file,
+            "group_by_template": self._group_by_template_check.isChecked(),
             "filename": f"안전문서_{timestamp}",
         }
