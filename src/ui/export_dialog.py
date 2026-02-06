@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
@@ -19,7 +19,6 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QLabel,
     QComboBox,
-    QLineEdit,
     QPushButton,
     QCheckBox,
 )
@@ -40,7 +39,7 @@ class ExportDialog(QDialog):
 
         self.setWindowTitle("내보내기")
         self.setMinimumWidth(500)
-        self.setMinimumHeight(350)
+        self.setMinimumHeight(300)
         self._setup_style()
         self._setup_ui()
         self._connect_signals()
@@ -113,20 +112,6 @@ class ExportDialog(QDialog):
                 border: 1px solid #555555;
                 selection-background-color: #0d47a1;
                 color: #ffffff;
-            }
-            QLineEdit {
-                background-color: #3a3a3a;
-                border: 1px solid #555555;
-                border-radius: 4px;
-                padding: 6px 10px;
-                color: #ffffff;
-                font-size: 12px;
-            }
-            QLineEdit:hover {
-                border: 1px solid #666666;
-            }
-            QLineEdit:focus {
-                border: 1px solid #5a7ab8;
             }
             QCheckBox {
                 color: #cccccc;
@@ -257,16 +242,8 @@ class ExportDialog(QDialog):
         # 단일 파일 옵션 (PDF일 때만)
         self._single_file_check = QCheckBox("단일 파일로 병합 (PDF만 해당)")
         self._single_file_check.setEnabled(True)  # PDF가 기본 선택이므로 활성화
+        self._single_file_check.setChecked(True)  # 기본값: 체크
         options_layout.addWidget(self._single_file_check, 1, 0, 1, 2, Qt.AlignmentFlag.AlignLeft)
-
-        # 파일 이름
-        filename_key = QLabel("파일 이름")
-        filename_key.setProperty("class", "key")
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self._filename_edit = QLineEdit(f"안전문서_{timestamp}")
-        self._filename_edit.setMinimumWidth(250)
-        options_layout.addWidget(filename_key, 2, 0, Qt.AlignmentFlag.AlignLeft)
-        options_layout.addWidget(self._filename_edit, 2, 1, Qt.AlignmentFlag.AlignLeft)
 
         layout.addWidget(options_group)
 
@@ -308,8 +285,9 @@ class ExportDialog(QDialog):
 
     def get_settings(self) -> dict:
         """설정값 반환"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return {
             "format": self._format_combo.currentText().lower(),
             "single_file": self._single_file_check.isChecked(),
-            "filename": self._filename_edit.text(),
+            "filename": f"안전문서_{timestamp}",
         }
