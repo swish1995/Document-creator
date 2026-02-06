@@ -3,8 +3,8 @@
     "nle": false,
     "si": false,
     "rula": true,
-    "owas": true,
-    "reba": true
+    "owas": false,
+    "reba": false
   },
   "metadata": {
     "rula": {

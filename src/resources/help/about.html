@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.9;
+            color: #f0f0f0;
+            background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
+            padding: 40px 60px;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        /* 헤더 영역 */
+        .header {
+            text-align: center;
+            padding: 40px 50px;
+            background: linear-gradient(135deg, #1e5a3f 0%, #0d2a1b 100%);
+            border-radius: 20px;
+            margin-bottom: 50px;
+            border: 2px solid #2d8858;
+            box-shadow: 0 10px 40px rgba(90, 184, 122, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #5ab87a 0%, #4aa86a 50%, #5ab87a 100%);
+        }
+
+        .header h1 {
+            font-size: 42px;
+            font-weight: 800;
+            color: #ffffff;
+            margin: 0 0 18px 0;
+            letter-spacing: -0.8px;
+            text-shadow: 0 2px 10px rgba(90, 184, 122, 0.3);
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #5ab87a 0%, #4aa86a 100%);
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 18px;
+            box-shadow: 0 4px 15px rgba(90, 184, 122, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header-desc {
+            color: #c0e0d0;
+            font-size: 17px;
+            margin: 0;
+            font-weight: 400;
+        }
+
+        /* 섹션 */
+        .section {
+            margin-bottom: 50px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .section-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #5ab87a;
+            margin: 0 0 30px 0;
+            padding-bottom: 16px;
+            border-bottom: 2px solid rgba(90, 184, 122, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title .icon {
+            font-size: 28px;
+            filter: drop-shadow(0 2px 4px rgba(90, 184, 122, 0.5));
+        }
+
+        /* 서브섹션 */
+        .subsection {
+            margin-top: 30px;
+        }
+
+        .subsection-title {
+            font-size: 19px;
+            font-weight: 600;
+            color: #7fd8a0;
+            margin: 0 0 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .subsection-title::before {
+            content: '▸';
+            color: #5ab87a;
+            font-size: 20px;
+        }
+
+        /* 단락 */
+        p {
+            margin: 0 0 18px 0;
+            color: #e0e0e0;
+            padding-left: 5px;
+            line-height: 2;
+        }
+
+        /* 기능 그리드 */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .feature-item {
+            background: rgba(90, 184, 122, 0.05);
+            border-radius: 12px;
+            padding: 20px 22px;
+            border: 1px solid rgba(90, 184, 122, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .feature-item:hover {
+            background: rgba(90, 184, 122, 0.1);
+            border-color: rgba(90, 184, 122, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(90, 184, 122, 0.15);
+        }
+
+        .feature-item strong {
+            color: #ffffff;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .feature-item span {
+            color: #b0d0c0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* 리스트 */
+        ul {
+            margin: 15px 0;
+            padding-left: 25px;
+            list-style: none;
+        }
+
+        ul li {
+            position: relative;
+            padding: 6px 0 6px 20px;
+            color: #d0d0d0;
+        }
+
+        ul li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #5ab87a;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        /* 테이블 */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #3a3a3a;
+        }
+
+        th {
+            background: linear-gradient(135deg, #2d5a48 0%, #1d3a28 100%);
+            color: #ffffff;
+            font-weight: 700;
+            text-align: left;
+            padding: 16px 20px;
+            font-size: 15px;
+            border-bottom: 2px solid #5ab87a;
+        }
+
+        td {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            background-color: rgba(255, 255, 255, 0.02);
+            vertical-align: top;
+            font-size: 14px;
+        }
+
+        tr:nth-child(even) td {
+            background-color: transparent;
+        }
+
+        /* 템플릿 카드 */
+        .template-card {
+            border-radius: 12px;
+            padding: 24px 28px;
+            margin: 20px 0;
+            border-left: 5px solid #5ab87a;
+            background: rgba(255, 255, 255, 0.03);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .template-card h4 {
+            color: #ffffff;
+            font-size: 18px;
+            margin: 0 0 12px 0;
+            font-weight: 700;
+        }
+
+        .template-card p {
+            margin: 0;
+            font-size: 15px;
+            padding-left: 0;
+            color: #c0d0c0;
+        }
+
+        .template-card .details {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #333;
+        }
+
+        .template-card .detail-item {
+            display: flex;
+            margin: 5px 0;
+        }
+
+        .template-card .detail-label {
+            color: #888;
+            width: 90px;
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+
+        .template-card .detail-value {
+            color: #d0d0d0;
+            font-size: 13px;
+        }
+
+        /* 기술 스택 */
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .tech-item {
+            border-radius: 12px;
+            padding: 20px 22px;
+            text-align: center;
+            border: 1px solid rgba(90, 184, 122, 0.2);
+            background: rgba(90, 184, 122, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .tech-item:hover {
+            background: rgba(90, 184, 122, 0.1);
+            border-color: rgba(90, 184, 122, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(90, 184, 122, 0.2);
+        }
+
+        .tech-item .tech-name {
+            color: #5ab87a;
+            font-weight: 700;
+            font-size: 16px;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .tech-item .tech-desc {
+            color: #a0c0b0;
+            font-size: 13px;
+        }
+
+        /* 요구사항 리스트 */
+        .req-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .req-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-radius: 12px;
+            padding: 18px 22px;
+            border: 1px solid rgba(90, 184, 122, 0.2);
+            background: rgba(90, 184, 122, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .req-item:hover {
+            background: rgba(90, 184, 122, 0.1);
+            border-color: rgba(90, 184, 122, 0.4);
+            transform: translateX(5px);
+        }
+
+        .req-item .req-icon {
+            font-size: 28px;
+            filter: drop-shadow(0 2px 4px rgba(90, 184, 122, 0.3));
+        }
+
+        .req-item .req-text {
+            font-size: 15px;
+        }
+
+        .req-item .req-label {
+            color: #888;
+            display: block;
+        }
+
+        .req-item .req-value {
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        /* 푸터 노트 */
+        .footer-note {
+            border-left: 5px solid #5ab87a;
+            border-radius: 0 12px 12px 0;
+            padding: 20px 28px;
+            margin-top: 50px;
+            background: rgba(90, 184, 122, 0.1);
+            box-shadow: 0 4px 20px rgba(90, 184, 122, 0.15);
+        }
+
+        .footer-note p {
+            margin: 0;
+            color: #c0e0d0;
+            font-size: 16px;
+            padding-left: 0;
+            line-height: 1.8;
+        }
+
+        .footer-note strong {
+            color: #5ab87a;
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <div class="header">
+        <h1>문서 생성기</h1>
+        <div class="version-badge">버전 1.0.0</div>
+        <p class="header-desc">인체공학 평가 결과를 기반으로 안전문서를 생성하는 도구</p>
+    </div>
+
+    <!-- 프로그램 소개 -->
+    <div class="section">
+        <h2 class="section-title"><span class="icon">📋</span> 프로그램 소개</h2>
+        <p>
+            문서 생성기는 <strong style="color: #5ab87a;">Skeleton Analyzer</strong>에서 분석한
+            인체공학 평가 결과를 바탕으로 전문적인 안전문서를 자동으로 생성하는 도구입니다.
+        </p>
+        <p>
+            Excel 파일에서 평가 데이터를 불러와 미리 정의된 템플릿과 결합하여
+            <strong style="color: #ffffff;">PDF 또는 PNG</strong> 형식의 문서를 생성합니다.
+            다수의 작업자와 다양한 평가 유형을 한 번에 처리할 수 있어 대량의 문서 작성 작업을 효율적으로 수행할 수 있습니다.
+        </p>
+    </div>
+
+    <!-- 주요 기능 -->
+    <div class="section">
+        <h2 class="section-title"><span class="icon">✨</span> 주요 기능</h2>
+
+        <div class="subsection">
+            <h3 class="subsection-title">📊 데이터 처리</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <strong>Excel 파일 로드</strong>
+                    <span>.xlsx, .xls 형식의 평가 데이터 파일 지원</span>
+                </div>
+                <div class="feature-item">
+                    <strong>자동 매핑</strong>
+                    <span>Excel 컬럼과 템플릿 필드 자동 연결</span>
+                </div>
+                <div class="feature-item">
+                    <strong>수동 매핑 조정</strong>
+                    <span>필요 시 매핑 관계 직접 수정 가능</span>
+                </div>
+                <div class="feature-item">
+                    <strong>행 선택</strong>
+                    <span>특정 행만 선택하여 문서 생성</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="subsection">
+            <h3 class="subsection-title">📄 문서 생성</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <strong>다중 템플릿 지원</strong>
+                    <span>RULA, REBA, OWAS, NLE, SI 템플릿 동시 적용</span>
+                </div>
+                <div class="feature-item">
+                    <strong>PDF/PNG 출력</strong>
+                    <span>용도에 맞는 출력 형식 선택</span>
+                </div>
+                <div class="feature-item">
+                    <strong>PDF 병합</strong>
+                    <span>여러 문서를 하나의 PDF로 통합</span>
+                </div>
+                <div class="feature-item">
+                    <strong>ZIP 아카이브</strong>
+                    <span>다수의 파일을 압축하여 제공</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="subsection">
+            <h3 class="subsection-title">👁️ 미리보기</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <strong>실시간 미리보기</strong>
+                    <span>선택한 행의 데이터로 문서 미리보기</span>
+                </div>
+                <div class="feature-item">
+                    <strong>다중 패널</strong>
+                    <span>최대 5개 템플릿 동시 미리보기</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 지원 템플릿 -->
+    <div class="section">
+        <h2 class="section-title"><span class="icon">📐</span> 지원 템플릿</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 120px;">템플릿</th>
+                    <th style="width: 180px;">평가 방법</th>
+                    <th>설명</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong style="color: #ff9f43;">RULA</strong></td>
+                    <td>상지 반복 작업 평가</td>
+                    <td>목, 몸통, 어깨, 팔, 손목 자세 평가</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: #52c41a;">REBA</strong></td>
+                    <td>전신 자세 평가</td>
+                    <td>전신 자세 및 부하를 종합 평가</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: #ff4d4f;">OWAS</strong></td>
+                    <td>작업 자세 분류</td>
+                    <td>등, 팔, 다리, 하중 조합 분류</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: #4a9eff;">NLE</strong></td>
+                    <td>들기 작업 권장 한계</td>
+                    <td>NIOSH 들기 방정식 기반 평가</td>
+                </tr>
+                <tr>
+                    <td><strong style="color: #faad14;">SI</strong></td>
+                    <td>반복 작업 스트레인</td>
+                    <td>손/손목 반복 작업 위험도 평가</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="template-card" style="border-left-color: #ff9f43;">
+            <h4>RULA (Rapid Upper Limb Assessment)</h4>
+            <p>상지 중심의 반복 작업에 적합한 평가 결과 문서</p>
+            <div class="details">
+                <div class="detail-item">
+                    <span class="detail-label">점수 범위</span>
+                    <span class="detail-value">1-7점</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">포함 정보</span>
+                    <span class="detail-value">그룹A/B 점수, 최종 점수, 조치 수준</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="template-card" style="border-left-color: #52c41a;">
+            <h4>REBA (Rapid Entire Body Assessment)</h4>
+            <p>전신 자세와 외부 부하를 종합적으로 평가한 결과 문서</p>
+            <div class="details">
+                <div class="detail-item">
+                    <span class="detail-label">점수 범위</span>
+                    <span class="detail-value">1-15점</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">포함 정보</span>
+                    <span class="detail-value">그룹A/B 점수, 최종 점수, 위험 수준</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="template-card" style="border-left-color: #ff4d4f;">
+            <h4>OWAS (Ovako Working Posture Analysis System)</h4>
+            <p>작업 자세를 4자리 코드로 분류한 결과 문서</p>
+            <div class="details">
+                <div class="detail-item">
+                    <span class="detail-label">코드 구성</span>
+                    <span class="detail-value">등(1-4), 팔(1-3), 다리(1-7), 하중(1-3)</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">포함 정보</span>
+                    <span class="detail-value">자세 코드, 조치 등급(AC 1-4)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="template-card" style="border-left-color: #4a9eff;">
+            <h4>NLE (NIOSH Lifting Equation)</h4>
+            <p>들기 작업의 권장 무게 한계 평가 결과 문서</p>
+            <div class="details">
+                <div class="detail-item">
+                    <span class="detail-label">계수 항목</span>
+                    <span class="detail-value">HM, VM, DM, AM, FM, CM</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">포함 정보</span>
+                    <span class="detail-value">RWL(kg), 리프팅 지수(LI)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="template-card" style="border-left-color: #faad14;">
+            <h4>SI (Strain Index)</h4>
+            <p>반복적인 손/손목 작업의 스트레인 평가 결과 문서</p>
+            <div class="details">
+                <div class="detail-item">
+                    <span class="detail-label">평가 항목</span>
+                    <span class="detail-value">강도, 지속시간, 빈도, 자세, 속도, 작업시간</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">포함 정보</span>
+                    <span class="detail-value">SI 점수, 위험도 판정</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 기술 스택 -->
+    <div class="section">
+        <h2 class="section-title"><span class="icon">🔧</span> 기술 스택</h2>
+        <div class="tech-grid">
+            <div class="tech-item">
+                <span class="tech-name">PyQt6</span>
+                <span class="tech-desc">UI 프레임워크</span>
+            </div>
+            <div class="tech-item">
+                <span class="tech-name">QWebEngine</span>
+                <span class="tech-desc">HTML 렌더링</span>
+            </div>
+            <div class="tech-item">
+                <span class="tech-name">PyMuPDF</span>
+                <span class="tech-desc">PDF 처리</span>
+            </div>
+            <div class="tech-item">
+                <span class="tech-name">Jinja2</span>
+                <span class="tech-desc">템플릿 엔진</span>
+            </div>
+            <div class="tech-item">
+                <span class="tech-name">openpyxl</span>
+                <span class="tech-desc">Excel 처리</span>
+            </div>
+            <div class="tech-item">
+                <span class="tech-name">Pillow</span>
+                <span class="tech-desc">이미지 처리</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 시스템 요구사항 -->
+    <div class="section">
+        <h2 class="section-title"><span class="icon">💻</span> 시스템 요구사항</h2>
+        <div class="req-list">
+            <div class="req-item">
+                <span class="req-icon">🖥️</span>
+                <div class="req-text">
+                    <span class="req-label">운영체제</span>
+                    <span class="req-value">Windows 10/11, macOS 11+</span>
+                </div>
+            </div>
+            <div class="req-item">
+                <span class="req-icon">🐍</span>
+                <div class="req-text">
+                    <span class="req-label">Python</span>
+                    <span class="req-value">3.9 이상</span>
+                </div>
+            </div>
+            <div class="req-item">
+                <span class="req-icon">🧠</span>
+                <div class="req-text">
+                    <span class="req-label">메모리</span>
+                    <span class="req-value">4GB RAM 이상 권장</span>
+                </div>
+            </div>
+            <div class="req-item">
+                <span class="req-icon">💾</span>
+                <div class="req-text">
+                    <span class="req-label">저장공간</span>
+                    <span class="req-value">200MB 이상</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 푸터 노트 -->
+    <div class="footer-note">
+        <p>
+            <strong>참고:</strong> 이 프로그램은 Skeleton Analyzer와 함께 사용하도록 설계되었습니다.
+            정확한 평가 결과를 위해서는 전문가의 검토가 필요합니다.
+        </p>
+    </div>
+</body>
+</html>

@@ -33,6 +33,7 @@ from src.ui.main_toolbar import MainToolbar
 from src.ui.template_editor import TemplateManagerDialog, EditorWidget
 from src.ui.export_dialog import ExportDialog
 from src.ui.export_overlay import ExportOverlay
+from src.ui.help_dialog import HelpDialog
 
 
 class MainWindow(QMainWindow):
@@ -492,6 +493,12 @@ class MainWindow(QMainWindow):
         # 도움말 메뉴
         self._help_menu = menu_bar.addMenu("도움말(&H)")
 
+        usage_action = QAction("사용 방법(&U)", self)
+        usage_action.triggered.connect(self._on_usage)
+        self._help_menu.addAction(usage_action)
+
+        self._help_menu.addSeparator()
+
         about_action = QAction("정보(&A)", self)
         about_action.triggered.connect(self._on_about)
         self._help_menu.addAction(about_action)
@@ -892,12 +899,12 @@ class MainWindow(QMainWindow):
         """선택 해제"""
         self._excel_viewer.deselect_all()
 
+    def _on_usage(self):
+        """사용 방법 다이얼로그"""
+        dialog = HelpDialog(self)
+        dialog.show_usage()
+
     def _on_about(self):
         """정보 다이얼로그"""
-        QMessageBox.about(
-            self,
-            "Document Creator 정보",
-            "Document Creator v1.0.0\n\n"
-            "Skeleton Analyzer 출력 데이터를\n"
-            "인체공학적 평가 문서로 변환합니다.",
-        )
+        dialog = HelpDialog(self)
+        dialog.show_about()
