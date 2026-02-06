@@ -502,9 +502,11 @@ class EditorWidget(QWidget):
 
         엑셀 데이터가 있으면 값 주입, 없으면 빈 상태 유지
         excel_index가 있으면 인덱스 기반, 없으면 excel_column 기반 매핑
-        이미지 필드는 플레이스홀더로 표시
+        이미지 필드는 실제 이미지로 표시
         """
         import json
+        import base64
+        from pathlib import Path
 
         # 이미지 필드 목록 추출
         image_fields = [
@@ -535,8 +537,13 @@ class EditorWidget(QWidget):
                     if excel_column and excel_column in self._preview_data:
                         value = self._preview_data[excel_column]
 
-                # 값이 있으면 저장
-                if value is not None:
+                # 이미지 필드는 Base64 img 태그로 변환
+                if field_id in image_fields and value:
+                    img_tag = self._convert_image_to_img_tag(value)
+                    if img_tag:
+                        mapped_data[field_id] = img_tag
+                    # 변환 실패하면 저장 안 함 (빈 상태)
+                elif value is not None:
                     mapped_data[field_id] = str(value)
 
         # JSON 직렬화
@@ -557,17 +564,16 @@ class EditorWidget(QWidget):
                 const isImageField = imageFields.includes(fieldId);
 
                 if (isImageField) {{
-                    // 이미지 필드: 플레이스홀더 표시
+                    // 이미지 필드: 실제 이미지 표시
                     if (hasExcelData && excelData[fieldId] !== undefined && excelData[fieldId] !== '') {{
-                        // 값이 있으면 초록 플레이스홀더
-                        el.innerHTML = '<div style="width:100%;height:100%;min-width:30px;min-height:30px;background:#d4edda;border:2px dashed #28a745;display:flex;align-items:center;justify-content:center;color:#28a745;font-size:10px;">[IMG]</div>';
+                        // 값이 있으면 img 태그 삽입 (Base64 이미지)
+                        el.innerHTML = excelData[fieldId];
                         el.classList.add('filled');
                         el.classList.remove('empty');
                     }} else {{
-                        // 값이 없으면 빨간 플레이스홀더
-                        el.innerHTML = '<div style="width:100%;height:100%;min-width:30px;min-height:30px;background:#f8d7da;border:2px dashed #dc3545;display:flex;align-items:center;justify-content:center;color:#dc3545;font-size:10px;">[NO IMG]</div>';
-                        el.classList.add('empty');
-                        el.classList.remove('filled');
+                        // 값이 없으면 안 보이게 (빈 문자열, 클래스 없음)
+                        el.innerHTML = '';
+                        el.classList.remove('empty', 'filled');
                     }}
                 }} else if (hasExcelData && excelData[fieldId] !== undefined) {{
                     // 일반 필드: 엑셀 데이터가 있고 해당 필드 값이 있으면 표시
@@ -588,6 +594,33 @@ class EditorWidget(QWidget):
         }})();
         </script>
         """
+
+    def _convert_image_to_img_tag(self, image_path) -> str:
+        """이미지 경로를 Base64 img 태그로 변환"""
+        import base64
+        from pathlib import Path
+
+        try:
+            path = Path(image_path) if not isinstance(image_path, Path) else image_path
+            if not path.exists():
+                return ""
+
+            with open(path, "rb") as f:
+                data = base64.b64encode(f.read()).decode("utf-8")
+
+            suffix = path.suffix.lower()
+            mime_types = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+            }
+            mime_type = mime_types.get(suffix, "image/png")
+
+            return f'<img src="data:{mime_type};base64,{data}" style="width:100%;height:100%;object-fit:contain;">'
+        except Exception:
+            return ""
 
     def _add_field_highlights_to_template(self, html_template: str) -> str:
         """템플릿의 {{ field_id }} 패턴을 하이라이트 span으로 감싸기"""

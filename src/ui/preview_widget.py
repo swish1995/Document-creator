@@ -156,8 +156,8 @@ class PreviewWidget(QWidget):
                     # 값이 있으면 초록 플레이스홀더
                     preview_data[key] = '<div style="width:100%;height:100%;min-width:30px;min-height:30px;background:#d4edda;border:2px dashed #28a745;display:flex;align-items:center;justify-content:center;color:#28a745;font-size:10px;">[IMG]</div>'
                 else:
-                    # 값이 없으면 빨간 플레이스홀더
-                    preview_data[key] = '<div style="width:100%;height:100%;min-width:30px;min-height:30px;background:#f8d7da;border:2px dashed #dc3545;display:flex;align-items:center;justify-content:center;color:#dc3545;font-size:10px;">[NO IMG]</div>'
+                    # 값이 없으면 안 보이게 (빈 문자열)
+                    preview_data[key] = ""
             else:
                 # 일반 필드: 그대로 전달
                 preview_data[key] = value
