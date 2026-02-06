@@ -208,13 +208,13 @@ class ExportManager:
         jinja_template = Jinja2Template(html_template)
         return jinja_template.render(**data)
 
-    def _convert_pdf_to_png(self, pdf_path: Path, png_path: Path, dpi: int = 150) -> bool:
+    def _convert_pdf_to_png(self, pdf_path: Path, png_path: Path, dpi: int = 300) -> bool:
         """PDF를 PNG로 변환
 
         Args:
             pdf_path: 입력 PDF 경로
             png_path: 출력 PNG 경로
-            dpi: 해상도 (기본 150 DPI)
+            dpi: 해상도 (기본 300 DPI, 고품질)
 
         Returns:
             변환 성공 여부
@@ -229,7 +229,8 @@ class ExportManager:
             # DPI를 줌 팩터로 변환 (72 DPI 기준)
             zoom = dpi / 72
             mat = fitz.Matrix(zoom, zoom)
-            pix = page.get_pixmap(matrix=mat)
+            # alpha=False로 투명 배경 제거, colorspace로 RGB 명시
+            pix = page.get_pixmap(matrix=mat, alpha=False)
             pix.save(str(png_path))
             doc.close()
 
@@ -255,7 +256,8 @@ class ExportManager:
                 doc = fitz.open(pdf_path)
                 merged.insert_pdf(doc)
                 doc.close()
-            merged.save(str(output_path))
+            # PDF 최적화: 가비지 정리, 압축, 정리
+            merged.save(str(output_path), garbage=4, deflate=True, clean=True)
             merged.close()
 
             self._logger.debug(f"PDF 병합: {output_path}")
