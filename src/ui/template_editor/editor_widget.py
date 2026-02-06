@@ -502,8 +502,16 @@ class EditorWidget(QWidget):
 
         엑셀 데이터가 있으면 값 주입, 없으면 빈 상태 유지
         excel_index가 있으면 인덱스 기반, 없으면 excel_column 기반 매핑
+        이미지 필드는 플레이스홀더로 표시
         """
         import json
+
+        # 이미지 필드 목록 추출
+        image_fields = [
+            field.get("id", "")
+            for field in self._fields
+            if field.get("type") == "image"
+        ]
 
         # 엑셀 데이터가 있으면 매핑된 값으로 변환
         mapped_data = {}
@@ -533,20 +541,36 @@ class EditorWidget(QWidget):
 
         # JSON 직렬화
         data_json = json.dumps(mapped_data, ensure_ascii=False)
+        image_fields_json = json.dumps(image_fields, ensure_ascii=False)
         has_data = "true" if self._has_excel_data else "false"
 
         return f"""
         <script>
         (function() {{
             const excelData = {data_json};
+            const imageFields = {image_fields_json};
             const hasExcelData = {has_data};
 
             // 모든 data-field 요소에 값 바인딩
             document.querySelectorAll('.data-field').forEach(function(el) {{
                 const fieldId = el.getAttribute('data-field');
+                const isImageField = imageFields.includes(fieldId);
 
-                if (hasExcelData && excelData[fieldId] !== undefined) {{
-                    // 엑셀 데이터가 있고 해당 필드 값이 있으면 표시
+                if (isImageField) {{
+                    // 이미지 필드: 플레이스홀더 표시
+                    if (hasExcelData && excelData[fieldId] !== undefined && excelData[fieldId] !== '') {{
+                        // 값이 있으면 초록 플레이스홀더
+                        el.innerHTML = '<div style="width:100%;height:100%;min-width:30px;min-height:30px;background:#d4edda;border:2px dashed #28a745;display:flex;align-items:center;justify-content:center;color:#28a745;font-size:10px;">[IMG]</div>';
+                        el.classList.add('filled');
+                        el.classList.remove('empty');
+                    }} else {{
+                        // 값이 없으면 빨간 플레이스홀더
+                        el.innerHTML = '<div style="width:100%;height:100%;min-width:30px;min-height:30px;background:#f8d7da;border:2px dashed #dc3545;display:flex;align-items:center;justify-content:center;color:#dc3545;font-size:10px;">[NO IMG]</div>';
+                        el.classList.add('empty');
+                        el.classList.remove('filled');
+                    }}
+                }} else if (hasExcelData && excelData[fieldId] !== undefined) {{
+                    // 일반 필드: 엑셀 데이터가 있고 해당 필드 값이 있으면 표시
                     el.textContent = excelData[fieldId];
                     el.classList.add('filled');
                     el.classList.remove('empty');
