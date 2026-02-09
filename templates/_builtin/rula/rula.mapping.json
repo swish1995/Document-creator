@@ -4,6 +4,7 @@
   "type": "html",
   "safety_indicator": "RULA",
   "description": "Rapid Upper Limb Assessment",
+  "page_height_mm": 416,
   "_meta": {
     "field_schema": {
       "id": "템플릿에서 {{id}}로 참조할 고유 식별자",
