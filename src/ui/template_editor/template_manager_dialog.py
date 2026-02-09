@@ -514,8 +514,51 @@ class TemplateManagerDialog(QDialog):
         # 목록 업데이트 (비활성 표시 등)
         self._refresh_current_item()
 
+    def _count_active_templates(self) -> int:
+        """활성화된 템플릿 수 계산 (pending 변경사항 포함)"""
+        count = 0
+        for template in self._storage.get_all_templates():
+            # pending 변경사항 확인
+            if template.id in self._pending_changes and 'is_active' in self._pending_changes[template.id]:
+                is_active = self._pending_changes[template.id]['is_active']
+            else:
+                # 원본 값 사용
+                if template.metadata and hasattr(template.metadata, 'is_active'):
+                    is_active = template.metadata.is_active
+                else:
+                    is_active = True
+            if is_active:
+                count += 1
+        return count
+
     def _on_toggle_active(self):
         """활성화 토글 스위치 변경"""
+        # 비활성화하려는 경우, 마지막 활성 템플릿인지 확인
+        if not self._active_toggle.isChecked():
+            # 현재 상태를 pending에 반영한 후 활성 템플릿 수 계산
+            self._save_current_to_pending()
+            active_count = self._count_active_templates()
+
+            if active_count < 1:
+                # 마지막 활성 템플릿을 비활성화하려고 함 - 복원
+                self._active_toggle.blockSignals(True)
+                self._active_toggle.setChecked(True)
+                self._active_toggle.blockSignals(False)
+
+                # pending에서 is_active 변경 제거
+                if self._selected_template and self._selected_template.id in self._pending_changes:
+                    if 'is_active' in self._pending_changes[self._selected_template.id]:
+                        del self._pending_changes[self._selected_template.id]['is_active']
+                        if not self._pending_changes[self._selected_template.id]:
+                            del self._pending_changes[self._selected_template.id]
+
+                StyledMessageBox.warning(
+                    self,
+                    "경고",
+                    "최소 하나의 템플릿은 활성화 상태여야 합니다."
+                )
+                return
+
         self._save_current_to_pending()
         # 목록 업데이트 (비활성 표시 등)
         self._refresh_current_item()

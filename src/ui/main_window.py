@@ -385,8 +385,40 @@ class MainWindow(QMainWindow):
         # 템플릿 매니저 새로고침
         if self._template_manager:
             self._template_manager.refresh()
+        # 템플릿 저장소 새로고침
+        if self._template_storage:
+            self._template_storage.refresh()
         # 툴바 업데이트
         self._update_toolbar_templates()
+
+        # 현재 선택된 템플릿이 비활성화되었는지 확인
+        if self._current_template_id and self._template_storage:
+            current_template = self._template_storage.get_template(self._current_template_id)
+            if current_template:
+                is_active = True
+                if current_template.metadata and hasattr(current_template.metadata, 'is_active'):
+                    is_active = current_template.metadata.is_active
+
+                if not is_active:
+                    # 비활성화된 템플릿이 선택됨 - 첫 번째 활성 템플릿으로 변경
+                    self._select_first_active_template()
+
+    def _select_first_active_template(self):
+        """첫 번째 활성화된 템플릿 선택"""
+        if not self._template_storage:
+            return
+
+        all_templates = self._template_storage.get_all_templates()
+        sorted_templates = sorted(all_templates, key=self._get_template_sort_key)
+
+        for template in sorted_templates:
+            is_active = True
+            if template.metadata and hasattr(template.metadata, 'is_active'):
+                is_active = template.metadata.is_active
+            if is_active:
+                self._toolbar.set_current_template(template.id)
+                self._on_toolbar_template_selected(template.id)
+                break
 
     def _on_mode_changed(self, mode: int):
         """모드 변경"""
