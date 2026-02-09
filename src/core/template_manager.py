@@ -33,6 +33,7 @@ class Template:
     fields: List[Dict[str, Any]] = field(default_factory=list)
     safety_indicator: Optional[str] = None  # RULA, REBA, OWAS, NLE, SI
     description: str = ""
+    page_height_mm: float = 1000.0  # PDF 페이지 높이 (기본값: 충분히 큰 값)
 
     @classmethod
     def from_mapping_file(cls, mapping_path: Path) -> "Template":
@@ -61,6 +62,7 @@ class Template:
         fields = data.get("fields", [])
         safety_indicator = data.get("safety_indicator")
         description = data.get("description", "")
+        page_height_mm = data.get("page_height_mm", 1000.0)  # 기본값: 충분히 큰 값
 
         # 유효한 안전지표인지 확인
         if safety_indicator and safety_indicator not in SAFETY_INDICATORS:
@@ -85,6 +87,7 @@ class Template:
             fields=fields,
             safety_indicator=safety_indicator,
             description=description,
+            page_height_mm=page_height_mm,
         )
 
     @staticmethod

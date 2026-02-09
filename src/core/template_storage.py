@@ -559,6 +559,61 @@ class TemplateStorage:
         settings = self._load_builtin_settings()
         return settings.get("active_states", {}).get(template_id, True)
 
+    def update_template_page_height(self, template_id: str, page_height_mm: float) -> None:
+        """템플릿 페이지 높이 업데이트 (mapping.json에 직접 저장)
+
+        Args:
+            template_id: 템플릿 ID
+            page_height_mm: 페이지 높이 (mm)
+        """
+        template = self.get_template(template_id)
+        if template is None:
+            raise TemplateError(f"템플릿을 찾을 수 없습니다: {template_id}")
+
+        try:
+            # mapping.json 경로
+            mapping_path = template.mapping_path
+
+            # 기존 내용 로드
+            with open(mapping_path, "r", encoding="utf-8") as f:
+                mapping_data = json.load(f)
+
+            # page_height_mm 업데이트
+            mapping_data["page_height_mm"] = page_height_mm
+
+            # 저장
+            with open(mapping_path, "w", encoding="utf-8") as f:
+                json.dump(mapping_data, f, ensure_ascii=False, indent=2)
+
+            # 캐시 갱신
+            if template.is_builtin:
+                self._scan_builtin_templates()
+            else:
+                self._scan_user_templates()
+
+        except Exception as e:
+            raise TemplateError(f"페이지 높이 업데이트 실패: {e}")
+
+    def get_template_page_height(self, template_id: str) -> float:
+        """템플릿 페이지 높이 조회 (mapping.json에서)
+
+        Args:
+            template_id: 템플릿 ID
+
+        Returns:
+            페이지 높이 (mm), 없으면 기본값 1000.0
+        """
+        template = self.get_template(template_id)
+        if template is None:
+            return 1000.0
+
+        try:
+            with open(template.mapping_path, "r", encoding="utf-8") as f:
+                mapping_data = json.load(f)
+            return mapping_data.get("page_height_mm", 1000.0)
+        except Exception:
+            return 1000.0
+
     # ========== Delete Operations ==========
 
     def delete_template(self, template_id: str) -> bool:

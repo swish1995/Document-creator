@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QFormLayout,
     QSplitter,
+    QSpinBox,
 )
 
 from src.core.template_storage import TemplateStorage, ExtendedTemplate
@@ -297,6 +298,23 @@ class TemplateManagerDialog(QDialog):
         self._fields_label = QLabel("-")
         form_layout.addRow("필드 수:", self._fields_label)
 
+        # 페이지 높이
+        self._page_height_spin = QSpinBox()
+        self._page_height_spin.setRange(100, 2000)
+        self._page_height_spin.setValue(1000)
+        self._page_height_spin.setSuffix(" mm")
+        self._page_height_spin.setStyleSheet("""
+            QSpinBox {
+                background-color: #333333;
+                border: 1px solid #444444;
+                color: #ffffff;
+                border-radius: 4px;
+                padding: 4px;
+            }
+        """)
+        self._page_height_spin.valueChanged.connect(self._on_value_changed)
+        form_layout.addRow("세로 크기:", self._page_height_spin)
+
         main_layout.addLayout(form_layout)
 
         # 상하 여백
@@ -397,6 +415,14 @@ class TemplateManagerDialog(QDialog):
             self._pending_changes[template_id]['description'] = current_desc
             has_changes = True
 
+        # 페이지 높이 변경 감지
+        current_page_height = self._page_height_spin.value()
+        if current_page_height != original.get('page_height_mm', 1000):
+            if template_id not in self._pending_changes:
+                self._pending_changes[template_id] = {}
+            self._pending_changes[template_id]['page_height_mm'] = current_page_height
+            has_changes = True
+
         # 변경사항이 없으면 pending에서 제거
         if not has_changes and template_id in self._pending_changes:
             del self._pending_changes[template_id]
@@ -418,6 +444,8 @@ class TemplateManagerDialog(QDialog):
             self._desc_edit.setReadOnly(True)
             self._active_toggle.setChecked(False)
             self._active_toggle.setEnabled(False)
+            self._page_height_spin.setValue(1000)
+            self._page_height_spin.setEnabled(False)
         else:
             # 원본 값 저장 (아직 저장되지 않은 경우에만)
             if template.id not in self._original_values:
@@ -435,11 +463,14 @@ class TemplateManagerDialog(QDialog):
                     orig_active = template.metadata.is_active
                 else:
                     orig_active = True
+                # 원본 페이지 높이
+                orig_page_height = self._storage.get_template_page_height(template.id)
 
                 self._original_values[template.id] = {
                     'name': orig_name,
                     'description': orig_desc,
                     'is_active': orig_active,
+                    'page_height_mm': orig_page_height,
                 }
 
             # pending 변경사항이 있으면 그 값 사용, 없으면 원본 사용
@@ -464,6 +495,13 @@ class TemplateManagerDialog(QDialog):
             is_active = pending.get('is_active', original['is_active'])
             self._active_toggle.setChecked(is_active)
             self._active_toggle.setEnabled(True)
+
+            # 페이지 높이
+            page_height = pending.get('page_height_mm', original.get('page_height_mm', 1000))
+            self._page_height_spin.blockSignals(True)
+            self._page_height_spin.setValue(int(page_height))
+            self._page_height_spin.setEnabled(True)
+            self._page_height_spin.blockSignals(False)
 
         # 변경 감지 재개
         self._name_edit.blockSignals(False)
@@ -537,6 +575,10 @@ class TemplateManagerDialog(QDialog):
                     self._storage.update_template_name(template_id, changes['name'])
                 if 'description' in changes:
                     self._storage.update_template_description(template_id, changes['description'])
+
+                # 페이지 높이 저장
+                if 'page_height_mm' in changes:
+                    self._storage.update_template_page_height(template_id, changes['page_height_mm'])
 
             self._pending_changes.clear()
             self.templates_changed.emit()

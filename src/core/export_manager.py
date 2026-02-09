@@ -135,16 +135,19 @@ class ExportManager:
             # HTML 렌더링
             html_content = self._render_html(template.template_path, mapped_data)
 
-            # HTML → PDF 변환
+            # HTML → PDF 변환 (템플릿별 페이지 높이 사용)
             pdf_path = self._work_dir / f"{filename}.pdf"
             converter = self._get_pdf_converter()
             success = converter.convert_html_string_to_pdf(
                 html_content=html_content,
                 output_path=pdf_path,
                 base_url=template.template_path.parent,
+                page_height_mm=template.page_height_mm,
             )
 
             if success:
+                # 지정된 높이로 PDF 자르기 (단일 페이지로 만들기)
+                self._fit_pdf_to_single_page(pdf_path, template.page_height_mm)
                 generated_files.append(pdf_path)
                 self._logger.debug(f"PDF 생성: {pdf_path}")
             else:
@@ -247,6 +250,67 @@ class ExportManager:
 
         jinja_template = Jinja2Template(html_template)
         return jinja_template.render(**data)
+
+    def _fit_pdf_to_single_page(self, pdf_path: Path, target_height_mm: float = None) -> bool:
+        """PDF를 단일 페이지로 만들기
+
+        - 다중 페이지: 첫 페이지만 사용 (나머지 버림)
+        - target_height_mm 지정 시: 해당 높이로 자르기
+
+        Args:
+            pdf_path: PDF 파일 경로 (직접 수정됨)
+            target_height_mm: 목표 높이 (mm), None이면 첫 페이지 높이 유지
+
+        Returns:
+            성공 여부
+        """
+        try:
+            doc = fitz.open(pdf_path)
+
+            # A4 너비 (포인트 단위)
+            a4_width = 595.0
+
+            # 첫 페이지 사용
+            page = doc[0]
+            page_height = page.rect.height
+
+            # 목표 높이 계산 (mm → pt)
+            if target_height_mm:
+                target_height_pt = target_height_mm * 72 / 25.4
+            else:
+                target_height_pt = page_height
+
+            # 높이 조정이 필요 없으면 원본 유지
+            if len(doc) == 1 and abs(page_height - target_height_pt) < 1:
+                doc.close()
+                return True
+
+            self._logger.debug(f"PDF 단일 페이지 변환: {len(doc)}페이지 → 1페이지 (높이: {target_height_mm}mm)")
+
+            # 새 PDF 생성 (목표 높이로)
+            new_doc = fitz.open()
+            new_page = new_doc.new_page(width=a4_width, height=target_height_pt)
+
+            # 첫 페이지의 콘텐츠를 목표 높이까지만 복사
+            scale = a4_width / page.rect.width
+            new_page.show_pdf_page(
+                fitz.Rect(0, 0, a4_width, target_height_pt),
+                doc,
+                0,
+                clip=fitz.Rect(0, 0, page.rect.width, target_height_pt / scale)
+            )
+
+            doc.close()
+
+            # 원본 파일 덮어쓰기
+            new_doc.save(str(pdf_path), garbage=4, deflate=True, clean=True)
+            new_doc.close()
+
+            self._logger.debug(f"PDF 단일 페이지 변환 완료: {pdf_path}")
+            return True
+        except Exception as e:
+            self._logger.error(f"PDF 단일 페이지 변환 실패: {e}")
+            return False
 
     def _convert_pdf_to_png(self, pdf_path: Path, png_path: Path, dpi: int = 300) -> bool:
         """PDF를 PNG로 변환
