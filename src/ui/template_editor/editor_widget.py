@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal, QUrl
+from PyQt6.QtCore import Qt, pyqtSignal, QUrl, QTimer
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -50,6 +50,8 @@ class EditorWidget(QWidget):
     template_changed = pyqtSignal(str)  # 템플릿 ID
     content_modified = pyqtSignal()  # 내용 수정됨
     auto_saved = pyqtSignal(str)  # 자동 저장됨
+    scroll_changed = pyqtSignal(int, int)  # 스크롤 위치 변경 (x, y)
+    page_loaded = pyqtSignal()  # 페이지 로드 완료
 
     # 모드 상수
     MODE_PREVIEW = 0
@@ -67,6 +69,12 @@ class EditorWidget(QWidget):
         self._modified: bool = False
         self._current_mode: int = self.MODE_PREVIEW
         self._zoom_level: int = 100
+        self._last_scroll_pos: tuple = (0, 0)  # 마지막 스크롤 위치
+
+        # 스크롤 위치 추적 타이머 (500ms마다 체크)
+        self._scroll_timer = QTimer(self)
+        self._scroll_timer.timeout.connect(self._check_scroll_position)
+        self._scroll_timer.start(500)
 
         # 자동 저장 관리자
         self._auto_save = AutoSaveManager(self)
@@ -117,6 +125,7 @@ class EditorWidget(QWidget):
                     border-radius: 4px;
                 }
             """)
+            self._web_view.loadFinished.connect(self._on_page_loaded)
             layout.addWidget(self._web_view)
         else:
             # WebEngine이 없는 경우 대체 뷰
@@ -135,6 +144,11 @@ class EditorWidget(QWidget):
             layout.addWidget(fallback_label)
 
         return widget
+
+    def _on_page_loaded(self, ok: bool):
+        """페이지 로드 완료 시 호출"""
+        if ok:
+            self.page_loaded.emit()
 
     def _create_mapping_view(self) -> QWidget:
         """매핑 뷰 생성"""
@@ -851,3 +865,52 @@ class EditorWidget(QWidget):
     def get_auto_save_manager(self) -> AutoSaveManager:
         """AutoSaveManager 반환"""
         return self._auto_save
+
+    # ========== Scroll Position Methods ==========
+
+    def _check_scroll_position(self):
+        """주기적으로 스크롤 위치 확인 후 변경 시 시그널 emit"""
+        if not HAS_WEBENGINE or not hasattr(self, '_web_view') or not self._web_view:
+            return
+
+        def on_position(x, y):
+            if (x, y) != self._last_scroll_pos:
+                self._last_scroll_pos = (x, y)
+                self.scroll_changed.emit(x, y)
+
+        self.get_scroll_position(on_position)
+
+    def get_scroll_position(self, callback):
+        """현재 스크롤 위치 가져오기 (비동기)
+
+        Args:
+            callback: 스크롤 위치를 받을 콜백 함수 (x, y)
+        """
+        if not HAS_WEBENGINE or not hasattr(self, '_web_view'):
+            callback(0, 0)
+            return
+
+        js_code = "JSON.stringify({x: window.scrollX || 0, y: window.scrollY || 0})"
+        self._web_view.page().runJavaScript(js_code, lambda result: self._handle_scroll_result(result, callback))
+
+    def _handle_scroll_result(self, result, callback):
+        """스크롤 결과 처리"""
+        try:
+            import json
+            pos = json.loads(result) if result else {"x": 0, "y": 0}
+            callback(pos.get("x", 0), pos.get("y", 0))
+        except Exception:
+            callback(0, 0)
+
+    def set_scroll_position(self, x: int, y: int):
+        """스크롤 위치 설정
+
+        Args:
+            x: 가로 스크롤 위치
+            y: 세로 스크롤 위치
+        """
+        if not HAS_WEBENGINE or not hasattr(self, '_web_view'):
+            return
+
+        js_code = f"window.scrollTo({x}, {y});"
+        self._web_view.page().runJavaScript(js_code)

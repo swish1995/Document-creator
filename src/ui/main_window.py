@@ -6,7 +6,7 @@ Document Creator의 메인 윈도우를 정의합니다.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from PyQt6.QtCore import Qt, QSettings, QSize
 from PyQt6.QtGui import QAction, QKeySequence, QIcon
@@ -59,6 +59,7 @@ class MainWindow(QMainWindow):
         self._template_panels: List[TemplatePanel] = []  # 호환성 유지
         self._data_sheet_visible = True
         self._current_template_id: Optional[str] = None
+        self._template_scroll_positions: Dict[str, tuple] = {}  # 템플릿별 스크롤 위치
 
         # 작업 디렉토리 설정 및 정리 (고아 파일 방지)
         self._work_dir = Path(__file__).parent.parent.parent / "worked"
@@ -253,6 +254,9 @@ class MainWindow(QMainWindow):
         self._editor_widget.setMinimumHeight(250)
         self._editor_widget.content_modified.connect(self._on_editor_content_modified)
         self._editor_widget.auto_saved.connect(self._on_editor_auto_saved)
+        self._editor_widget.scroll_changed.connect(self._on_scroll_changed)
+        self._editor_widget.page_loaded.connect(self._on_page_loaded)
+        self._pending_scroll_restore: Optional[str] = None  # 페이지 로드 후 복구할 템플릿 ID
         self._splitter.addWidget(self._editor_widget)
 
         # 하단 영역 - 엑셀 뷰어
@@ -354,9 +358,13 @@ class MainWindow(QMainWindow):
         if not self._template_storage:
             return
 
+        # 스크롤 위치는 scroll_changed 시그널로 실시간 저장됨
+
         template = self._template_storage.get_template(template_id)
         if template:
             self._current_template_id = template_id
+            # 페이지 로드 완료 후 스크롤 복구를 위해 저장
+            self._pending_scroll_restore = template_id
             try:
                 html_content = template.template_path.read_text(encoding="utf-8")
                 self._editor_widget.set_template(
@@ -369,6 +377,28 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 self._logger.error(f"템플릿 로드 실패: {e}")
                 QMessageBox.warning(self, "경고", f"템플릿을 로드할 수 없습니다:\n{e}")
+
+    def _on_page_loaded(self):
+        """페이지 로드 완료 시 스크롤 위치 복구"""
+        if self._pending_scroll_restore:
+            template_id = self._pending_scroll_restore
+            self._pending_scroll_restore = None
+            self._restore_scroll_position(template_id)
+
+    def _on_scroll_changed(self, x: int, y: int):
+        """스크롤 위치 변경 시 실시간 저장"""
+        if self._current_template_id:
+            self._template_scroll_positions[self._current_template_id] = (x, y)
+
+    def _save_current_scroll_position(self):
+        """현재 템플릿의 스크롤 위치 저장 (deprecated - 실시간 저장으로 대체)"""
+        pass  # 스크롤 위치는 _on_scroll_changed에서 실시간으로 저장됨
+
+    def _restore_scroll_position(self, template_id: str):
+        """저장된 스크롤 위치 복구"""
+        if template_id in self._template_scroll_positions:
+            x, y = self._template_scroll_positions[template_id]
+            self._editor_widget.set_scroll_position(x, y)
 
     def _on_manage_templates(self):
         """템플릿 관리 다이얼로그"""
@@ -584,6 +614,19 @@ class MainWindow(QMainWindow):
         mode = self._settings.value("viewMode", 0, type=int)
         self._toolbar.set_mode(mode)
 
+        # 템플릿별 스크롤 위치 복구
+        import json
+        scroll_data = self._settings.value("templateScrollPositions", "{}")
+        try:
+            self._template_scroll_positions = json.loads(scroll_data)
+            # 키를 문자열로, 값을 튜플로 변환
+            self._template_scroll_positions = {
+                k: tuple(v) if isinstance(v, list) else v
+                for k, v in self._template_scroll_positions.items()
+            }
+        except Exception:
+            self._template_scroll_positions = {}
+
         # 확대/축소 복구
         zoom = self._settings.value("zoomLevel", 100, type=int)
         self._toolbar.set_zoom(zoom)
@@ -630,6 +673,11 @@ class MainWindow(QMainWindow):
             # 모드 상태 저장
             self._settings.setValue("viewMode", self._toolbar.get_current_mode())
             self._settings.setValue("zoomLevel", self._toolbar.get_current_zoom())
+
+            # 템플릿별 스크롤 위치 저장
+            import json
+            self._settings.setValue("templateScrollPositions", json.dumps(self._template_scroll_positions))
+
             event.accept()
         else:
             event.ignore()
