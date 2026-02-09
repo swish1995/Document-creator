@@ -933,10 +933,12 @@ class MainWindow(QMainWindow):
             filter_str = "PDF 파일 (*.pdf)"
             default_name = f"{settings['filename']}.pdf"
 
+        # 마지막 저장 경로 불러오기
+        last_export_dir = self._settings.value("last_export_dir", str(Path.home()))
         save_path, _ = QFileDialog.getSaveFileName(
             self,
             "내보내기 파일 저장",
-            str(Path.home() / default_name),
+            str(Path(last_export_dir) / default_name),
             filter_str,
         )
 
@@ -944,6 +946,8 @@ class MainWindow(QMainWindow):
             import shutil
             try:
                 shutil.copy2(result_path, save_path)
+                # 저장 경로 기억
+                self._settings.setValue("last_export_dir", str(Path(save_path).parent))
                 self._logger.info(f"파일 저장 완료: {save_path}")
                 self.statusBar().showMessage(f"내보내기 완료: {save_path}")
                 # 저장 완료 알림
