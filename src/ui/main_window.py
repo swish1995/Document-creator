@@ -583,6 +583,10 @@ class MainWindow(QMainWindow):
         # 모드 상태 복원 (미리보기/매핑)
         mode = self._settings.value("viewMode", 0, type=int)
         self._toolbar.set_mode(mode)
+
+        # 확대/축소 복구
+        zoom = self._settings.value("zoomLevel", 100, type=int)
+        self._toolbar.set_zoom(zoom)
         self._editor_widget.set_mode(mode)
 
     def resizeEvent(self, event):
@@ -625,6 +629,7 @@ class MainWindow(QMainWindow):
             self._settings.setValue("dataSheetVisible", self._toolbar.is_data_sheet_visible())
             # 모드 상태 저장
             self._settings.setValue("viewMode", self._toolbar.get_current_mode())
+            self._settings.setValue("zoomLevel", self._toolbar.get_current_zoom())
             event.accept()
         else:
             event.ignore()
