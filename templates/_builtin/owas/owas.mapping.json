@@ -13,16 +13,59 @@
       "type": "필드 타입 - 'image' 지정 시 이미지로 처리"
     },
     "example_image_fields": [
-      {"id": "frame_image", "label": "프레임 이미지", "type": "image", "excel_column": "Frame", "excel_index": 0},
-      {"id": "skeleton_image", "label": "스켈레톤 이미지", "type": "image", "excel_column": "Skeleton", "excel_index": 1}
+      {
+        "id": "frame_image",
+        "label": "프레임 이미지",
+        "type": "image",
+        "excel_column": "Frame",
+        "excel_index": 0
+      },
+      {
+        "id": "skeleton_image",
+        "label": "스켈레톤 이미지",
+        "type": "image",
+        "excel_column": "Skeleton",
+        "excel_index": 1
+      }
     ]
   },
   "fields": [
-    {"id": "back", "label": "허리", "excel_column": "Back", "excel_index": 60},
-    {"id": "arms", "label": "상지", "excel_column": "Arms", "excel_index": 61},
-    {"id": "legs", "label": "하지", "excel_column": "Legs", "excel_index": 62},
-    {"id": "load", "label": "무게", "excel_column": "Load", "excel_index": 63},
-    {"id": "ac", "label": "AC값", "excel_column": "AC", "excel_index": 65},
-    {"id": "result", "label": "평가결과", "excel_column": "Risk", "excel_index": 66}
-  ]
+    {
+      "id": "back",
+      "label": "허리",
+      "excel_column": "Back",
+      "excel_index": 60
+    },
+    {
+      "id": "arms",
+      "label": "상지",
+      "excel_column": "Arms",
+      "excel_index": 61
+    },
+    {
+      "id": "legs",
+      "label": "하지",
+      "excel_column": "Legs",
+      "excel_index": 62
+    },
+    {
+      "id": "load",
+      "label": "무게",
+      "excel_column": "Load",
+      "excel_index": 63
+    },
+    {
+      "id": "ac",
+      "label": "AC값",
+      "excel_column": "AC",
+      "excel_index": 65
+    },
+    {
+      "id": "result",
+      "label": "평가결과",
+      "excel_column": "Risk",
+      "excel_index": 66
+    }
+  ],
+  "page_height_mm": 297
 }

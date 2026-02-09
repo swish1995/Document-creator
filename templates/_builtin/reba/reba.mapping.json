@@ -13,29 +13,137 @@
       "type": "필드 타입 - 'image' 지정 시 이미지로 처리"
     },
     "example_image_fields": [
-      {"id": "frame_image", "label": "프레임 이미지", "type": "image", "excel_column": "Frame", "excel_index": 0},
-      {"id": "skeleton_image", "label": "스켈레톤 이미지", "type": "image", "excel_column": "Skeleton", "excel_index": 1}
+      {
+        "id": "frame_image",
+        "label": "프레임 이미지",
+        "type": "image",
+        "excel_column": "Frame",
+        "excel_index": 0
+      },
+      {
+        "id": "skeleton_image",
+        "label": "스켈레톤 이미지",
+        "type": "image",
+        "excel_column": "Skeleton",
+        "excel_index": 1
+      }
     ]
   },
   "fields": [
-    {"id": "trunk_score", "label": "몸통 점수", "excel_column": "Base", "excel_index": 37},
-    {"id": "trunk_adjust", "label": "몸통 가점", "excel_column": "+Twist/Side", "excel_index": 38},
-    {"id": "neck_score", "label": "목 점수", "excel_column": "Base", "excel_index": 34},
-    {"id": "neck_adjust", "label": "목 가점", "excel_column": "+Twist/Side", "excel_index": 35},
-    {"id": "leg_score", "label": "다리 점수", "excel_column": "Base", "excel_index": 40},
-    {"id": "leg_adjust", "label": "다리 가점", "excel_column": "+Knee30-60", "excel_index": 41},
-    {"id": "score_a", "label": "Score A", "excel_column": "Score A", "excel_index": 56},
-    {"id": "upper_arm_score", "label": "윗팔 점수", "excel_column": "Base", "excel_index": 44},
-    {"id": "upper_arm_adjust1", "label": "윗팔 가점1", "excel_column": "+Raised", "excel_index": 45},
-    {"id": "upper_arm_adjust2", "label": "윗팔 가점2", "excel_column": "+Abducted", "excel_index": 46},
-    {"id": "upper_arm_adjust3", "label": "윗팔 가점3", "excel_column": "-Supported", "excel_index": 47},
-    {"id": "lower_arm_score", "label": "아래팔 점수", "excel_column": "Lower Arm", "excel_index": 49},
-    {"id": "wrist_score", "label": "손목 점수", "excel_column": "Base", "excel_index": 50},
-    {"id": "wrist_adjust", "label": "손목 가점", "excel_column": "+Twisted", "excel_index": 51},
-    {"id": "score_b", "label": "Score B", "excel_column": "Score B", "excel_index": 57},
-    {"id": "table_a_load", "label": "Table A + 무게/힘", "excel_column": "Load", "excel_index": 53},
-    {"id": "table_a_coupling", "label": "Table A + 손잡이", "excel_column": "Coupling", "excel_index": 54},
-    {"id": "final_score", "label": "최종점수", "excel_column": "Score", "excel_index": 58},
-    {"id": "result", "label": "평가결과", "excel_column": "Risk", "excel_index": 59}
-  ]
+    {
+      "id": "trunk_score",
+      "label": "몸통 점수",
+      "excel_column": "Base",
+      "excel_index": 37
+    },
+    {
+      "id": "trunk_adjust",
+      "label": "몸통 가점",
+      "excel_column": "+Twist/Side",
+      "excel_index": 38
+    },
+    {
+      "id": "neck_score",
+      "label": "목 점수",
+      "excel_column": "Base",
+      "excel_index": 34
+    },
+    {
+      "id": "neck_adjust",
+      "label": "목 가점",
+      "excel_column": "+Twist/Side",
+      "excel_index": 35
+    },
+    {
+      "id": "leg_score",
+      "label": "다리 점수",
+      "excel_column": "Base",
+      "excel_index": 40
+    },
+    {
+      "id": "leg_adjust",
+      "label": "다리 가점",
+      "excel_column": "+Knee30-60",
+      "excel_index": 41
+    },
+    {
+      "id": "score_a",
+      "label": "Score A",
+      "excel_column": "Score A",
+      "excel_index": 56
+    },
+    {
+      "id": "upper_arm_score",
+      "label": "윗팔 점수",
+      "excel_column": "Base",
+      "excel_index": 44
+    },
+    {
+      "id": "upper_arm_adjust1",
+      "label": "윗팔 가점1",
+      "excel_column": "+Raised",
+      "excel_index": 45
+    },
+    {
+      "id": "upper_arm_adjust2",
+      "label": "윗팔 가점2",
+      "excel_column": "+Abducted",
+      "excel_index": 46
+    },
+    {
+      "id": "upper_arm_adjust3",
+      "label": "윗팔 가점3",
+      "excel_column": "-Supported",
+      "excel_index": 47
+    },
+    {
+      "id": "lower_arm_score",
+      "label": "아래팔 점수",
+      "excel_column": "Lower Arm",
+      "excel_index": 49
+    },
+    {
+      "id": "wrist_score",
+      "label": "손목 점수",
+      "excel_column": "Base",
+      "excel_index": 50
+    },
+    {
+      "id": "wrist_adjust",
+      "label": "손목 가점",
+      "excel_column": "+Twisted",
+      "excel_index": 51
+    },
+    {
+      "id": "score_b",
+      "label": "Score B",
+      "excel_column": "Score B",
+      "excel_index": 57
+    },
+    {
+      "id": "table_a_load",
+      "label": "Table A + 무게/힘",
+      "excel_column": "Load",
+      "excel_index": 53
+    },
+    {
+      "id": "table_a_coupling",
+      "label": "Table A + 손잡이",
+      "excel_column": "Coupling",
+      "excel_index": 54
+    },
+    {
+      "id": "final_score",
+      "label": "최종점수",
+      "excel_column": "Score",
+      "excel_index": 58
+    },
+    {
+      "id": "result",
+      "label": "평가결과",
+      "excel_column": "Risk",
+      "excel_index": 59
+    }
+  ],
+  "page_height_mm": 297
 }

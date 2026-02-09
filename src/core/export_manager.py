@@ -148,6 +148,8 @@ class ExportManager:
             if success:
                 # 지정된 높이로 PDF 자르기 (단일 페이지로 만들기)
                 self._fit_pdf_to_single_page(pdf_path, template.page_height_mm)
+                # A4 크기로 강제 변환
+                self._resize_pdf_to_a4(pdf_path)
                 generated_files.append(pdf_path)
                 self._logger.debug(f"PDF 생성: {pdf_path}")
             else:
@@ -310,6 +312,72 @@ class ExportManager:
             return True
         except Exception as e:
             self._logger.error(f"PDF 단일 페이지 변환 실패: {e}")
+            return False
+
+    def _resize_pdf_to_a4(self, pdf_path: Path) -> bool:
+        """PDF를 A4 크기로 강제 변환
+
+        콘텐츠를 A4 페이지에 맞게 스케일링합니다.
+
+        Args:
+            pdf_path: PDF 파일 경로 (직접 수정됨)
+
+        Returns:
+            성공 여부
+        """
+        try:
+            doc = fitz.open(pdf_path)
+            if len(doc) == 0:
+                doc.close()
+                return False
+
+            # A4 크기 (포인트 단위: 72 DPI 기준)
+            a4_width = 595.0   # 210mm
+            a4_height = 842.0  # 297mm
+
+            page = doc[0]
+            src_width = page.rect.width
+            src_height = page.rect.height
+
+            # 이미 A4 크기면 스킵
+            if abs(src_width - a4_width) < 1 and abs(src_height - a4_height) < 1:
+                doc.close()
+                return True
+
+            self._logger.debug(f"A4 변환: {src_width:.1f}x{src_height:.1f} → {a4_width}x{a4_height}")
+
+            # 스케일 비율 계산 (비율 유지, A4에 맞춤)
+            scale_x = a4_width / src_width
+            scale_y = a4_height / src_height
+            scale = min(scale_x, scale_y)  # 비율 유지
+
+            # 새 PDF 생성
+            new_doc = fitz.open()
+            new_page = new_doc.new_page(width=a4_width, height=a4_height)
+
+            # 중앙 정렬을 위한 오프셋 계산
+            scaled_width = src_width * scale
+            scaled_height = src_height * scale
+            offset_x = (a4_width - scaled_width) / 2
+            offset_y = (a4_height - scaled_height) / 2
+
+            # 원본 콘텐츠를 스케일링하여 삽입
+            new_page.show_pdf_page(
+                fitz.Rect(offset_x, offset_y, offset_x + scaled_width, offset_y + scaled_height),
+                doc,
+                0
+            )
+
+            doc.close()
+
+            # 원본 파일 덮어쓰기
+            new_doc.save(str(pdf_path), garbage=4, deflate=True, clean=True)
+            new_doc.close()
+
+            self._logger.debug(f"A4 변환 완료: {pdf_path}")
+            return True
+        except Exception as e:
+            self._logger.error(f"A4 변환 실패: {e}")
             return False
 
     def _convert_pdf_to_png(self, pdf_path: Path, png_path: Path, dpi: int = 300) -> bool:

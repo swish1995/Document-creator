@@ -1,10 +1,10 @@
 {
   "active_states": {
-    "nle": false,
-    "si": false,
+    "nle": true,
+    "si": true,
     "rula": true,
-    "owas": false,
-    "reba": false
+    "owas": true,
+    "reba": true
   },
   "metadata": {
     "rula": {
