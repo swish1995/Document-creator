@@ -136,7 +136,7 @@ class LicenseDialog(QDialog):
         layout.addWidget(hw_desc)
 
         # 개발자 연락처
-        contact_label = QLabel("라이센스 문의: swish1995@gmail.com")
+        contact_label = QLabel("라이센스 문의: 백승욱(swish1995@gmail.com)")
         contact_label.setStyleSheet("color: #4a9eff; font-size: 12px; margin-top: 4px;")
         layout.addWidget(contact_label)
 
