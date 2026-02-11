@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal, QUrl, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot, QUrl, QTimer, QObject
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -23,10 +23,12 @@ from PyQt6.QtWidgets import (
 
 try:
     from PyQt6.QtWebEngineWidgets import QWebEngineView
+    from PyQt6.QtWebChannel import QWebChannel
     HAS_WEBENGINE = True
 except ImportError:
     HAS_WEBENGINE = False
     QWebEngineView = None
+    QWebChannel = None
 
 import re
 
@@ -36,6 +38,16 @@ from .auto_save import AutoSaveManager
 from src.core.logger import get_logger
 
 _logger = get_logger(__name__)
+
+
+class _MappingBridge(QObject):
+    """JS → Python 브릿지 (매핑 미리보기에서 필드 클릭 전달)"""
+
+    field_clicked = pyqtSignal(str)
+
+    @pyqtSlot(str)
+    def onFieldClicked(self, field_id: str):
+        self.field_clicked.emit(field_id)
 
 
 class EditorWidget(QWidget):
@@ -249,6 +261,15 @@ class EditorWidget(QWidget):
         if field_id:
             self.highlight_field(field_id)
 
+    def _on_mapping_field_clicked(self, field_id: str):
+        """매핑 미리보기에서 필드 클릭 → 왼쪽 필드 목록 선택"""
+        for i in range(self._field_tree.topLevelItemCount()):
+            item = self._field_tree.topLevelItem(i)
+            if item.data(0, Qt.ItemDataRole.UserRole) == field_id:
+                self._field_tree.setCurrentItem(item)
+                self._field_tree.scrollToItem(item)
+                break
+
     def _create_mapping_preview(self) -> QWidget:
         """매핑용 미리보기 패널 생성"""
         panel = QFrame()
@@ -269,7 +290,7 @@ class EditorWidget(QWidget):
         header_layout.setSpacing(8)
 
         # 타이틀
-        header = QLabel("🎯 매핑 미리보기 (클릭하여 필드 삽입)")
+        header = QLabel("🎯 매핑 미리보기")
         header.setStyleSheet("""
             QLabel {
                 color: #ffffff;
@@ -286,6 +307,12 @@ class EditorWidget(QWidget):
         # 미리보기 영역
         if HAS_WEBENGINE:
             self._mapping_web_view = QWebEngineView()
+            # QWebChannel 설정 (JS → Python 브릿지)
+            self._mapping_bridge = _MappingBridge(self)
+            self._mapping_bridge.field_clicked.connect(self._on_mapping_field_clicked)
+            self._mapping_channel = QWebChannel(self._mapping_web_view.page())
+            self._mapping_channel.registerObject("bridge", self._mapping_bridge)
+            self._mapping_web_view.page().setWebChannel(self._mapping_channel)
             layout.addWidget(self._mapping_web_view, 1)
         else:
             self._mapping_web_view = None
@@ -767,19 +794,33 @@ class EditorWidget(QWidget):
     def _get_highlight_script(self) -> str:
         """필드 클릭 이벤트 JavaScript 반환"""
         return """
+        <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
         <script>
         (function() {
+            var bridge = null;
+
+            // QWebChannel 연결
+            if (typeof QWebChannel !== 'undefined') {
+                new QWebChannel(qt.webChannelTransport, function(channel) {
+                    bridge = channel.objects.bridge;
+                });
+            }
+
             // 모든 필드에 클릭 이벤트 추가
             document.querySelectorAll('.mapping-field').forEach(function(el) {
                 el.addEventListener('click', function() {
                     const fieldId = this.getAttribute('data-field');
-                    console.log('Field clicked:', fieldId);
 
                     // 선택 상태 토글
                     document.querySelectorAll('.mapping-field').forEach(function(f) {
                         f.classList.remove('selected');
                     });
                     this.classList.add('selected');
+
+                    // Python에 전달
+                    if (bridge) {
+                        bridge.onFieldClicked(fieldId);
+                    }
                 });
             });
 
