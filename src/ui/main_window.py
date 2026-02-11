@@ -270,7 +270,11 @@ class MainWindow(QMainWindow):
         self._excel_viewer.selection_changed.connect(self._on_selection_changed)
         excel_layout.addWidget(self._excel_viewer)
 
+        self._excel_container.setMinimumHeight(150)
         self._splitter.addWidget(self._excel_container)
+
+        # 스플리터로 패널이 완전히 축소되지 않도록 설정
+        self._splitter.setChildrenCollapsible(False)
 
         # 스플리터 비율 설정 (상단:하단 = 2:3)
         self._splitter.setSizes([300, 500])
