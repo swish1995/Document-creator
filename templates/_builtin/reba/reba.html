@@ -19,10 +19,10 @@
     }
 
     .container {
-      width: 100%;
+      width: auto;
       min-height: 297mm;
-      margin: 0 auto;
-      padding: 8px;
+      margin: 8px;
+      padding: 0;
       background-color: white;
       border: 2px solid black;
       box-sizing: border-box;
@@ -47,6 +47,8 @@
 
     .section-wrapper {
       display: flex;
+      flex: 1 1 0;
+      min-width: 0;
     }
 
     .vertical-label {
@@ -91,6 +93,7 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 11px;
+      table-layout: fixed;
     }
 
     table.main-table {
@@ -124,11 +127,13 @@
     }
 
     .right-section {
-      flex: 1;
+      flex: 1 1 0;
+      min-width: 0;
     }
 
     .table-box {
       margin-left: 8px;
+      margin-right: 8px;
       border-bottom: 2px solid black;
     }
 
@@ -216,7 +221,7 @@
 <body>
   <div class="container">
     <!-- Header -->
-    <div class="header">
+    <div class="header bg-gray-200">
       <h1>REBA(Rapid Entire Body Assessment) 작업 분석 시트</h1>
     </div>
 
