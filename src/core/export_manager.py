@@ -135,20 +135,33 @@ class ExportManager:
             # HTML 렌더링
             html_content = self._render_html(template.template_path, mapped_data)
 
-            # HTML → PDF 변환 (템플릿별 페이지 높이 사용)
+            # A4 비율에 맞는 렌더링 폭 계산 (여백 5mm 고려)
+            margin_mm = 5.0
+            a4_content_w = 210.0 - margin_mm * 2  # 200mm
+            a4_content_h = 297.0 - margin_mm * 2  # 287mm
+            page_height = template.page_height_mm
+
+            if page_height > a4_content_h:
+                # 세로가 긴 템플릿: A4 비율에 맞게 넓게 렌더링
+                render_width_mm = a4_content_w * page_height / a4_content_h
+            else:
+                render_width_mm = 210.0
+
+            # HTML → PDF 변환 (템플릿별 페이지 크기 사용)
             pdf_path = self._work_dir / f"{filename}.pdf"
             converter = self._get_pdf_converter()
             success = converter.convert_html_string_to_pdf(
                 html_content=html_content,
                 output_path=pdf_path,
                 base_url=template.template_path.parent,
-                page_height_mm=template.page_height_mm,
+                page_width_mm=render_width_mm,
+                page_height_mm=page_height,
             )
 
             if success:
                 # 지정된 높이로 PDF 자르기 (단일 페이지로 만들기)
-                self._fit_pdf_to_single_page(pdf_path, template.page_height_mm)
-                # A4 크기로 강제 변환
+                self._fit_pdf_to_single_page(pdf_path, page_height, render_width_mm)
+                # A4 크기로 변환 (여백 최소화)
                 self._resize_pdf_to_a4(pdf_path)
                 generated_files.append(pdf_path)
                 self._logger.debug(f"PDF 생성: {pdf_path}")
@@ -253,7 +266,7 @@ class ExportManager:
         jinja_template = Jinja2Template(html_template)
         return jinja_template.render(**data)
 
-    def _fit_pdf_to_single_page(self, pdf_path: Path, target_height_mm: float = None) -> bool:
+    def _fit_pdf_to_single_page(self, pdf_path: Path, target_height_mm: float = None, target_width_mm: float = 210.0) -> bool:
         """PDF를 단일 페이지로 만들기
 
         - 다중 페이지: 첫 페이지만 사용 (나머지 버림)
@@ -262,6 +275,7 @@ class ExportManager:
         Args:
             pdf_path: PDF 파일 경로 (직접 수정됨)
             target_height_mm: 목표 높이 (mm), None이면 첫 페이지 높이 유지
+            target_width_mm: 목표 너비 (mm), 기본 210mm (A4)
 
         Returns:
             성공 여부
@@ -269,8 +283,8 @@ class ExportManager:
         try:
             doc = fitz.open(pdf_path)
 
-            # A4 너비 (포인트 단위)
-            a4_width = 595.0
+            # 목표 너비 (포인트 단위)
+            a4_width = target_width_mm * 72 / 25.4
 
             # 첫 페이지 사용
             page = doc[0]
@@ -314,13 +328,14 @@ class ExportManager:
             self._logger.error(f"PDF 단일 페이지 변환 실패: {e}")
             return False
 
-    def _resize_pdf_to_a4(self, pdf_path: Path) -> bool:
-        """PDF를 A4 크기로 강제 변환
+    def _resize_pdf_to_a4(self, pdf_path: Path, margin_mm: float = 5.0) -> bool:
+        """PDF를 A4 크기로 변환 (여백 최소화, 콘텐츠 꽉 채움)
 
-        콘텐츠를 A4 페이지에 맞게 스케일링합니다.
+        콘텐츠를 A4 페이지에 여백만 남기고 최대한 채웁니다.
 
         Args:
             pdf_path: PDF 파일 경로 (직접 수정됨)
+            margin_mm: 상하좌우 여백 (mm, 기본 5mm)
 
         Returns:
             성공 여부
@@ -335,31 +350,33 @@ class ExportManager:
             a4_width = 595.0   # 210mm
             a4_height = 842.0  # 297mm
 
+            # 여백 (mm → pt)
+            margin_pt = margin_mm * 72 / 25.4
+
+            # 콘텐츠 영역 (A4 - 여백)
+            content_width = a4_width - margin_pt * 2
+            content_height = a4_height - margin_pt * 2
+
             page = doc[0]
             src_width = page.rect.width
             src_height = page.rect.height
 
-            # 이미 A4 크기면 스킵
-            if abs(src_width - a4_width) < 1 and abs(src_height - a4_height) < 1:
-                doc.close()
-                return True
+            self._logger.debug(f"A4 변환: {src_width:.1f}x{src_height:.1f} → {a4_width}x{a4_height} (여백: {margin_mm}mm)")
 
-            self._logger.debug(f"A4 변환: {src_width:.1f}x{src_height:.1f} → {a4_width}x{a4_height}")
-
-            # 스케일 비율 계산 (비율 유지, A4에 맞춤)
-            scale_x = a4_width / src_width
-            scale_y = a4_height / src_height
-            scale = min(scale_x, scale_y)  # 비율 유지
+            # 스케일 비율 계산 (비율 유지, 콘텐츠 영역에 맞춤)
+            scale_x = content_width / src_width
+            scale_y = content_height / src_height
+            scale = min(scale_x, scale_y)
 
             # 새 PDF 생성
             new_doc = fitz.open()
             new_page = new_doc.new_page(width=a4_width, height=a4_height)
 
-            # 중앙 정렬을 위한 오프셋 계산
+            # 콘텐츠 영역 내 중앙 정렬
             scaled_width = src_width * scale
             scaled_height = src_height * scale
-            offset_x = (a4_width - scaled_width) / 2
-            offset_y = (a4_height - scaled_height) / 2
+            offset_x = margin_pt + (content_width - scaled_width) / 2
+            offset_y = margin_pt + (content_height - scaled_height) / 2
 
             # 원본 콘텐츠를 스케일링하여 삽입
             new_page.show_pdf_page(
