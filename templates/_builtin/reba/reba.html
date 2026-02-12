@@ -394,7 +394,7 @@
         평가 결과
       </div>
       <div class="flex-1 p-2 text-[9pt]">
-        <span class="text-[13pt] font-bold">{% if result == 'negligible' %}개선 필요 없음{% elif result == 'low' %}부분적 개선{% elif result == 'medium' %}개선 필요{% elif result == 'high' %}곧 개선 필요{% elif result == 'very_high' %}즉시 개선{% else %}{{result}}{% endif %}</span>
+        <span id="result-text" class="text-[13pt] font-bold">{% if result == 'negligible' %}개선 필요 없음{% elif result == 'low' %}부분적 개선{% elif result == 'medium' %}개선 필요{% elif result == 'high' %}곧 개선 필요{% elif result == 'very_high' %}즉시 개선{% else %}{{result}}{% endif %}</span>
       </div>
     </div>
   </div>
@@ -440,6 +440,10 @@ setTimeout(function() {
         var crit = document.getElementById('reba-criteria');
         if (crit) { var cells = crit.tBodies[0].rows[row].cells; for (var i=0;i<cells.length;i++) cells[i].style.cssText += HL; }
     }
+
+    var rMap = {negligible:'개선 필요 없음',low:'부분적 개선',medium:'개선 필요',high:'곧 개선 필요',very_high:'즉시 개선'};
+    var rt = document.getElementById('result-text');
+    if (rt) { var df = rt.querySelector('.data-field[data-field="result"]'); if (df) { var v = df.textContent.trim(); if (v && v !== 'None') { rt.textContent = rMap[v] || v; } else { rt.textContent = ''; } } }
 }, 50);
 </script>
 </body>

@@ -420,7 +420,7 @@
             <div class="bg-gray-300 border-r-2 border-black text-center font-bold text-[10pt] py-8 px-2 w-8 flex items-center justify-center">
                 <div style="writing-mode: vertical-rl;">평가 결과</div>
             </div>
-            <div class="flex-1 p-2 text-[9pt]"><span class="text-[13pt] font-bold">{% if result == 'normal' %}개선 필요 없음{% elif result == 'slight' %}부분적 개선{% elif result == 'harmful' %}곧 개선 필요{% elif result == 'very_harmful' %}즉시 개선{% else %}{{ result }}{% endif %}</span></div>
+            <div class="flex-1 p-2 text-[9pt]"><span id="result-text" class="text-[13pt] font-bold">{% if result == 'normal' %}개선 필요 없음{% elif result == 'slight' %}부분적 개선{% elif result == 'harmful' %}곧 개선 필요{% elif result == 'very_harmful' %}즉시 개선{% else %}{{result}}{% endif %}</span></div>
         </div>
     </div>
 <script>
@@ -446,6 +446,10 @@ setTimeout(function() {
         var crit = document.getElementById('owas-criteria');
         if (crit) { var row = crit.children[v]; if (row) { var divs = row.children; for (var i=0;i<divs.length;i++) divs[i].style.cssText += HL; } }
     }
+
+    var rMap = {normal:'개선 필요 없음',slight:'부분적 개선',harmful:'곧 개선 필요',very_harmful:'즉시 개선'};
+    var rt = document.getElementById('result-text');
+    if (rt) { var df = rt.querySelector('.data-field[data-field="result"]'); if (df) { var v = df.textContent.trim(); if (v && v !== 'None') { rt.textContent = rMap[v] || v; } else { rt.textContent = ''; } } }
 }, 50);
 </script>
 </body>
