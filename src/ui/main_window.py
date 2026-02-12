@@ -437,6 +437,14 @@ class MainWindow(QMainWindow):
                     # 비활성화된 템플릿이 선택됨 - 첫 번째 활성 템플릿으로 변경
                     self._select_first_active_template()
 
+        # 생성 버튼 텍스트 갱신
+        self._update_generate_button_text()
+
+    def _update_generate_button_text(self):
+        """생성 버튼 텍스트 갱신"""
+        if hasattr(self, '_excel_viewer') and self._excel_viewer:
+            self._on_selection_changed(self._excel_viewer.get_selected_rows())
+
     def _select_first_active_template(self):
         """첫 번째 활성화된 템플릿 선택"""
         if not self._template_storage:
