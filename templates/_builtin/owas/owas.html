@@ -4,472 +4,165 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OWAS 작업 분석 시트</title>
+    <script src="../js/tailwind.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background-color: white;
-            padding: 8px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
-
-        .container {
-            width: 100%;
-            margin: 0 auto;
-        }
-
-        .title-section {
-            border: 4px solid black;
-            background-color: #e5e7eb;
-            padding: 0.75rem;
-            text-align: center;
-            margin-bottom: 0;
-        }
-
-        .title-section h1 {
-            font-size: 1.25rem;
-            font-weight: bold;
-        }
-
-        .data-input-section {
-            border: 4px solid black;
-            border-top: 0;
-            margin-bottom: 0;
-            display: flex;
-        }
-
-        .vertical-label {
-            border-right: 4px solid black;
-            width: 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #f3f4f6;
-            padding: 2rem 0;
-            writing-mode: vertical-rl;
-            text-orientation: upright;
-        }
-
-        .vertical-label div {
-            font-size: 1rem;
-            font-weight: bold;
-            line-height: 1.25;
-        }
-
-        .main-content {
-            flex: 1;
-        }
-
-        .body-parts-table {
-            border: 2px solid black;
-            margin: 0.5rem;
-        }
-
-        .table-header {
-            display: grid;
-            grid-template-columns: 100px 1fr;
-            border-bottom: 2px solid black;
-        }
-
-        .table-header > div {
-            border-right: 2px solid black;
-            padding: 0.5rem;
-            text-align: center;
-            background-color: #f3f4f6;
-            font-weight: bold;
-        }
-
-        .table-header > div:last-child {
-            border-right: 0;
-        }
-
-        .body-part-row {
-            display: grid;
-            grid-template-columns: 100px 1fr;
-            border-bottom: 2px solid black;
-        }
-
-        .body-part-row-2 {
-            display: grid;
-            grid-template-columns: 100px 1fr;
-        }
-
-        .body-part-label {
-            border-right: 2px solid black;
-            padding: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #f9fafb;
-            font-weight: bold;
-        }
-
-        .posture-grid-4 {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-        }
-
-        .posture-grid-3 {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-        }
-
-        .posture-grid-7 {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-        }
-
-        .posture-grid-4 > div,
-        .posture-grid-3 > div,
-        .posture-grid-7 > div {
-            border-right: 2px solid black;
-            padding: 0.5rem;
-            text-align: center;
-        }
-
-        .posture-grid-4 > div:last-child,
-        .posture-grid-3 > div:last-child,
-        .posture-grid-7 > div:last-child {
-            border-right: 0;
-        }
-
-        .posture-label {
-            font-size: 0.75rem;
-            margin-bottom: 0.25rem;
-        }
-
-        .posture-img {
-            width: 100%;
-            height: 6rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .posture-img img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .posture-img-small {
-            height: 5rem;
-        }
-
-        .ac-table-container {
-            overflow-x: auto;
-            margin-top: 2.5rem;
-            margin-bottom: 2.5rem;
-            margin-left: 0.5rem;
-            margin-right: 0.5rem;
-        }
-
-        .ac-table {
-            width: 98%;
-            border-collapse: collapse;
-            font-size: 10px;
-            border: 2px solid black;
-        }
-
         .ac-table th,
         .ac-table td {
             border: 2px solid black;
             padding: 0.125rem;
             text-align: center;
         }
-
-        .bg-green-200 { background-color: #bbf7d0; }
-        .bg-cyan-200 { background-color: #a5f3fc; }
-        .bg-pink-200 { background-color: #fbcfe8; }
-        .bg-red-200 { background-color: #fecaca; }
-        .bg-gray-100 { background-color: #f3f4f6; }
-        .bg-gray-200 { background-color: #e5e7eb; }
-        .bg-gray-50 { background-color: #f9fafb; }
-
-        .ac-input-section {
-            border: 4px solid black;
-            border-top: 0;
-            margin-bottom: 0;
-            display: flex;
-        }
-
-        .ac-label {
-            border-right: 4px solid black;
-            padding: 0.5rem;
-            background-color: #f3f4f6;
-            font-weight: bold;
-            width: 2rem;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .ac-grid {
-            flex: 1;
-            display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            border: 1px solid black;
-            margin: 0.5rem;
-        }
-
-        .ac-grid > div {
-            border-right: 1px solid black;
-            padding: 0.5rem;
-            text-align: center;
-        }
-
-        .ac-grid > div:last-child {
-            border-right: 0;
-        }
-
-        .evaluation-section {
-            border: 4px solid black;
-            border-top: 0;
-            margin-bottom: 0;
-            display: flex;
-        }
-
-        .eval-label {
-            border-right: 4px solid black;
-            padding: 0.5rem;
-            background-color: #f3f4f6;
-            font-weight: bold;
-            width: 2rem;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            writing-mode: vertical-rl;
-            text-orientation: upright;
-        }
-
-        .eval-content {
-            flex: 1;
-        }
-
-        .eval-top-box {
-            margin: 0.5rem 1.25rem;
-            border: 1px solid black;
-            text-align: center;
-        }
-
-        .eval-grid-2 {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-        }
-
-        .eval-grid-2 > div {
-            border: 1px solid black;
-            padding: 0.5rem;
-            text-align: center;
-        }
-
-        .eval-bottom-box {
-            margin: 0.5rem;
-            border: 2px solid black;
-            text-align: center;
-        }
-
-        .eval-bottom-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            border-bottom: 2px solid black;
-        }
-
-        .eval-bottom-grid > div:first-child {
-            border-right: 2px solid black;
-        }
-
-        .eval-bottom-grid-2 {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-        }
-
-        .result-section {
-            border: 4px solid black;
-            border-top: 0;
-        }
-
-        .result-grid {
-            display: grid;
-            grid-template-columns: 30px 1fr;
-            height: 150px;
-        }
-
-        .result-label {
-            border-right: 4px solid black;
-            padding: 0.5rem;
-            background-color: #f3f4f6;
-            font-weight: bold;
-            width: 2rem;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            writing-mode: vertical-rl;
-            text-orientation: upright;
-        }
-
-        .result-text {
-            padding-top: 0.5rem;
-            padding-left: 10px;
-        }
     </style>
 </head>
-<body>
-    <div class="container">
+<body class="bg-white p-2 font-sans">
+    <div class="w-full mx-auto">
         <!-- 제목 -->
-        <div class="title-section">
-            <h1>OWAS(Ovako Working posture Analysis System) 작업 분석 시트</h1>
+        <div class="border-2 border-black bg-gray-200 p-2 text-center">
+            <h1 class="font-bold text-[12pt]">OWAS(Ovako Working posture Analysis System) 작업 분석 시트</h1>
         </div>
 
         <!-- 자료입력 및 분석 섹션 -->
-        <div class="data-input-section">
+        <div class="border-2 border-black border-t-0 flex">
             <!-- 좌측 세로 라벨 -->
-            <div class="vertical-label" style="writing-mode: vertical-rl;">
-                <div>자료입력및 분석</div>
+            <div class="bg-gray-300 border-r-2 border-black text-center font-bold text-[10pt] py-8 px-2 w-8 flex items-center justify-center">
+                <div style="writing-mode: vertical-rl;">자료입력 및 분석</div>
             </div>
 
             <!-- 메인 컨텐츠 -->
-            <div class="main-content">
+            <div class="flex-1">
                 <!-- 신체부위 테이블 -->
-                <div class="body-parts-table">
+                <div class="border-2 border-black m-2">
                     <!-- 헤더 -->
-                    <div class="table-header">
-                        <div>신체부위</div>
-                        <div>작업자세형태</div>
+                    <div class="grid grid-cols-[100px_1fr] border-b-2 border-black">
+                        <div class="border-r-2 border-black p-2 text-center bg-gray-300 font-bold text-[10pt]">신체부위</div>
+                        <div class="p-2 text-center bg-gray-300 font-bold text-[10pt]">작업자세형태</div>
                     </div>
 
                     <!-- 허리 -->
-                    <div class="body-part-row">
-                        <div class="body-part-label">허리</div>
-                        <div class="posture-grid-4">
-                            <div>
-                                <div class="posture-label">(1) 똑바로 폄</div>
-                                <div class="posture-img">
-                                    <img src="owas_waist_1.gif" />
+                    <div class="grid grid-cols-[100px_1fr] border-b-2 border-black">
+                        <div class="border-r-2 border-black p-4 flex items-center justify-center bg-gray-300 font-bold text-[10pt]">허리</div>
+                        <div class="grid grid-cols-4">
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(1) 똑바로 폄</div>
+                                <div class="w-full h-24 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_waist_1.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(2) 20도 이상 구부림</div>
-                                <div class="posture-img">
-                                    <img src="owas_waist_2.gif" />
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(2) 20도 이상 구부림</div>
+                                <div class="w-full h-24 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_waist_2.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(3) 20도 이상 비틈</div>
-                                <div class="posture-img">
-                                    <img src="owas_waist_3.gif" />
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(3) 20도 이상 비틈</div>
+                                <div class="w-full h-24 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_waist_3.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(4) 20도 이상 비틀어 구부림</div>
-                                <div class="posture-img">
-                                    <img src="owas_waist_4.gif" />
+                            <div class="p-2 text-center">
+                                <div class="text-xs mb-1">(4) 20도 이상 비틀어 구부림</div>
+                                <div class="w-full h-24 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_waist_4.gif" />
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- 상지 -->
-                    <div class="body-part-row">
-                        <div class="body-part-label">상지</div>
-                        <div class="posture-grid-3">
-                            <div>
-                                <div class="posture-label">(1) 양팔 어깨 아래</div>
-                                <div class="posture-img">
-                                    <img src="owas_arm_1.gif" />
+                    <div class="grid grid-cols-[100px_1fr] border-b-2 border-black">
+                        <div class="border-r-2 border-black p-4 flex items-center justify-center bg-gray-300 font-bold text-[10pt]">상지</div>
+                        <div class="grid grid-cols-3">
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(1) 양팔 어깨 아래</div>
+                                <div class="w-full h-24 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_arm_1.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(2) 한팔 어깨 위</div>
-                                <div class="posture-img">
-                                    <img src="owas_arm_2.gif" />
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(2) 한팔 어깨 위</div>
+                                <div class="w-full h-24 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_arm_2.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(3) 양팔 어깨 위</div>
-                                <div class="posture-img">
-                                    <img src="owas_arm_3.gif" />
+                            <div class="p-2 text-center">
+                                <div class="text-xs mb-1">(3) 양팔 어깨 위</div>
+                                <div class="w-full h-24 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_arm_3.gif" />
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- 하지 -->
-                    <div class="body-part-row">
-                        <div class="body-part-label">하지</div>
-                        <div class="posture-grid-7">
-                            <div>
-                                <div class="posture-label">(1) 앉음</div>
-                                <div class="posture-img posture-img-small">
-                                    <img src="owas_leg_1.gif" />
+                    <div class="grid grid-cols-[100px_1fr] border-b-2 border-black">
+                        <div class="border-r-2 border-black p-4 flex items-center justify-center bg-gray-300 font-bold text-[10pt]">하지</div>
+                        <div class="grid grid-cols-7">
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(1) 앉음</div>
+                                <div class="w-full h-20 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_leg_1.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(2) 양발 똑바로</div>
-                                <div class="posture-img posture-img-small">
-                                    <img src="owas_leg_2.gif" />
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(2) 양발 똑바로</div>
+                                <div class="w-full h-20 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_leg_2.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(3) 한발 똑바로</div>
-                                <div class="posture-img posture-img-small">
-                                    <img src="owas_leg_3.gif" />
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(3) 한발 똑바로</div>
+                                <div class="w-full h-20 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_leg_3.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(4) 양무릎 굽힘</div>
-                                <div class="posture-img posture-img-small">
-                                    <img src="owas_leg_4.gif" />
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(4) 양무릎 굽힘</div>
+                                <div class="w-full h-20 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_leg_4.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(5) 한무릎 굽힘</div>
-                                <div class="posture-img posture-img-small">
-                                    <img src="owas_leg_5.gif" />
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(5) 한무릎 굽힘</div>
+                                <div class="w-full h-20 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_leg_5.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(6) 무릎 바닥</div>
-                                <div class="posture-img posture-img-small">
-                                    <img src="owas_leg_6.gif" />
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(6) 무릎 바닥</div>
+                                <div class="w-full h-20 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_leg_6.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(7) 걸음</div>
-                                <div class="posture-img posture-img-small">
-                                    <img src="owas_leg_7.gif" />
+                            <div class="p-2 text-center">
+                                <div class="text-xs mb-1">(7) 걸음</div>
+                                <div class="w-full h-20 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_leg_7.gif" />
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- 무게 -->
-                    <div class="body-part-row-2">
-                        <div class="body-part-label">무게</div>
-                        <div class="posture-grid-3">
-                            <div>
-                                <div class="posture-label">(1) 10kg 미만</div>
-                                <div class="posture-img posture-img-small">
-                                    <img src="owas_load_1.gif" />
+                    <div class="grid grid-cols-[100px_1fr]">
+                        <div class="border-r-2 border-black p-4 flex items-center justify-center bg-gray-300 font-bold text-[10pt]">무게</div>
+                        <div class="grid grid-cols-3">
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(1) 10kg 미만</div>
+                                <div class="w-full h-20 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_load_1.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(2) 10~20kg</div>
-                                <div class="posture-img posture-img-small">
-                                    <img src="owas_load_2.gif" />
+                            <div class="border-r-2 border-black p-2 text-center">
+                                <div class="text-xs mb-1">(2) 10~20kg</div>
+                                <div class="w-full h-20 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_load_2.gif" />
                                 </div>
                             </div>
-                            <div>
-                                <div class="posture-label">(3) 20kg 이상</div>
-                                <div class="posture-img posture-img-small">
-                                    <img src="owas_load_3.gif" />
+                            <div class="p-2 text-center">
+                                <div class="text-xs mb-1">(3) 20kg 이상</div>
+                                <div class="w-full h-20 flex items-center justify-center">
+                                    <img class="max-w-full max-h-full object-contain" src="../images/owas_load_3.gif" />
                                 </div>
                             </div>
                         </div>
@@ -477,47 +170,47 @@
                 </div>
 
                 <!-- AC값 테이블 -->
-                <div class="ac-table-container">
-                    <table class="ac-table">
+                <div class="overflow-x-auto my-10 mx-2">
+                    <table class="ac-table w-[98%] border-collapse text-[10px] border-2 border-black">
                         <thead>
                             <tr>
-                                <th rowspan="2" colspan="2">AC값</th>
-                                <th class="bg-green-200" colspan="3">(1)</th>
-                                <th class="bg-green-200" colspan="3">(2)</th>
-                                <th class="bg-green-200" colspan="3">(3)</th>
-                                <th class="bg-green-200" colspan="3">(4)</th>
-                                <th class="bg-green-200" colspan="3">(5)</th>
-                                <th class="bg-green-200" colspan="3">(6)</th>
-                                <th class="bg-green-200" colspan="3">(7)</th>
+                                <th rowspan="2" colspan="2" class="text-[13pt] font-bold">AC값</th>
+                                <th class="bg-green-200 text-[8pt]" colspan="3">(1)</th>
+                                <th class="bg-green-200 text-[8pt]" colspan="3">(2)</th>
+                                <th class="bg-green-200 text-[8pt]" colspan="3">(3)</th>
+                                <th class="bg-green-200 text-[8pt]" colspan="3">(4)</th>
+                                <th class="bg-green-200 text-[8pt]" colspan="3">(5)</th>
+                                <th class="bg-green-200 text-[8pt]" colspan="3">(6)</th>
+                                <th class="bg-green-200 text-[8pt]" colspan="3">(7)</th>
                             </tr>
                             <tr>
-                                <th class="bg-cyan-200">(1)</th>
-                                <th class="bg-cyan-200">(2)</th>
-                                <th class="bg-cyan-200">(3)</th>
-                                <th class="bg-cyan-200">(1)</th>
-                                <th class="bg-cyan-200">(2)</th>
-                                <th class="bg-cyan-200">(3)</th>
-                                <th class="bg-cyan-200">(1)</th>
-                                <th class="bg-cyan-200">(2)</th>
-                                <th class="bg-cyan-200">(3)</th>
-                                <th class="bg-cyan-200">(1)</th>
-                                <th class="bg-cyan-200">(2)</th>
-                                <th class="bg-cyan-200">(3)</th>
-                                <th class="bg-cyan-200">(1)</th>
-                                <th class="bg-cyan-200">(2)</th>
-                                <th class="bg-cyan-200">(3)</th>
-                                <th class="bg-cyan-200">(1)</th>
-                                <th class="bg-cyan-200">(2)</th>
-                                <th class="bg-cyan-200">(3)</th>
-                                <th class="bg-cyan-200">(1)</th>
-                                <th class="bg-cyan-200">(2)</th>
-                                <th class="bg-cyan-200">(3)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(1)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(2)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(3)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(1)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(2)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(3)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(1)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(2)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(3)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(1)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(2)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(3)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(1)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(2)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(3)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(1)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(2)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(3)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(1)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(2)</th>
+                                <th class="bg-cyan-200 text-[8pt]">(3)</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="bg-pink-200" rowspan="3"><strong>(1)</strong></td>
-                                <td class="bg-red-200">(1)</td>
+                                <td class="bg-pink-200 text-[8pt]" rowspan="3"><strong>(1)</strong></td>
+                                <td class="bg-red-200 text-[8pt]">(1)</td>
                                 <td>1</td><td>1</td><td>1</td>
                                 <td>1</td><td>1</td><td>1</td>
                                 <td>1</td><td>1</td><td>1</td>
@@ -527,7 +220,7 @@
                                 <td>1</td><td>1</td><td>1</td>
                             </tr>
                             <tr>
-                                <td class="bg-red-200">(2)</td>
+                                <td class="bg-red-200 text-[8pt]">(2)</td>
                                 <td>1</td><td>1</td><td>1</td>
                                 <td>1</td><td>1</td><td>1</td>
                                 <td>1</td><td>1</td><td>1</td>
@@ -537,7 +230,7 @@
                                 <td>1</td><td>1</td><td>1</td>
                             </tr>
                             <tr>
-                                <td class="bg-red-200">(3)</td>
+                                <td class="bg-red-200 text-[8pt]">(3)</td>
                                 <td>1</td><td>1</td><td>1</td>
                                 <td>1</td><td>1</td><td>1</td>
                                 <td>1</td><td>1</td><td>1</td>
@@ -547,8 +240,8 @@
                                 <td>1</td><td>1</td><td>2</td>
                             </tr>
                             <tr>
-                                <td class="bg-pink-200" rowspan="3"><strong>(2)</strong></td>
-                                <td class="bg-red-200">(1)</td>
+                                <td class="bg-pink-200 text-[8pt]" rowspan="3"><strong>(2)</strong></td>
+                                <td class="bg-red-200 text-[8pt]">(1)</td>
                                 <td>2</td><td>2</td><td>3</td>
                                 <td>2</td><td>2</td><td>3</td>
                                 <td>2</td><td>2</td><td>3</td>
@@ -558,7 +251,7 @@
                                 <td>2</td><td>3</td><td>3</td>
                             </tr>
                             <tr>
-                                <td class="bg-red-200">(2)</td>
+                                <td class="bg-red-200 text-[8pt]">(2)</td>
                                 <td>2</td><td>2</td><td>3</td>
                                 <td>2</td><td>2</td><td>3</td>
                                 <td>2</td><td>3</td><td>3</td>
@@ -568,7 +261,7 @@
                                 <td>2</td><td>3</td><td>4</td>
                             </tr>
                             <tr>
-                                <td class="bg-red-200">(3)</td>
+                                <td class="bg-red-200 text-[8pt]">(3)</td>
                                 <td>3</td><td>3</td><td>4</td>
                                 <td>2</td><td>2</td><td>3</td>
                                 <td>3</td><td>3</td><td>3</td>
@@ -578,8 +271,8 @@
                                 <td>2</td><td>3</td><td>4</td>
                             </tr>
                             <tr>
-                                <td class="bg-pink-200" rowspan="3"><strong>(3)</strong></td>
-                                <td class="bg-red-200">(1)</td>
+                                <td class="bg-pink-200 text-[8pt]" rowspan="3"><strong>(3)</strong></td>
+                                <td class="bg-red-200 text-[8pt]">(1)</td>
                                 <td>1</td><td>1</td><td>1</td>
                                 <td>1</td><td>1</td><td>1</td>
                                 <td>1</td><td>1</td><td>2</td>
@@ -589,7 +282,7 @@
                                 <td>1</td><td>1</td><td>1</td>
                             </tr>
                             <tr>
-                                <td class="bg-red-200">(2)</td>
+                                <td class="bg-red-200 text-[8pt]">(2)</td>
                                 <td>2</td><td>2</td><td>3</td>
                                 <td>1</td><td>1</td><td>1</td>
                                 <td>1</td><td>1</td><td>2</td>
@@ -599,7 +292,7 @@
                                 <td>1</td><td>1</td><td>1</td>
                             </tr>
                             <tr>
-                                <td class="bg-red-200">(3)</td>
+                                <td class="bg-red-200 text-[8pt]">(3)</td>
                                 <td>2</td><td>2</td><td>3</td>
                                 <td>1</td><td>1</td><td>1</td>
                                 <td>2</td><td>3</td><td>3</td>
@@ -609,8 +302,8 @@
                                 <td>1</td><td>1</td><td>1</td>
                             </tr>
                             <tr>
-                                <td class="bg-pink-200" rowspan="3"><strong>(4)</strong></td>
-                                <td class="bg-red-200">(1)</td>
+                                <td class="bg-pink-200 text-[8pt]" rowspan="3"><strong>(4)</strong></td>
+                                <td class="bg-red-200 text-[8pt]">(1)</td>
                                 <td>2</td><td>3</td><td>3</td>
                                 <td>2</td><td>2</td><td>3</td>
                                 <td>2</td><td>2</td><td>3</td>
@@ -620,7 +313,7 @@
                                 <td>2</td><td>3</td><td>4</td>
                             </tr>
                             <tr>
-                                <td class="bg-red-200">(2)</td>
+                                <td class="bg-red-200 text-[8pt]">(2)</td>
                                 <td>3</td><td>3</td><td>4</td>
                                 <td>2</td><td>3</td><td>4</td>
                                 <td>3</td><td>3</td><td>4</td>
@@ -630,7 +323,7 @@
                                 <td>2</td><td>3</td><td>4</td>
                             </tr>
                             <tr>
-                                <td class="bg-red-200">(3)</td>
+                                <td class="bg-red-200 text-[8pt]">(3)</td>
                                 <td>4</td><td>4</td><td>4</td>
                                 <td>2</td><td>3</td><td>4</td>
                                 <td>3</td><td>3</td><td>4</td>
@@ -646,55 +339,57 @@
         </div>
 
         <!-- AC값 입력 섹션 -->
-        <div class="ac-input-section">
-            <div class="ac-label">AC</div>
-            <div class="ac-grid">
-                <div class="bg-gray-200">허리</div>
-                <div><strong>{{ back }}</strong></div>
-                <div class="bg-gray-200">상지</div>
-                <div><strong>{{ arms }}</strong></div>
-                <div class="bg-gray-200">하지</div>
-                <div><strong>{{ legs }}</strong></div>
-                <div class="bg-gray-200">무게</div>
-                <div><strong>{{ load }}</strong></div>
-                <div class="bg-gray-200">AC값</div>
-                <div><strong>{{ ac }}</strong></div>
+        <div class="border-2 border-black border-t-0 flex">
+            <div class="border-r-2 border-black p-2 bg-gray-300 font-bold text-[10pt] w-8 text-center flex items-center justify-center">AC</div>
+            <div class="flex-1 grid grid-cols-10 border-2 border-black m-2">
+                <div class="border-r-2 border-black p-2 text-center bg-gray-200 text-[11pt] font-bold">허리</div>
+                <div class="border-r-2 border-black p-2 text-center"><strong>{{ back }}</strong></div>
+                <div class="border-r-2 border-black p-2 text-center bg-gray-200 text-[11pt] font-bold">상지</div>
+                <div class="border-r-2 border-black p-2 text-center"><strong>{{ arms }}</strong></div>
+                <div class="border-r-2 border-black p-2 text-center bg-gray-200 text-[11pt] font-bold">하지</div>
+                <div class="border-r-2 border-black p-2 text-center"><strong>{{ legs }}</strong></div>
+                <div class="border-r-2 border-black p-2 text-center bg-gray-200 text-[11pt] font-bold">무게</div>
+                <div class="border-r-2 border-black p-2 text-center"><strong>{{ load }}</strong></div>
+                <div class="border-r-2 border-black p-2 text-center bg-gray-200 text-[11pt] font-bold">AC값</div>
+                <div class="p-2 text-center"><strong>{{ ac }}</strong></div>
             </div>
         </div>
 
         <!-- 평가기준 섹션 -->
-        <div class="evaluation-section">
-            <div class="eval-label">평가기준</div>
-            <div class="eval-content">
-                <div class="eval-top-box">
-                    <div class="eval-grid-2">
-                        <div class="bg-gray-200">AC 1, 2</div>
-                        <div class="bg-gray-200">AC 3, 4</div>
+        <div class="border-2 border-black border-t-0 flex">
+            <div class="bg-gray-300 border-r-2 border-black text-center font-bold text-[10pt] py-8 px-2 w-8 flex items-center justify-center">
+                <div style="writing-mode: vertical-rl;">평가 기준</div>
+            </div>
+            <div class="flex-1">
+                <div class="mx-5 my-2 border border-black text-center">
+                    <div class="grid grid-cols-2">
+                        <div class="border border-black p-2 text-center bg-gray-300 text-[11pt] font-bold">AC 1, 2</div>
+                        <div class="border border-black p-2 text-center bg-gray-300 text-[11pt] font-bold">AC 3, 4</div>
                     </div>
-                    <div class="eval-grid-2">
-                        <div>관망의 작업</div>
-                        <div>재설계가 필요한 작업</div>
+                    <div class="grid grid-cols-2">
+                        <div class="border border-black p-2 text-center">관망의 작업</div>
+                        <div class="border border-black p-2 text-center">재설계가 필요한 작업</div>
                     </div>
                 </div>
-                <div class="eval-bottom-box">
-                    <div class="eval-bottom-grid">
-                        <div class="bg-gray-200">AC</div>
-                        <div class="bg-gray-200">조치</div>
+                <div class="m-2 border-2 border-black text-center">
+                    <div class="grid grid-cols-2 border-b-2 border-black">
+                        <div class="border-r-2 border-black bg-gray-300 text-[11pt] font-bold">AC</div>
+                        <div class="bg-gray-300 text-[11pt] font-bold">조치</div>
                     </div>
-                    <div class="eval-bottom-grid">
-                        <div>1</div>
+                    <div class="grid grid-cols-2 border-b-2 border-black">
+                        <div class="border-r-2 border-black">1</div>
                         <div>개선 필요 없음</div>
                     </div>
-                    <div class="eval-bottom-grid">
-                        <div>2</div>
+                    <div class="grid grid-cols-2 border-b-2 border-black">
+                        <div class="border-r-2 border-black">2</div>
                         <div>근본적 개선</div>
                     </div>
-                    <div class="eval-bottom-grid">
-                        <div>3</div>
+                    <div class="grid grid-cols-2 border-b-2 border-black">
+                        <div class="border-r-2 border-black">3</div>
                         <div>곧 개선 필요</div>
                     </div>
-                    <div class="eval-bottom-grid-2">
-                        <div>4</div>
+                    <div class="grid grid-cols-2">
+                        <div class="border-r-2 border-black">4</div>
                         <div>즉시 개선</div>
                     </div>
                 </div>
@@ -702,11 +397,11 @@
         </div>
 
         <!-- 평가결과 섹션 -->
-        <div class="result-section">
-            <div class="result-grid">
-                <div class="result-label">평가결과</div>
-                <div class="result-text">{{ result }}</div>
+        <div class="border-2 border-black border-t-0 flex h-[150px]">
+            <div class="bg-gray-300 border-r-2 border-black text-center font-bold text-[10pt] py-8 px-2 w-8 flex items-center justify-center">
+                <div style="writing-mode: vertical-rl;">평가 결과</div>
             </div>
+            <div class="flex-1 p-2 text-[9pt]"><span class="text-[13pt] font-bold">{{ result }}</span></div>
         </div>
     </div>
 </body>

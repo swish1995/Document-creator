@@ -4,7 +4,7 @@
   "type": "html",
   "safety_indicator": "RULA",
   "description": "Rapid Upper Limb Assessment",
-  "page_height_mm": 416,
+  "page_height_mm": 450,
   "_meta": {
     "field_schema": {
       "id": "템플릿에서 {{id}}로 참조할 고유 식별자",
@@ -14,36 +14,178 @@
       "type": "필드 타입 - 'image' 지정 시 이미지로 처리"
     },
     "example_image_fields": [
-      {"id": "frame_image", "label": "프레임 이미지", "type": "image", "excel_column": "Frame", "excel_index": 0},
-      {"id": "skeleton_image", "label": "스켈레톤 이미지", "type": "image", "excel_column": "Skeleton", "excel_index": 1}
+      {
+        "id": "frame_image",
+        "label": "프레임 이미지",
+        "type": "image",
+        "excel_column": "Frame",
+        "excel_index": 0
+      },
+      {
+        "id": "skeleton_image",
+        "label": "스켈레톤 이미지",
+        "type": "image",
+        "excel_column": "Skeleton",
+        "excel_index": 1
+      }
     ]
   },
   "fields": [
-    {"id": "upper_arm_score", "label": "상박 점수", "excel_column": "Base", "excel_index": 5},
-    {"id": "upper_arm_adjust1", "label": "상박 가점1 (어깨 들림)", "excel_column": "+Raised", "excel_index": 6},
-    {"id": "upper_arm_adjust2", "label": "상박 가점2 (벌어짐)", "excel_column": "+Abducted", "excel_index": 7},
-    {"id": "upper_arm_adjust3", "label": "상박 가점3 (지탱)", "excel_column": "-Supported", "excel_index": 8},
-    {"id": "lower_arm_score", "label": "하박 점수", "excel_column": "Base", "excel_index": 10},
-    {"id": "lower_arm_adjust", "label": "하박 가점", "excel_column": "+Across", "excel_index": 11},
-    {"id": "wrist_score", "label": "손목 위치 점수", "excel_column": "Base", "excel_index": 13},
-    {"id": "wrist_adjust", "label": "손목 가점", "excel_column": "+Bent", "excel_index": 14},
-    {"id": "wrist_twist_score", "label": "손목 비틀림 점수", "excel_column": "Wrist Twist", "excel_index": 16},
-    {"id": "table_a", "label": "Table A", "excel_column": "Score A", "excel_index": 30},
-    {"id": "muscle_adjust_a", "label": "근육사용 A 가점", "excel_column": "Muscle A", "excel_index": 26},
-    {"id": "force_adjust_a", "label": "무게/힘 A 가점", "excel_column": "Force A", "excel_index": 27},
-    {"id": "arm_wrist_final", "label": "최종 손목과 팔의 점수", "excel_column": "Score A", "excel_index": 30},
-    {"id": "neck_score", "label": "목 점수", "excel_column": "Base", "excel_index": 17},
-    {"id": "neck_adjust1", "label": "목 가점1 (회전)", "excel_column": "+Twisted", "excel_index": 18},
-    {"id": "neck_adjust2", "label": "목 가점2 (옆 구부림)", "excel_column": "+Side", "excel_index": 19},
-    {"id": "trunk_score", "label": "몸통 점수", "excel_column": "Base", "excel_index": 21},
-    {"id": "trunk_adjust1", "label": "몸통 가점1 (회전)", "excel_column": "+Twisted", "excel_index": 22},
-    {"id": "trunk_adjust2", "label": "몸통 가점2 (옆 구부림)", "excel_column": "+Side", "excel_index": 23},
-    {"id": "leg_score", "label": "다리 점수", "excel_column": "Leg", "excel_index": 25},
-    {"id": "table_b", "label": "Table B", "excel_column": "Score B", "excel_index": 31},
-    {"id": "muscle_adjust_b", "label": "근육사용 B 가점", "excel_column": "Muscle B", "excel_index": 28},
-    {"id": "force_adjust_b", "label": "무게/힘 B 가점", "excel_column": "Force B", "excel_index": 29},
-    {"id": "neck_trunk_final", "label": "최종 목, 몸통, 다리의 점수", "excel_column": "Score B", "excel_index": 31},
-    {"id": "final_score", "label": "최종점수", "excel_column": "Score", "excel_index": 32},
-    {"id": "result", "label": "평가결과", "excel_column": "Risk", "excel_index": 33}
+    {
+      "id": "upper_arm_score",
+      "label": "상박 점수",
+      "excel_column": "Base",
+      "excel_index": 5
+    },
+    {
+      "id": "upper_arm_adjust1",
+      "label": "상박 가점1 (어깨 들림)",
+      "excel_column": "+Raised",
+      "excel_index": 6
+    },
+    {
+      "id": "upper_arm_adjust2",
+      "label": "상박 가점2 (벌어짐)",
+      "excel_column": "+Abducted",
+      "excel_index": 7
+    },
+    {
+      "id": "upper_arm_adjust3",
+      "label": "상박 가점3 (지탱)",
+      "excel_column": "-Supported",
+      "excel_index": 8
+    },
+    {
+      "id": "lower_arm_score",
+      "label": "하박 점수",
+      "excel_column": "Base",
+      "excel_index": 10
+    },
+    {
+      "id": "lower_arm_adjust",
+      "label": "하박 가점",
+      "excel_column": "+Across",
+      "excel_index": 11
+    },
+    {
+      "id": "wrist_score",
+      "label": "손목 위치 점수",
+      "excel_column": "Base",
+      "excel_index": 13
+    },
+    {
+      "id": "wrist_adjust",
+      "label": "손목 가점",
+      "excel_column": "+Bent",
+      "excel_index": 14
+    },
+    {
+      "id": "wrist_twist_score",
+      "label": "손목 비틀림 점수",
+      "excel_column": "Wrist Twist",
+      "excel_index": 16
+    },
+    {
+      "id": "table_a",
+      "label": "Table A",
+      "excel_column": "Score A",
+      "excel_index": 30
+    },
+    {
+      "id": "muscle_adjust_a",
+      "label": "근육사용 A 가점",
+      "excel_column": "Muscle A",
+      "excel_index": 26
+    },
+    {
+      "id": "force_adjust_a",
+      "label": "무게/힘 A 가점",
+      "excel_column": "Force A",
+      "excel_index": 27
+    },
+    {
+      "id": "arm_wrist_final",
+      "label": "최종 손목과 팔의 점수",
+      "excel_column": "Score A",
+      "excel_index": 30
+    },
+    {
+      "id": "neck_score",
+      "label": "목 점수",
+      "excel_column": "Base",
+      "excel_index": 17
+    },
+    {
+      "id": "neck_adjust1",
+      "label": "목 가점1 (회전)",
+      "excel_column": "+Twisted",
+      "excel_index": 18
+    },
+    {
+      "id": "neck_adjust2",
+      "label": "목 가점2 (옆 구부림)",
+      "excel_column": "+Side",
+      "excel_index": 19
+    },
+    {
+      "id": "trunk_score",
+      "label": "몸통 점수",
+      "excel_column": "Base",
+      "excel_index": 21
+    },
+    {
+      "id": "trunk_adjust1",
+      "label": "몸통 가점1 (회전)",
+      "excel_column": "+Twisted",
+      "excel_index": 22
+    },
+    {
+      "id": "trunk_adjust2",
+      "label": "몸통 가점2 (옆 구부림)",
+      "excel_column": "+Side",
+      "excel_index": 23
+    },
+    {
+      "id": "leg_score",
+      "label": "다리 점수",
+      "excel_column": "Leg",
+      "excel_index": 25
+    },
+    {
+      "id": "table_b",
+      "label": "Table B",
+      "excel_column": "Score B",
+      "excel_index": 31
+    },
+    {
+      "id": "muscle_adjust_b",
+      "label": "근육사용 B 가점",
+      "excel_column": "Muscle B",
+      "excel_index": 28
+    },
+    {
+      "id": "force_adjust_b",
+      "label": "무게/힘 B 가점",
+      "excel_column": "Force B",
+      "excel_index": 29
+    },
+    {
+      "id": "neck_trunk_final",
+      "label": "최종 목, 몸통, 다리의 점수",
+      "excel_column": "Score B",
+      "excel_index": 31
+    },
+    {
+      "id": "final_score",
+      "label": "최종점수",
+      "excel_column": "Score",
+      "excel_index": 32
+    },
+    {
+      "id": "result",
+      "label": "평가결과",
+      "excel_column": "Risk",
+      "excel_index": 33
+    }
   ]
 }
