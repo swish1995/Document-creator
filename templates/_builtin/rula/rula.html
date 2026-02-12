@@ -56,6 +56,12 @@
     {% set ns.c_col = (3 if ns.awf == 1 else 2) + (ns.ntf - 1) %}
     #rula-table-c tbody tr:nth-child({{ ns.awf }}) td:nth-child({{ ns.c_col }}) { background-color: #fdba74 !important; }
     {% endif %}
+    {% set _fs = final_score|default('',true) %}
+    {% if _fs != '' %}
+    {% set ns.v = _fs|int %}
+    {% if ns.v <= 2 %}{% set ns.crit_row = 1 %}{% elif ns.v <= 4 %}{% set ns.crit_row = 2 %}{% elif ns.v <= 6 %}{% set ns.crit_row = 3 %}{% else %}{% set ns.crit_row = 4 %}{% endif %}
+    #rula-criteria tbody tr:nth-child({{ ns.crit_row }}) td { background-color: #fdba74 !important; }
+    {% endif %}
     </style>
 </head>
 <body>
@@ -882,7 +888,7 @@
 
                 <!-- 평가기준 테이블 -->
                 <div class="flex-1">
-                    <table class="m-2 border-2 border-black text-xs" style="width: calc(100% - 16px);">
+                    <table id="rula-criteria" class="m-2 border-2 border-black text-sm" style="width: calc(100% - 16px);">
                         <thead>
                             <tr class="bg-gray-300 text-[11pt] font-bold">
                                 <th class="border-2 border-black p-1">최종점수</th>
@@ -890,10 +896,10 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td class="border-2 border-black p-2 text-center">1~2</td><td class="border-2 border-black p-2 text-center">개선 필요 없음</td></tr>
-                            <tr><td class="border-2 border-black p-2 text-center">3~4</td><td class="border-2 border-black p-2 text-center">부분적 개선</td></tr>
-                            <tr><td class="border-2 border-black p-2 text-center">5~6</td><td class="border-2 border-black p-2 text-center">곧 개선 필요</td></tr>
-                            <tr><td class="border-2 border-black p-2 text-center">7</td><td class="border-2 border-black p-2 text-center">즉시 개선</td></tr>
+                            <tr><td class="border-2 border-black p-2 text-center text-[11pt]">1~2</td><td class="border-2 border-black p-2 text-center text-[11pt]">개선 필요 없음</td></tr>
+                            <tr><td class="border-2 border-black p-2 text-center text-[11pt]">3~4</td><td class="border-2 border-black p-2 text-center text-[11pt]">부분적 개선</td></tr>
+                            <tr><td class="border-2 border-black p-2 text-center text-[11pt]">5~6</td><td class="border-2 border-black p-2 text-center text-[11pt]">곧 개선 필요</td></tr>
+                            <tr><td class="border-2 border-black p-2 text-center text-[11pt]">7</td><td class="border-2 border-black p-2 text-center text-[11pt]">즉시 개선</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -951,6 +957,14 @@ setTimeout(function() {
         var cr = clamp(awf,1,8)-1, cc = clamp(ntf,1,7)-1;
         var tC = document.getElementById('rula-table-c');
         if (tC) { var cell = tC.tBodies[0].rows[cr].cells[(cr===0?2:1)+cc]; if (cell) cell.style.cssText += HL; }
+    }
+
+    var fs = getVal('final_score');
+    if (!isNaN(fs)) {
+        var row;
+        if (fs <= 2) row = 0; else if (fs <= 4) row = 1; else if (fs <= 6) row = 2; else row = 3;
+        var crit = document.getElementById('rula-criteria');
+        if (crit) { var cells = crit.tBodies[0].rows[row].cells; for (var i=0;i<cells.length;i++) cells[i].style.cssText += HL; }
     }
 }, 50);
 </script>
