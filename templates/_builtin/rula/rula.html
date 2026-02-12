@@ -5,7 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RULA 작업 분석 시트</title>
     <script src="../js/tailwind.js"></script>
-
+    <style>
+    {% set ns = namespace() %}
+    {% set _ua = upper_arm_score|default('',true) %}
+    {% set _la = lower_arm_score|default('',true) %}
+    {% set _wr = wrist_score|default('',true) %}
+    {% set _tw = wrist_twist_score|default('',true) %}
+    {% if _ua != '' and _la != '' and _wr != '' and _tw != '' %}
+    {% set ns.v = _ua|int + upper_arm_adjust1|default(0,true)|int + upper_arm_adjust2|default(0,true)|int + upper_arm_adjust3|default(0,true)|int %}
+    {% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 6 %}{% set ns.v = 6 %}{% endif %}
+    {% set ns.ua = ns.v %}
+    {% set ns.v = _la|int + lower_arm_adjust|default(0,true)|int %}
+    {% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 3 %}{% set ns.v = 3 %}{% endif %}
+    {% set ns.la = ns.v %}
+    {% set ns.v = _wr|int + wrist_adjust|default(0,true)|int %}
+    {% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 4 %}{% set ns.v = 4 %}{% endif %}
+    {% set ns.wr = ns.v %}
+    {% set ns.v = _tw|int %}
+    {% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 2 %}{% set ns.v = 2 %}{% endif %}
+    {% set ns.tw = ns.v %}
+    {% set ns.a_row = (ns.ua - 1) * 3 + ns.la %}
+    {% set ns.a_col = (3 if ns.la == 1 else 2) + (ns.wr - 1) * 2 + (ns.tw - 1) %}
+    #rula-table-a tbody tr:nth-child({{ ns.a_row }}) td:nth-child({{ ns.a_col }}) { background-color: #fdba74 !important; }
+    {% endif %}
+    {% set _nk = neck_score|default('',true) %}
+    {% set _tr = trunk_score|default('',true) %}
+    {% set _lg = leg_score|default('',true) %}
+    {% if _nk != '' and _tr != '' and _lg != '' %}
+    {% set ns.v = _nk|int + neck_adjust1|default(0,true)|int + neck_adjust2|default(0,true)|int %}
+    {% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 6 %}{% set ns.v = 6 %}{% endif %}
+    {% set ns.nk = ns.v %}
+    {% set ns.v = _tr|int + trunk_adjust1|default(0,true)|int + trunk_adjust2|default(0,true)|int %}
+    {% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 6 %}{% set ns.v = 6 %}{% endif %}
+    {% set ns.tr = ns.v %}
+    {% set ns.v = _lg|int %}
+    {% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 2 %}{% set ns.v = 2 %}{% endif %}
+    {% set ns.lg = ns.v %}
+    {% set ns.b_col = (ns.tr - 1) * 2 + ns.lg + 1 %}
+    #rula-table-b tbody tr:nth-child({{ ns.nk }}) td:nth-child({{ ns.b_col }}) { background-color: #fdba74 !important; }
+    {% endif %}
+    {% set _awf = arm_wrist_final|default('',true) %}
+    {% set _ntf = neck_trunk_final|default('',true) %}
+    {% if _awf != '' and _ntf != '' %}
+    {% set ns.v = _awf|int %}
+    {% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 8 %}{% set ns.v = 8 %}{% endif %}
+    {% set ns.awf = ns.v %}
+    {% set ns.v = _ntf|int %}
+    {% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 7 %}{% set ns.v = 7 %}{% endif %}
+    {% set ns.ntf = ns.v %}
+    {% set ns.c_col = (3 if ns.awf == 1 else 2) + (ns.ntf - 1) %}
+    #rula-table-c tbody tr:nth-child({{ ns.awf }}) td:nth-child({{ ns.c_col }}) { background-color: #fdba74 !important; }
+    {% endif %}
+    </style>
 </head>
 <body>
     <div class="bg-white" style="padding: 8px;">
@@ -317,7 +368,7 @@
                         <!-- Table A -->
                         <div class="border-r-2 border-black p-2">
                             <div class="text-center font-bold text-[8pt] mb-1 border-b border-black pb-1">Table A</div>
-                            <table class="w-full border-collapse text-[7pt]" style="table-layout: fixed;">
+                            <table id="rula-table-a" class="w-full border-collapse text-[7pt]" style="table-layout: fixed;">
                                 <colgroup>
                                     <col style="width: 35px;">
                                     <col style="width: 35px;">
@@ -563,7 +614,7 @@
                         <!-- Table B and C -->
                         <div class="p-2">
                             <div class="text-center font-bold text-[8pt] mb-1 border-b border-black pb-1">Table B</div>
-                            <table class="w-full border-collapse text-[7pt]">
+                            <table id="rula-table-b" class="w-full border-collapse text-[7pt]">
                                 <thead>
                                     <tr>
                                         <th rowspan="5" class="border border-black bg-gray-200 p-0.5 text-[8pt] font-bold">목</th>
@@ -696,7 +747,7 @@
                             
                             <!-- Table C -->
                             <div class="text-center font-bold text-[8pt] mt-2 mb-1 border-b border-black pb-1">Table C</div>
-                            <table class="w-full border-collapse text-[7pt]" style="table-layout: fixed;">
+                            <table id="rula-table-c" class="w-full border-collapse text-[7pt]" style="table-layout: fixed;">
                                 <colgroup>
                                     <col style="width: 40px;">
                                     <col style="width: 40px;">
@@ -864,5 +915,44 @@
             </div>
         </div>
     </div>
+<script>
+setTimeout(function() {
+    function getVal(id) {
+        var el = document.querySelector('.data-field[data-field="' + id + '"]');
+        return (el && el.textContent.trim()) ? parseInt(el.textContent) : NaN;
+    }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function adj(id) { var v = getVal(id); return isNaN(v) ? 0 : v; }
+    var HL = 'background-color:#fdba74 !important;';
+
+    var ua = getVal('upper_arm_score'), la = getVal('lower_arm_score');
+    var wr = getVal('wrist_score'), tw = getVal('wrist_twist_score');
+    if (!isNaN(ua) && !isNaN(la) && !isNaN(wr) && !isNaN(tw)) {
+        var U = clamp(ua + adj('upper_arm_adjust1') + adj('upper_arm_adjust2') + adj('upper_arm_adjust3'), 1, 6);
+        var L = clamp(la + adj('lower_arm_adjust'), 1, 3);
+        var W = clamp(wr + adj('wrist_adjust'), 1, 4);
+        var T = clamp(tw, 1, 2);
+        var r = (U-1)*3+(L-1), c = (W-1)*2+(T-1);
+        var tA = document.getElementById('rula-table-a');
+        if (tA) { var cell = tA.tBodies[0].rows[r].cells[(r%3===0?2:1)+c]; if (cell) cell.style.cssText += HL; }
+    }
+
+    var nk = getVal('neck_score'), tr = getVal('trunk_score'), lg = getVal('leg_score');
+    if (!isNaN(nk) && !isNaN(tr) && !isNaN(lg)) {
+        var N = clamp(nk + adj('neck_adjust1') + adj('neck_adjust2'), 1, 6);
+        var K = clamp(tr + adj('trunk_adjust1') + adj('trunk_adjust2'), 1, 6);
+        var G = clamp(lg, 1, 2);
+        var tB = document.getElementById('rula-table-b');
+        if (tB) { var cell = tB.tBodies[0].rows[N-1].cells[1+(K-1)*2+(G-1)]; if (cell) cell.style.cssText += HL; }
+    }
+
+    var awf = getVal('arm_wrist_final'), ntf = getVal('neck_trunk_final');
+    if (!isNaN(awf) && !isNaN(ntf)) {
+        var cr = clamp(awf,1,8)-1, cc = clamp(ntf,1,7)-1;
+        var tC = document.getElementById('rula-table-c');
+        if (tC) { var cell = tC.tBodies[0].rows[cr].cells[(cr===0?2:1)+cc]; if (cell) cell.style.cssText += HL; }
+    }
+}, 50);
+</script>
 </body>
 </html>

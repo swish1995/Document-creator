@@ -12,6 +12,20 @@
             padding: 0.125rem;
             text-align: center;
         }
+    {% set ns = namespace() %}
+    {% set _bk = back|default('',true) %}
+    {% set _ar = arms|default('',true) %}
+    {% set _lg = legs|default('',true) %}
+    {% set _ld = load|default('',true) %}
+    {% if _bk != '' and _ar != '' and _lg != '' and _ld != '' %}
+    {% set ns.v = _bk|int %}{% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 4 %}{% set ns.v = 4 %}{% endif %}{% set ns.bk = ns.v %}
+    {% set ns.v = _ar|int %}{% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 3 %}{% set ns.v = 3 %}{% endif %}{% set ns.ar = ns.v %}
+    {% set ns.v = _lg|int %}{% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 7 %}{% set ns.v = 7 %}{% endif %}{% set ns.lg = ns.v %}
+    {% set ns.v = _ld|int %}{% if ns.v < 1 %}{% set ns.v = 1 %}{% elif ns.v > 3 %}{% set ns.v = 3 %}{% endif %}{% set ns.ld = ns.v %}
+    {% set ns.o_row = (ns.bk - 1) * 3 + ns.ar %}
+    {% set ns.o_col = (3 if ns.ar == 1 else 2) + (ns.lg - 1) * 3 + (ns.ld - 1) %}
+    #owas-ac-table tbody tr:nth-child({{ ns.o_row }}) td:nth-child({{ ns.o_col }}) { background-color: #fdba74 !important; }
+    {% endif %}
     </style>
 </head>
 <body class="bg-white p-2 font-sans">
@@ -171,7 +185,7 @@
 
                 <!-- AC값 테이블 -->
                 <div class="overflow-x-auto my-10 mx-2">
-                    <table class="ac-table w-[98%] border-collapse text-[10px] border-2 border-black">
+                    <table id="owas-ac-table" class="ac-table w-[98%] border-collapse text-[10px] border-2 border-black">
                         <thead>
                             <tr>
                                 <th rowspan="2" colspan="2" class="text-[13pt] font-bold">AC값</th>
@@ -404,5 +418,23 @@
             <div class="flex-1 p-2 text-[9pt]"><span class="text-[13pt] font-bold">{{ result }}</span></div>
         </div>
     </div>
+<script>
+setTimeout(function() {
+    function getVal(id) {
+        var el = document.querySelector('.data-field[data-field="' + id + '"]');
+        return (el && el.textContent.trim()) ? parseInt(el.textContent) : NaN;
+    }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    var HL = 'background-color:#fdba74 !important;';
+
+    var bk = getVal('back'), ar = getVal('arms'), lg = getVal('legs'), ld = getVal('load');
+    if (!isNaN(bk) && !isNaN(ar) && !isNaN(lg) && !isNaN(ld)) {
+        var B = clamp(bk,1,4), A = clamp(ar,1,3), L = clamp(lg,1,7), D = clamp(ld,1,3);
+        var r = (B-1)*3+(A-1), col = (L-1)*3+(D-1);
+        var tbl = document.getElementById('owas-ac-table');
+        if (tbl) { var c = tbl.tBodies[0].rows[r].cells[(r%3===0?2:1)+col]; if (c) c.style.cssText += HL; }
+    }
+}, 50);
+</script>
 </body>
 </html>
