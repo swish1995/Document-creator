@@ -916,7 +916,7 @@
 
                 <!-- 평가결과 -->
                 <div class="flex-1 p-2 text-[9pt]">
-                    <span class="text-[13pt] font-bold">{{result}}</span>
+                    <span class="text-[13pt] font-bold">{% if result == 'acceptable' %}개선 필요 없음{% elif result == 'investigate' %}부분적 개선{% elif result == 'change_soon' %}곧 개선 필요{% elif result == 'change_now' %}즉시 개선{% else %}{{result}}{% endif %}</span>
                 </div>
             </div>
         </div>

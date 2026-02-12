@@ -401,7 +401,7 @@
                     </div>
                     <div class="grid grid-cols-2 border-b-2 border-black">
                         <div class="border-r-2 border-black p-1">2</div>
-                        <div class="p-1">근본적 개선</div>
+                        <div class="p-1">부분적 개선</div>
                     </div>
                     <div class="grid grid-cols-2 border-b-2 border-black">
                         <div class="border-r-2 border-black p-1">3</div>
@@ -420,7 +420,7 @@
             <div class="bg-gray-300 border-r-2 border-black text-center font-bold text-[10pt] py-8 px-2 w-8 flex items-center justify-center">
                 <div style="writing-mode: vertical-rl;">평가 결과</div>
             </div>
-            <div class="flex-1 p-2 text-[9pt]"><span class="text-[13pt] font-bold">{{ result }}</span></div>
+            <div class="flex-1 p-2 text-[9pt]"><span class="text-[13pt] font-bold">{% if result == 'normal' %}개선 필요 없음{% elif result == 'slight' %}부분적 개선{% elif result == 'harmful' %}곧 개선 필요{% elif result == 'very_harmful' %}즉시 개선{% else %}{{ result }}{% endif %}</span></div>
         </div>
     </div>
 <script>
