@@ -7,17 +7,20 @@ from PyInstaller.utils.hooks import collect_all, collect_data_files
 
 block_cipher = None
 
+# formulas 전체 수집 (동적 import되는 하위 모듈 + schedula 포함)
+formulas_datas, formulas_binaries, formulas_hiddenimports = collect_all('formulas')
+
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
+    binaries=formulas_binaries,
     datas=[
         ('resources/icon.ico', 'resources'),
         ('resources/icon.icns', 'resources'),
         ('src/resources/help', 'help'),
         ('src/resources/icons', 'icons'),
         ('templates', 'templates'),
-    ],
+    ] + formulas_datas,
     hiddenimports=[
         'PyQt6',
         'PyQt6.QtWebEngineWidgets',
@@ -27,7 +30,6 @@ a = Analysis(
         'openpyxl.drawing.image',
         'openpyxl.utils',
         'openpyxl.workbook.defined_name',
-        'formulas',
         # PDF
         'fitz',
         # 이미지
@@ -40,7 +42,7 @@ a = Analysis(
         'src.license.license_validator',
         'src.license.license_manager',
         'src.license.license_dialog',
-    ],
+    ] + formulas_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
