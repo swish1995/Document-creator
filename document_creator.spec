@@ -12,6 +12,8 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
+        ('resources/icon.ico', 'resources'),
+        ('resources/icon.icns', 'resources'),
         ('src/resources/help', 'help'),
         ('src/resources/icons', 'icons'),
         ('templates', 'templates'),
@@ -70,6 +72,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='resources/icon.ico',
 )
 
 # onedir 모드: COLLECT로 모든 파일 수집
@@ -88,6 +91,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='DocumentCreator.app',
+    icon='resources/icon.icns',
     bundle_identifier='com.safetydoc.documentcreator',
     info_plist={
         'NSHighResolutionCapable': 'True',
