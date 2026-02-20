@@ -37,20 +37,19 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller document_creator.spec
 
-      - name: Package (Windows)
+      - name: Upload Artifact (Windows)
         if: runner.os == 'Windows'
-        run: Compress-Archive -Path dist/DocumentCreator/* -DestinationPath dist/${{ matrix.artifact_name }}.zip
-        shell: pwsh
-
-      - name: Package (macOS)
-        if: runner.os == 'macOS'
-        run: cd dist && zip -r ${{ matrix.artifact_name }}.zip DocumentCreator.app
-
-      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist/${{ matrix.artifact_name }}.zip
+          path: dist/DocumentCreator/
+
+      - name: Upload Artifact (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/DocumentCreator.app
 
   release:
     needs: build
@@ -65,8 +64,16 @@ jobs:
         with:
           path: artifacts
 
+      - name: Package for Release
+        run: |
+          cd artifacts
+          for dir in */; do
+            name="${dir%/}"
+            (cd "$name" && zip -r "../${name}.zip" .)
+          done
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*.zip
+          files: artifacts/*.zip
           generate_release_notes: true
