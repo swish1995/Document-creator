@@ -277,6 +277,14 @@ class ExcelLoader:
                 update_progress(step, message)
 
         try:
+            # PyInstaller 환경에서 동적 import 문제 방지: 함수 모듈 사전 로드
+            try:
+                from formulas.functions import get_functions
+                get_functions()
+                self._logger.info("formulas 함수 모듈 사전 로드 완료")
+            except Exception as e:
+                self._logger.warning(f"formulas 함수 모듈 사전 로드 실패: {e}")
+
             t0 = time.time()
             progress(1, "엑셀 모델 로드 중...")
             self._logger.info("엑셀 모델 로드 중...")
@@ -412,7 +420,7 @@ class ExcelLoader:
                 return self._calculated_values[cell_ref]
             else:
                 self._logger.debug(f"계산값 없음: {cell_ref}")
-                return cell.value  # 계산 실패 시 수식 텍스트 반환
+                return ""  # 계산 실패 시 빈 문자열 반환 (수식 텍스트 노출 방지)
 
         return cell.value
 
