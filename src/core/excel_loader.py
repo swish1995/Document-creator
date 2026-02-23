@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import shutil
 import time
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
@@ -47,6 +48,7 @@ class ExcelLoader:
         self._data_by_index: list[list[Any]] = []  # 인덱스 기반 데이터
         self._file_path: Path | None = None
         self._calculated_values: dict = {}  # 수식 계산 결과 캐시
+        self._use_data_only: bool = False  # data_only 폴백 모드 여부
         self._image_map: dict[str, Path] = {}  # 셀 주소 → 이미지 경로 매핑
         self._thumbnail_map: dict[str, Path] = {}  # 셀 주소 → 썸네일 경로 매핑
 
@@ -148,13 +150,23 @@ class ExcelLoader:
             self._calculate_formulas(file_path, update_progress)
             self._logger.info("수식 계산 완료")
 
+            # formulas 실패 시 data_only=True 폴백 여부 결정
+            use_data_only = len(self._calculated_values) == 0
+            if use_data_only:
+                self._logger.info("formulas 계산 결과 없음 → data_only=True 폴백 사용")
+
             # 4단계: 이미지 추출 (read_only=False로 열어야 이미지 접근 가능)
             update_progress(4, "이미지 추출 중...")
             self._extract_images(file_path)
 
             # 5단계: openpyxl로 구조 로드
+            # - formulas 계산 성공: data_only=False (수식 텍스트 유지, 계산값은 캐시에서)
+            # - formulas 계산 실패: data_only=True (엑셀 파일에 캐시된 값 사용)
             update_progress(5, "데이터 로드 중...")
-            self._workbook = openpyxl.load_workbook(file_path, read_only=True, data_only=False)
+            self._workbook = openpyxl.load_workbook(
+                file_path, read_only=True, data_only=use_data_only
+            )
+            self._use_data_only = use_data_only
         except InvalidFileException as e:
             raise ExcelLoaderError(f"잘못된 엑셀 파일 형식입니다: {e}")
         except Exception as e:
@@ -295,6 +307,7 @@ class ExcelLoader:
             self._logger.info(f"전체 소요 시간: {time.time() - t0:.1f}초")
         except Exception as e:
             self._logger.warning(f"수식 계산 중 오류 (무시하고 진행): {e}")
+            self._logger.warning(f"수식 계산 traceback:\n{traceback.format_exc()}")
             self._calculated_values = {}
 
     def _normalize_cell_key(self, key: str) -> str:
@@ -380,6 +393,14 @@ class ExcelLoader:
         cell_key = f"{row}_{col}"
         if cell_key in self._image_map:
             return self._image_map[cell_key]
+
+        # data_only=True 모드: openpyxl이 이미 캐시된 값을 반환
+        if self._use_data_only:
+            value = cell.value
+            # float가 정수인 경우 int로 변환 (5.0 → 5)
+            if isinstance(value, float) and value.is_integer():
+                value = int(value)
+            return value
 
         # 수식 셀인지 확인
         if cell.data_type == 'f' or (isinstance(cell.value, str) and cell.value.startswith('=')):
