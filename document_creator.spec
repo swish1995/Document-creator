@@ -3,27 +3,20 @@
 
 import os
 import sys
-from PyInstaller.utils.hooks import collect_all, collect_data_files
 
 block_cipher = None
-
-# formulas 전체 수집 (동적 import되는 하위 모듈 포함)
-formulas_datas, formulas_binaries, formulas_hiddenimports = collect_all('formulas')
-
-# schedula 전체 수집 (formulas의 핵심 의존성, 동적 import 사용)
-schedula_datas, schedula_binaries, schedula_hiddenimports = collect_all('schedula')
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=formulas_binaries + schedula_binaries,
+    binaries=[],
     datas=[
         ('resources/icon.ico', 'resources'),
         ('resources/icon.icns', 'resources'),
         ('src/resources/help', 'help'),
         ('src/resources/icons', 'icons'),
         ('templates', 'templates'),
-    ] + formulas_datas + schedula_datas,
+    ],
     hiddenimports=[
         'PyQt6',
         'PyQt6.QtWebEngineWidgets',
@@ -33,19 +26,6 @@ a = Analysis(
         'openpyxl.drawing.image',
         'openpyxl.utils',
         'openpyxl.workbook.defined_name',
-        # formulas 동적 import 하위 모듈 (명시적 지정)
-        'formulas.functions.info',
-        'formulas.functions.logic',
-        'formulas.functions.math',
-        'formulas.functions.stat',
-        'formulas.functions.financial',
-        'formulas.functions.text',
-        'formulas.functions.look',
-        'formulas.functions.eng',
-        'formulas.functions.date',
-        'formulas.functions.comp',
-        'formulas.functions.google',
-        'formulas.functions.operators',
         # PDF
         'fitz',
         # 이미지
@@ -58,7 +38,7 @@ a = Analysis(
         'src.license.license_validator',
         'src.license.license_manager',
         'src.license.license_dialog',
-    ] + formulas_hiddenimports + schedula_hiddenimports,
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

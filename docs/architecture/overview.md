@@ -20,7 +20,7 @@ Document Creator는 Skeleton Analyzer에서 분석한 인체공학 평가 결과
 | 기술 | 버전 | 용도 |
 |------|------|------|
 | openpyxl | 3.1.0+ | Excel 파일 읽기/쓰기 |
-| formulas | 1.3.0+ | 엑셀 수식 평가 |
+| (내장 수식 평가기) | - | 엑셀 수식 평가 |
 | Jinja2 | 3.1.0+ | HTML 템플릿 엔진 |
 
 ### Document Generation
@@ -128,7 +128,7 @@ document-creator/
 - **역할**: Excel 파일 로드 및 파싱
 - **기능**:
   - .xlsx, .xls 파일 읽기
-  - 수식 평가 (formulas 라이브러리)
+  - 수식 평가 (내장 수식 평가기)
   - 데이터 정규화
 
 ### TemplateManager (`src/core/template_manager.py`)

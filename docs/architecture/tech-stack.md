@@ -14,8 +14,7 @@
 ### Excel Processing
 | 패키지 | 버전 | 용도 |
 |--------|------|------|
-| openpyxl | >=3.1.0 | Excel 파일 읽기/쓰기 |
-| formulas | >=1.3.0 | 엑셀 수식 평가 |
+| openpyxl | >=3.1.0 | Excel 파일 읽기/쓰기 + 내장 수식 평가 |
 
 ### Document Generation
 | 패키지 | 버전 | 용도 |
@@ -53,12 +52,13 @@
   - Tailwind CSS 등 모던 스타일링 가능
 - **대안**: QTextDocument (제한적인 HTML 지원)
 
-### openpyxl + formulas
+### openpyxl + 내장 수식 평가기
 - **선택 이유**:
-  - 순수 Python 구현 (의존성 최소화)
-  - 수식 평가 기능 필요
+  - 순수 Python 구현 (외부 의존성 없음)
+  - Named Range + INDEX/IF/MIN/MAX 수식 지원
+  - PyInstaller 완벽 호환 (동적 import 없음)
   - Skeleton Analyzer 출력 파일 호환
-- **대안**: pandas (과잉 기능), xlrd (구버전만 지원)
+- **대안**: formulas (PyInstaller 비호환), xlcalculator (Named Range 미지원)
 
 ### PyMuPDF
 - **선택 이유**:

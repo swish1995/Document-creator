@@ -1,12 +1,13 @@
 """엑셀 파일 로더 모듈
 
 Skeleton Analyzer에서 생성된 엑셀 파일을 로드하고 데이터를 제공합니다.
-수식이 포함된 셀은 formulas 라이브러리를 사용하여 계산합니다.
+수식이 포함된 셀은 내장 수식 평가기를 사용하여 계산합니다.
 이미지가 포함된 셀은 임시 디렉토리에 추출하여 경로를 제공합니다.
 """
 
 from __future__ import annotations
 
+import re
 import shutil
 import time
 import traceback
@@ -16,11 +17,31 @@ from pathlib import Path
 from typing import Any, Optional, List, Dict, Union, Tuple
 
 import openpyxl
+from openpyxl.utils import get_column_letter, column_index_from_string
 from openpyxl.utils.exceptions import InvalidFileException
-import formulas
 from PIL import Image
 
 from src.core.logger import get_logger
+
+# 셀 참조 패턴: 영문 1~3자 + 숫자 (앞에 영문/밑줄이 없어야 함)
+_CELL_REF_RE = re.compile(r"(?<![A-Za-z_])[A-Z]{1,3}\d+")
+# 등호(=) → 이중등호(==) 변환 (<=, >=, <> 제외)
+_EQ_RE = re.compile(r"(?<![<>])=(?!=)")
+_UNRESOLVED = "__UNRESOLVED__"
+
+
+def _excel_if(condition, true_val, false_val):
+    """Excel IF 함수"""
+    return true_val if condition else false_val
+
+
+def _excel_index(table, row, col=None):
+    """Excel INDEX 함수 (1-based)"""
+    row = int(row)
+    if col is None:
+        return table[row - 1][0]
+    col = int(col)
+    return table[row - 1][col - 1]
 
 
 class ExcelLoaderError(Exception):
@@ -123,7 +144,7 @@ class ExcelLoader:
         Args:
             file_path: 엑셀 파일 경로
             progress_callback: 진행 상황 콜백 (step: int, message: str)
-                - step 1: 엑셀 모델 로드 중
+                - step 1: 엑셀 파일 읽기 중
                 - step 2: 수식 계산 중
                 - step 3: 값 변환 중
                 - step 4: 이미지 추출 중
@@ -145,23 +166,23 @@ class ExcelLoader:
                 progress_callback(step, message)
 
         try:
-            # 1~3단계: formulas로 수식 계산
+            # 1~3단계: 내장 수식 평가기로 수식 계산
             self._logger.info(f"수식 계산 시작: {file_path}")
             self._calculate_formulas(file_path, update_progress)
             self._logger.info("수식 계산 완료")
 
-            # formulas 실패 시 data_only=True 폴백 여부 결정
+            # 수식 계산 실패 시 data_only=True 폴백 여부 결정
             use_data_only = len(self._calculated_values) == 0
             if use_data_only:
-                self._logger.info("formulas 계산 결과 없음 → data_only=True 폴백 사용")
+                self._logger.info("수식 계산 결과 없음 → data_only=True 폴백 사용")
 
             # 4단계: 이미지 추출 (read_only=False로 열어야 이미지 접근 가능)
             update_progress(4, "이미지 추출 중...")
             self._extract_images(file_path)
 
             # 5단계: openpyxl로 구조 로드
-            # - formulas 계산 성공: data_only=False (수식 텍스트 유지, 계산값은 캐시에서)
-            # - formulas 계산 실패: data_only=True (엑셀 파일에 캐시된 값 사용)
+            # - 수식 계산 성공: data_only=False (수식 텍스트 유지, 계산값은 캐시에서)
+            # - 수식 계산 실패: data_only=True (엑셀 파일에 캐시된 값 사용)
             update_progress(5, "데이터 로드 중...")
             self._workbook = openpyxl.load_workbook(
                 file_path, read_only=True, data_only=use_data_only
@@ -269,48 +290,106 @@ class ExcelLoader:
             self._logger.warning(f"이미지 추출 중 오류: {e}")
 
     def _calculate_formulas(self, file_path: Path, update_progress: callable = None) -> None:
-        """formulas 라이브러리로 수식 계산"""
-        import time
+        """openpyxl 기반 내장 수식 평가기로 수식 계산
+
+        Named Range 테이블(RULA_A 등)과 셀 참조를 해석하여
+        INDEX, IF, MIN, MAX 등의 수식을 Python eval()로 계산합니다.
+        외부 라이브러리 없이 동작하므로 PyInstaller 배포와 호환됩니다.
+        """
 
         def progress(step: int, message: str):
             if update_progress:
                 update_progress(step, message)
 
         try:
-            # PyInstaller 환경에서 동적 import 문제 방지: 함수 모듈 사전 로드
-            try:
-                from formulas.functions import get_functions
-                get_functions()
-                self._logger.info("formulas 함수 모듈 사전 로드 완료")
-            except Exception as e:
-                self._logger.warning(f"formulas 함수 모듈 사전 로드 실패: {e}")
-
             t0 = time.time()
-            progress(1, "엑셀 모델 로드 중...")
-            self._logger.info("엑셀 모델 로드 중...")
-            xl_model = formulas.ExcelModel().loads(str(file_path)).finish()
-            self._logger.info(f"엑셀 모델 로드 완료 ({time.time() - t0:.1f}초)")
+            progress(1, "엑셀 파일 읽기 중...")
+            self._logger.info("엑셀 파일 읽기 중...")
+            wb = openpyxl.load_workbook(file_path, read_only=False, data_only=False)
 
+            # 대상 시트 선택
+            if self.DEFAULT_SHEET_NAME in wb.sheetnames:
+                ws = wb[self.DEFAULT_SHEET_NAME]
+                sheet_name = self.DEFAULT_SHEET_NAME
+            else:
+                ws = wb.active
+                sheet_name = ws.title
+
+            self._logger.info(f"엑셀 파일 읽기 완료 ({time.time() - t0:.1f}초)")
+
+            # Named Range 테이블 로드
             t1 = time.time()
             progress(2, "수식 계산 중...")
-            self._logger.info("수식 계산 중...")
-            solution = xl_model.calculate()
+            tables: Dict[str, List[List[Any]]] = {}
+            for name, defn in wb.defined_names.items():
+                try:
+                    parts = defn.attr_text.split("!")
+                    ref_sheet = parts[0].strip("'")
+                    if ref_sheet in wb.sheetnames:
+                        table_ws = wb[ref_sheet]
+                        data = []
+                        for row in table_ws.iter_rows(values_only=True):
+                            data.append(list(row))
+                        tables[name] = data
+                except Exception as e:
+                    self._logger.debug(f"Named Range 로드 실패 ({name}): {e}")
+
+            self._logger.info(f"Named Range {len(tables)}개 로드: {list(tables.keys())}")
+
+            # 셀 값 수집 및 수식 목록 생성
+            cell_values: Dict[str, Any] = {}
+            formulas: Dict[str, str] = {}
+
+            for row in ws.iter_rows():
+                for cell in row:
+                    col_letter = get_column_letter(cell.column)
+                    cell_ref = f"{col_letter}{cell.row}"
+                    if isinstance(cell.value, str) and cell.value.startswith("="):
+                        formulas[cell_ref] = cell.value
+                    elif cell.value is not None:
+                        cell_values[cell_ref] = cell.value
+
+            self._logger.info(f"비수식 셀 {len(cell_values)}개, 수식 셀 {len(formulas)}개")
+            wb.close()
+
+            # 수식 반복 계산 (의존성 순서 자동 해결)
+            eval_namespace: Dict[str, Any] = {
+                "__builtins__": {},
+                "IF": _excel_if,
+                "INDEX": _excel_index,
+                "MIN": min,
+                "MAX": max,
+            }
+            eval_namespace.update(tables)
+
+            max_iterations = 10
+            for iteration in range(max_iterations):
+                resolved = 0
+                for ref, formula in formulas.items():
+                    if ref not in cell_values:
+                        result = self._eval_formula(formula, cell_values, eval_namespace)
+                        if result is not None:
+                            cell_values[ref] = result
+                            resolved += 1
+                if resolved == 0:
+                    break
+                self._logger.debug(f"반복 {iteration + 1}: {resolved}개 수식 계산 완료")
+
             self._logger.info(f"수식 계산 완료 ({time.time() - t1:.1f}초)")
 
-            # 계산된 값을 딕셔너리로 저장
-            # key 형식: '[파일명]시트명'!A1 → 시트명!A1 로 정규화
+            # 미해결 수식 확인
+            unresolved = [ref for ref in formulas if ref not in cell_values]
+            if unresolved:
+                self._logger.warning(f"미해결 수식 {len(unresolved)}개: {unresolved[:10]}")
+
+            # SHEET_NAME!CELL 형식으로 변환
             t2 = time.time()
             progress(3, "값 변환 중...")
             self._calculated_values = {}
-            for key, value in solution.items():
-                # 키에서 시트명과 셀 주소 추출
-                # 예: "'[sample.xlsx]CAPTURE DATA'!J2" → "CAPTURE DATA!J2"
-                normalized_key = self._normalize_cell_key(key)
+            for ref, value in cell_values.items():
+                full_ref = f"{sheet_name}!{ref}".upper()
+                self._calculated_values[full_ref] = value
 
-                # 값 추출 (Ranges 객체 또는 중첩 리스트)
-                actual_value = self._extract_value(value)
-
-                self._calculated_values[normalized_key] = actual_value
             self._logger.info(f"값 변환 완료 ({time.time() - t2:.1f}초), 총 {len(self._calculated_values)}개 셀")
             self._logger.info(f"전체 소요 시간: {time.time() - t0:.1f}초")
         except Exception as e:
@@ -318,45 +397,43 @@ class ExcelLoader:
             self._logger.warning(f"수식 계산 traceback:\n{traceback.format_exc()}")
             self._calculated_values = {}
 
-    def _normalize_cell_key(self, key: str) -> str:
-        """셀 키 정규화: '[파일명]시트명'!A1 → 시트명!A1"""
-        import re
-        # 패턴: '[파일명]시트명'!셀주소 또는 [파일명]시트명!셀주소
-        match = re.match(r"'?\[.*?\](.+?)'?!(.+)", key)
-        if match:
-            sheet_name = match.group(1).strip("'")
-            cell_addr = match.group(2)
-            return f"{sheet_name}!{cell_addr}".upper()
-        return key.upper()
+    @staticmethod
+    def _eval_formula(formula: str, cell_values: Dict[str, Any],
+                      namespace: Dict[str, Any]) -> Any:
+        """단일 수식 계산"""
+        expr = formula[1:]  # 선행 = 제거
 
-    def _extract_value(self, value: Any) -> Any:
-        """Ranges 객체, numpy 배열, 또는 중첩 리스트에서 실제 값 추출"""
-        import numpy as np
+        # <> → != 변환
+        expr = expr.replace("<>", "!=")
+        # 등호를 이중등호로 변환 (비교 연산용, <=, >=, != 제외)
+        expr = _EQ_RE.sub("==", expr)
 
-        # Ranges 객체인 경우 .value 속성 사용
-        if hasattr(value, 'value'):
-            value = value.value
+        # 셀 참조를 값으로 치환
+        def replace_ref(match: re.Match) -> str:
+            ref = match.group(0)
+            val = cell_values.get(ref)
+            if val is None:
+                return _UNRESOLVED
+            if isinstance(val, (int, float)):
+                return str(val)
+            return repr(str(val))
 
-        # numpy 배열인 경우 처리
-        if isinstance(value, np.ndarray):
-            if value.size == 1:
-                value = value.flat[0]
-            else:
-                value = value.tolist()
+        expr = _CELL_REF_RE.sub(replace_ref, expr)
 
-        # 중첩 리스트인 경우 첫 번째 값 추출 ([[5.0]] → 5.0)
-        while isinstance(value, (list, tuple)) and len(value) > 0:
-            if isinstance(value[0], (list, tuple)):
-                value = value[0]
-            else:
-                value = value[0]
-                break
+        # 의존하는 셀이 아직 미해결이면 건너뜀
+        if _UNRESOLVED in expr:
+            return None
 
-        # float가 정수인 경우 int로 변환 (5.0 → 5)
-        if isinstance(value, float) and value.is_integer():
-            value = int(value)
+        # & → + (문자열 연결)
+        expr = expr.replace("&", "+")
 
-        return value
+        try:
+            result = eval(expr, namespace)  # noqa: S307
+            if isinstance(result, float) and result == int(result):
+                result = int(result)
+            return result
+        except Exception:
+            return None
 
     def _load_sheet(self) -> None:
         """시트 데이터 로드"""
@@ -395,8 +472,6 @@ class ExcelLoader:
 
     def _get_cell_value(self, cell, sheet_name: str, row: int, col: int) -> Any:
         """셀 값 가져오기 (수식인 경우 계산된 값, 이미지인 경우 경로 사용)"""
-        from openpyxl.utils import get_column_letter
-
         # 이미지가 있는 셀인지 확인
         cell_key = f"{row}_{col}"
         if cell_key in self._image_map:
