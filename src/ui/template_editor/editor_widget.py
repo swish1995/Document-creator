@@ -208,7 +208,7 @@ class EditorWidget(QWidget):
 
         # 필드 목록 트리
         self._field_tree = QTreeWidget()
-        self._field_tree.setHeaderLabels(["라벨", "엑셀 컬럼"])
+        self._field_tree.setHeaderLabels(["idx", "라벨", "엑셀 컬럼"])
         self._field_tree.setRootIsDecorated(False)
         self._field_tree.setAlternatingRowColors(True)
         self._field_tree.setStyleSheet("""
@@ -245,8 +245,10 @@ class EditorWidget(QWidget):
         # 컬럼 너비 설정
         header_view = self._field_tree.header()
         header_view.setStretchLastSection(True)
-        header_view.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
-        self._field_tree.setColumnWidth(0, 120)
+        header_view.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        self._field_tree.setColumnWidth(0, 45)
+        header_view.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        self._field_tree.setColumnWidth(1, 120)
 
         # 필드 클릭 시 하이라이트
         self._field_tree.itemClicked.connect(self._on_field_clicked)
@@ -368,8 +370,8 @@ class EditorWidget(QWidget):
 
         if not self._fields:
             # 필드가 없으면 안내 메시지 표시
-            item = QTreeWidgetItem(["필드 정보 없음", ""])
-            item.setForeground(0, Qt.GlobalColor.gray)
+            item = QTreeWidgetItem(["", "필드 정보 없음", ""])
+            item.setForeground(1, Qt.GlobalColor.gray)
             self._field_tree.addTopLevelItem(item)
             return
 
@@ -377,9 +379,11 @@ class EditorWidget(QWidget):
             field_id = field.get("id", "")
             label = field.get("label", field_id)
             excel_column = field.get("excel_column", "")
-            item = QTreeWidgetItem([label, excel_column])
+            excel_index = field.get("excel_index")
+            index_text = str(excel_index) if excel_index is not None else ""
+            item = QTreeWidgetItem([index_text, label, excel_column])
             item.setData(0, Qt.ItemDataRole.UserRole, field_id)  # 필드 ID 저장
-            item.setToolTip(0, f"클릭하여 위치 확인: {field_id}")
+            item.setToolTip(1, f"클릭하여 위치 확인: {field_id}")
             self._field_tree.addTopLevelItem(item)
 
     def load_template_from_path(self, template_path: Path):
