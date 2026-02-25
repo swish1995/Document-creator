@@ -1,12 +1,14 @@
 """매핑 편집기 테스트
 
 Phase 1: 필드 목록 인덱스 표시
+Phase 2: 인라인 매핑 편집 + 데이터 시트 컬럼 하이라이트
 """
 
 import pytest
 from pathlib import Path
+from unittest.mock import MagicMock
 
-from PyQt6.QtWidgets import QApplication, QHeaderView
+from PyQt6.QtWidgets import QApplication, QHeaderView, QComboBox
 from PyQt6.QtCore import Qt
 
 from src.ui.template_editor.editor_widget import EditorWidget
@@ -108,3 +110,143 @@ class TestFieldListColumnWidth:
         """엑셀 컬럼은 Stretch(마지막 컬럼)여야 한다"""
         header = editor._field_tree.header()
         assert header.stretchLastSection() is True
+
+
+# ============================================================
+# Phase 2: 인라인 매핑 편집 + 데이터 시트 컬럼 하이라이트
+# ============================================================
+
+
+class TestSetExcelHeaders:
+    """T2.1: 엑셀 헤더 설정"""
+
+    def test_set_excel_headers(self, editor):
+        """set_excel_headers()로 헤더 목록이 저장되어야 한다"""
+        editor.set_excel_headers(["Name", "Age", "Score"])
+        assert editor._excel_headers == ["Name", "Age", "Score"]
+
+    def test_set_excel_headers_empty(self, editor):
+        """빈 헤더 목록도 설정 가능해야 한다"""
+        editor.set_excel_headers([])
+        assert editor._excel_headers == []
+
+
+class TestComboBoxCreation:
+    """T2.2: ComboBox 생성"""
+
+    def test_combobox_in_excel_column_cell(self, editor):
+        """엑셀 헤더가 있을 때 '엑셀 컬럼' 셀에 QComboBox가 존재해야 한다"""
+        editor.set_excel_headers(["Name", "Age", "Score"])
+        fields = [
+            {"id": "f1", "label": "이름", "excel_column": "Name", "excel_index": 0}
+        ]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+
+        item = editor._field_tree.topLevelItem(0)
+        widget = editor._field_tree.itemWidget(item, 2)  # 엑셀 컬럼 = 컬럼 2
+        assert isinstance(widget, QComboBox)
+
+    def test_combobox_items(self, editor):
+        """ComboBox에 엑셀 헤더 목록이 아이템으로 들어가야 한다"""
+        editor.set_excel_headers(["Name", "Age", "Score"])
+        fields = [
+            {"id": "f1", "label": "이름", "excel_column": "Name", "excel_index": 0}
+        ]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+
+        item = editor._field_tree.topLevelItem(0)
+        combo = editor._field_tree.itemWidget(item, 2)
+        items = [combo.itemText(i) for i in range(combo.count())]
+        assert items == ["Name", "Age", "Score"]
+
+    def test_combobox_current_selection(self, editor):
+        """ComboBox의 현재 선택이 매핑된 컬럼이어야 한다"""
+        editor.set_excel_headers(["Name", "Age", "Score"])
+        fields = [
+            {"id": "f1", "label": "이름", "excel_column": "Age", "excel_index": 1}
+        ]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+
+        item = editor._field_tree.topLevelItem(0)
+        combo = editor._field_tree.itemWidget(item, 2)
+        assert combo.currentText() == "Age"
+
+
+class TestComboBoxDirtyFlag:
+    """T2.3: ComboBox 변경 시 dirty 플래그"""
+
+    def test_dirty_flag_on_change(self, editor):
+        """ComboBox 변경 시 _dirty 플래그가 True가 되어야 한다"""
+        editor.set_excel_headers(["Name", "Age", "Score"])
+        fields = [
+            {"id": "f1", "label": "이름", "excel_column": "Name", "excel_index": 0}
+        ]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+
+        assert editor._dirty is False
+
+        item = editor._field_tree.topLevelItem(0)
+        combo = editor._field_tree.itemWidget(item, 2)
+        combo.setCurrentText("Age")
+
+        assert editor._dirty is True
+
+
+class TestComboBoxDisabledWithoutHeaders:
+    """T2.4: 엑셀 미로드 시 ComboBox 비활성화"""
+
+    def test_no_combobox_without_headers(self, editor):
+        """엑셀 헤더가 없으면 ComboBox 없이 텍스트만 표시되어야 한다"""
+        editor.set_excel_headers([])
+        fields = [
+            {"id": "f1", "label": "이름", "excel_column": "Name", "excel_index": 0}
+        ]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+
+        item = editor._field_tree.topLevelItem(0)
+        widget = editor._field_tree.itemWidget(item, 2)
+        assert widget is None  # ComboBox 없음
+        assert item.text(2) == "Name"  # 텍스트로 표시
+
+
+class TestColumnHighlightSignal:
+    """T2.5~T2.7: 데이터 시트 컬럼 하이라이트 시그널"""
+
+    def test_signal_exists(self, editor):
+        """column_highlight_requested 시그널이 존재해야 한다"""
+        assert hasattr(editor, 'column_highlight_requested')
+
+    def test_field_click_emits_signal(self, editor):
+        """필드 목록 행 클릭 시 column_highlight_requested 시그널이 emit되어야 한다"""
+        mock = MagicMock()
+        editor.column_highlight_requested.connect(mock)
+
+        fields = [
+            {"id": "f1", "label": "상박점수", "excel_column": "Base", "excel_index": 5}
+        ]
+        editor.set_excel_headers(["A", "B", "C", "D", "E", "Base"])
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+
+        # 행 클릭 시뮬레이션
+        item = editor._field_tree.topLevelItem(0)
+        editor._on_field_clicked(item, 0)
+
+        mock.assert_called_with(5)
+
+    def test_combobox_change_emits_signal(self, editor):
+        """ComboBox 변경 시 새 인덱스로 column_highlight_requested 시그널이 emit되어야 한다"""
+        mock = MagicMock()
+        editor.column_highlight_requested.connect(mock)
+
+        headers = ["Name", "Age", "Score"]
+        editor.set_excel_headers(headers)
+        fields = [
+            {"id": "f1", "label": "이름", "excel_column": "Name", "excel_index": 0}
+        ]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+
+        item = editor._field_tree.topLevelItem(0)
+        combo = editor._field_tree.itemWidget(item, 2)
+        combo.setCurrentText("Score")
+
+        mock.assert_called_with(2)  # Score의 인덱스 = 2

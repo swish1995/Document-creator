@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QTreeWidget,
     QTreeWidgetItem,
     QHeaderView,
+    QComboBox,
 )
 
 try:
@@ -64,6 +65,7 @@ class EditorWidget(QWidget):
     auto_saved = pyqtSignal(str)  # 자동 저장됨
     scroll_changed = pyqtSignal(int, int)  # 스크롤 위치 변경 (x, y)
     page_loaded = pyqtSignal()  # 페이지 로드 완료
+    column_highlight_requested = pyqtSignal(int)  # 데이터 시트 컬럼 하이라이트 요청
 
     # 모드 상수
     MODE_PREVIEW = 0
@@ -82,6 +84,8 @@ class EditorWidget(QWidget):
         self._current_mode: int = self.MODE_PREVIEW
         self._zoom_level: int = 100
         self._last_scroll_pos: tuple = (0, 0)  # 마지막 스크롤 위치
+        self._excel_headers: List[str] = []  # 엑셀 헤더 목록
+        self._dirty: bool = False  # 매핑 변경 여부
 
         # 스크롤 위치 추적 타이머 (500ms마다 체크)
         self._scroll_timer = QTimer(self)
@@ -262,6 +266,13 @@ class EditorWidget(QWidget):
         field_id = item.data(0, Qt.ItemDataRole.UserRole)
         if field_id:
             self.highlight_field(field_id)
+            # 데이터 시트 컬럼 하이라이트
+            for field in self._fields:
+                if field.get("id") == field_id:
+                    excel_index = field.get("excel_index")
+                    if excel_index is not None:
+                        self.column_highlight_requested.emit(excel_index)
+                    break
 
     def _on_mapping_field_clicked(self, field_id: str):
         """매핑 미리보기에서 필드 클릭 → 왼쪽 필드 목록 선택"""
@@ -331,6 +342,15 @@ class EditorWidget(QWidget):
 
     # ========== Public Methods ==========
 
+    def set_excel_headers(self, headers: List[str]):
+        """엑셀 헤더 목록 설정
+
+        Args:
+            headers: 엑셀 파일의 헤더(컬럼명) 목록
+        """
+        self._excel_headers = headers
+        self._update_field_list()
+
     def set_template(
         self,
         template_id: str,
@@ -351,6 +371,7 @@ class EditorWidget(QWidget):
         self._html_content = html_content
         self._fields = fields or []
         self._modified = False
+        self._dirty = False
 
         # 자동 저장 경로 설정
         self._auto_save.set_file_path(template_path)
@@ -381,10 +402,39 @@ class EditorWidget(QWidget):
             excel_column = field.get("excel_column", "")
             excel_index = field.get("excel_index")
             index_text = str(excel_index) if excel_index is not None else ""
-            item = QTreeWidgetItem([index_text, label, excel_column])
-            item.setData(0, Qt.ItemDataRole.UserRole, field_id)  # 필드 ID 저장
-            item.setToolTip(1, f"클릭하여 위치 확인: {field_id}")
-            self._field_tree.addTopLevelItem(item)
+
+            if self._excel_headers:
+                # 엑셀 헤더가 있으면 ComboBox로 인라인 편집
+                item = QTreeWidgetItem([index_text, label, ""])
+                item.setData(0, Qt.ItemDataRole.UserRole, field_id)
+                item.setToolTip(1, f"클릭하여 위치 확인: {field_id}")
+                self._field_tree.addTopLevelItem(item)
+
+                combo = QComboBox()
+                combo.addItems(self._excel_headers)
+                if excel_column in self._excel_headers:
+                    combo.setCurrentText(excel_column)
+                combo.currentTextChanged.connect(
+                    lambda text, f=field, it=item: self._on_combo_changed(text, f, it)
+                )
+                self._field_tree.setItemWidget(item, 2, combo)
+            else:
+                # 엑셀 헤더가 없으면 텍스트로 표시
+                item = QTreeWidgetItem([index_text, label, excel_column])
+                item.setData(0, Qt.ItemDataRole.UserRole, field_id)
+                item.setToolTip(1, f"클릭하여 위치 확인: {field_id}")
+                self._field_tree.addTopLevelItem(item)
+
+    def _on_combo_changed(self, text: str, field: Dict[str, Any], item: QTreeWidgetItem):
+        """ComboBox 변경 시 호출"""
+        self._dirty = True
+        field["excel_column"] = text
+        # 새 컬럼의 인덱스 계산
+        if text in self._excel_headers:
+            new_index = self._excel_headers.index(text)
+            field["excel_index"] = new_index
+            item.setText(0, str(new_index))
+            self.column_highlight_requested.emit(new_index)
 
     def load_template_from_path(self, template_path: Path):
         """파일에서 템플릿 로드

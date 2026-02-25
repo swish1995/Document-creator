@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from PyQt6.QtCore import Qt, pyqtSignal, QAbstractTableModel, QModelIndex, QSize
-from PyQt6.QtGui import QIcon, QPixmap, QImage
+from PyQt6.QtGui import QIcon, QPixmap, QImage, QColor, QPainter, QPen
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -29,6 +29,33 @@ from PyQt6.QtWidgets import (
 
 from src.core.excel_loader import ExcelLoader, ExcelLoaderError
 from src.core.logger import get_logger
+
+
+class HighlightableHeaderView(QHeaderView):
+    """컬럼 하이라이트를 지원하는 헤더뷰"""
+
+    def __init__(self, orientation, parent=None):
+        super().__init__(orientation, parent)
+        self._highlight_col: int = -1
+
+    def set_highlight_column(self, col: int):
+        """하이라이트할 컬럼 설정 (테이블 기준 인덱스, -1이면 해제)"""
+        self._highlight_col = col
+        self.viewport().update()
+
+    def paintSection(self, painter: QPainter, rect, logicalIndex: int):
+        """하이라이트 컬럼은 골드색으로 칠한 뒤 텍스트 그리기"""
+        painter.save()
+        super().paintSection(painter, rect, logicalIndex)
+        painter.restore()
+
+        if logicalIndex == self._highlight_col:
+            painter.save()
+            painter.fillRect(rect, QColor(180, 160, 60))
+            painter.setPen(QPen(QColor(255, 255, 255)))
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self.model().headerData(
+                logicalIndex, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole) or "")
+            painter.restore()
 
 
 class ImageDelegate(QStyledItemDelegate):
@@ -111,6 +138,7 @@ class ExcelTableModel(QAbstractTableModel):
         self._preview_row: int = 0
         self._thumbnail_cache: Dict[str, QPixmap] = {}  # 썸네일 캐시
         self._thumbnail_paths: Dict[str, Path] = {}  # 미리 생성된 썸네일 경로
+        self._highlight_col: int = -1  # 하이라이트 컬럼 (-1이면 없음)
 
     def load_data(self, headers: List[str], data: List[Dict[str, Any]], data_by_index: List[List[Any]] = None, thumbnail_paths: Dict[str, Path] = None):
         """데이터 로드
@@ -179,8 +207,13 @@ class ExcelTableModel(QAbstractTableModel):
                 return check_state
 
         elif role == Qt.ItemDataRole.BackgroundRole:
+            from PyQt6.QtGui import QColor
+            # 컬럼 하이라이트 (매핑 편집 시)
+            if self._highlight_col >= 0 and col == self._highlight_col + 1:
+                if row == self._preview_row:
+                    return QColor(100, 90, 40)  # 미리보기 행 + 하이라이트 컬럼 겹침
+                return QColor(80, 70, 20)  # 하이라이트 컬럼 (#fff3cd 다크 버전)
             if row == self._preview_row:
-                from PyQt6.QtGui import QColor
                 return QColor(60, 70, 90)  # 미리보기 행 하이라이트 (다크 테마용)
 
         elif role == Qt.ItemDataRole.TextAlignmentRole:
@@ -218,11 +251,16 @@ class ExcelTableModel(QAbstractTableModel):
         return self._thumbnail_cache[cache_key]
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole):
-        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
-            if section == 0:
-                return "선택"
-            elif section - 1 < len(self._headers):
-                return self._headers[section - 1]
+        if orientation == Qt.Orientation.Horizontal:
+            if role == Qt.ItemDataRole.DisplayRole:
+                if section == 0:
+                    return "선택"
+                elif section - 1 < len(self._headers):
+                    return self._headers[section - 1]
+            elif role == Qt.ItemDataRole.BackgroundRole:
+                if self._highlight_col >= 0 and section == self._highlight_col + 1:
+                    from PyQt6.QtGui import QColor
+                    return QColor(180, 160, 60)  # 헤더 하이라이트 (골드)
         elif orientation == Qt.Orientation.Vertical and role == Qt.ItemDataRole.DisplayRole:
             return str(section + 1)
         return None
@@ -310,6 +348,29 @@ class ExcelTableModel(QAbstractTableModel):
 
     def get_preview_row(self) -> int:
         return self._preview_row
+
+    def set_highlight_column(self, col: int):
+        """하이라이트 컬럼 설정 (-1이면 해제)"""
+        old_col = self._highlight_col
+        self._highlight_col = col
+        # 이전 컬럼 갱신
+        if old_col >= 0:
+            table_col = old_col + 1
+            self.dataChanged.emit(
+                self.index(0, table_col),
+                self.index(self.rowCount() - 1, table_col),
+                [Qt.ItemDataRole.BackgroundRole]
+            )
+            self.headerDataChanged.emit(Qt.Orientation.Horizontal, table_col, table_col)
+        # 새 컬럼 갱신
+        if col >= 0:
+            table_col = col + 1
+            self.dataChanged.emit(
+                self.index(0, table_col),
+                self.index(self.rowCount() - 1, table_col),
+                [Qt.ItemDataRole.BackgroundRole]
+            )
+            self.headerDataChanged.emit(Qt.Orientation.Horizontal, table_col, table_col)
 
 
 class ExcelViewer(QWidget):
@@ -444,8 +505,12 @@ class ExcelViewer(QWidget):
         self._table_view.setItemDelegate(ImageDelegate(self))  # 이미지 가운데 정렬
         self._table_view.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
         self._table_view.setAlternatingRowColors(True)
-        self._table_view.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        self._table_view.horizontalHeader().setStretchLastSection(True)
+
+        # 커스텀 헤더뷰 (컬럼 하이라이트 지원)
+        self._header_view = HighlightableHeaderView(Qt.Orientation.Horizontal, self._table_view)
+        self._table_view.setHorizontalHeader(self._header_view)
+        self._header_view.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self._header_view.setStretchLastSection(True)
         
         # 체크박스 자동 편집 비활성화 (수동으로 처리)
         self._table_view.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
@@ -659,3 +724,17 @@ class ExcelViewer(QWidget):
         if self._loader:
             return [self._loader.get_row_by_index(row) for row in self.get_selected_rows()]
         return []
+
+    def highlight_column(self, column_index: int):
+        """데이터 시트에서 특정 컬럼 하이라이트
+
+        Args:
+            column_index: 하이라이트할 컬럼 인덱스 (0-based, 엑셀 헤더 기준)
+        """
+        self._model.set_highlight_column(column_index)
+        self._header_view.set_highlight_column(column_index + 1)  # 체크박스 컬럼 오프셋
+
+    def clear_highlight(self):
+        """컬럼 하이라이트 해제"""
+        self._model.set_highlight_column(-1)
+        self._header_view.set_highlight_column(-1)

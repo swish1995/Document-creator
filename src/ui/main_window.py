@@ -256,6 +256,7 @@ class MainWindow(QMainWindow):
         self._editor_widget.auto_saved.connect(self._on_editor_auto_saved)
         self._editor_widget.scroll_changed.connect(self._on_scroll_changed)
         self._editor_widget.page_loaded.connect(self._on_page_loaded)
+        self._editor_widget.column_highlight_requested.connect(self._on_column_highlight_requested)
         self._pending_scroll_restore: Optional[str] = None  # 페이지 로드 후 복구할 템플릿 ID
         self._splitter.addWidget(self._editor_widget)
 
@@ -370,6 +371,11 @@ class MainWindow(QMainWindow):
         template_id = self._toolbar.combo_template.itemData(index)
         if template_id:
             self._on_toolbar_template_selected(template_id)
+
+    def _on_column_highlight_requested(self, column_index: int):
+        """EditorWidget에서 컬럼 하이라이트 요청"""
+        if self._data_sheet_visible:
+            self._excel_viewer.highlight_column(column_index)
 
     def _on_data_sheet_toggled(self, visible: bool):
         """데이터 시트 표시/숨김 토글"""
@@ -492,6 +498,9 @@ class MainWindow(QMainWindow):
         """모드 변경"""
         mode_names = {0: "미리보기", 1: "매핑"}
         self._editor_widget.set_mode(mode)
+        # 매핑 모드가 아니면 컬럼 하이라이트 해제
+        if mode != EditorWidget.MODE_MAPPING:
+            self._excel_viewer.clear_highlight()
         self.statusBar().showMessage(f"모드: {mode_names.get(mode, '알 수 없음')}")
 
     def _on_zoom_changed(self, zoom: int):
@@ -776,6 +785,9 @@ class MainWindow(QMainWindow):
             panel.set_excel_headers(headers)
             if self._current_file:
                 panel.set_excel_file_path(str(self._current_file))
+
+        # EditorWidget에 엑셀 헤더 전달
+        self._editor_widget.set_excel_headers(headers)
 
         # 첫 번째 행으로 미리보기 업데이트
         self._update_previews(0)
