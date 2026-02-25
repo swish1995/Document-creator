@@ -250,3 +250,115 @@ class TestColumnHighlightSignal:
         combo.setCurrentText("Score")
 
         mock.assert_called_with(2)  # Score의 인덱스 = 2
+
+
+# ============================================================
+# Phase 3: 저장 UI 및 다이얼로그
+# ============================================================
+
+
+class TestSaveButtonBar:
+    """T3.1~T3.3: 저장 버튼 바"""
+
+    def test_save_buttons_exist(self, editor):
+        """저장 버튼과 다른 이름으로 저장 버튼이 존재해야 한다"""
+        assert hasattr(editor, '_btn_save')
+        assert hasattr(editor, '_btn_save_as')
+
+    def test_buttons_disabled_initially(self, editor):
+        """초기 상태에서 두 버튼 모두 비활성화"""
+        assert editor._btn_save.isEnabled() is False
+        assert editor._btn_save_as.isEnabled() is False
+
+    def test_builtin_save_disabled_on_dirty(self, editor):
+        """빌트인 템플릿: 변경 후에도 '저장' 비활성화, '다른 이름으로 저장'만 활성화"""
+        editor.set_excel_headers(["Name", "Age"])
+        fields = [{"id": "f1", "label": "이름", "excel_column": "Name", "excel_index": 0}]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+        editor._is_builtin = True
+
+        # ComboBox 변경으로 dirty 만들기
+        item = editor._field_tree.topLevelItem(0)
+        combo = editor._field_tree.itemWidget(item, 2)
+        combo.setCurrentText("Age")
+
+        assert editor._btn_save.isEnabled() is False
+        assert editor._btn_save_as.isEnabled() is True
+
+    def test_user_template_both_enabled_on_dirty(self, editor):
+        """사용자 템플릿: 변경 후 둘 다 활성화"""
+        editor.set_excel_headers(["Name", "Age"])
+        fields = [{"id": "f1", "label": "이름", "excel_column": "Name", "excel_index": 0}]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+        editor._is_builtin = False
+
+        item = editor._field_tree.topLevelItem(0)
+        combo = editor._field_tree.itemWidget(item, 2)
+        combo.setCurrentText("Age")
+
+        assert editor._btn_save.isEnabled() is True
+        assert editor._btn_save_as.isEnabled() is True
+
+    def test_no_change_both_disabled(self, editor):
+        """변경 없으면 둘 다 비활성화"""
+        fields = [{"id": "f1", "label": "이름", "excel_column": "Name", "excel_index": 0}]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+        editor._is_builtin = False
+
+        assert editor._btn_save.isEnabled() is False
+        assert editor._btn_save_as.isEnabled() is False
+
+
+class TestSaveAsDialog:
+    """T3.4~T3.5: 다른 이름으로 저장 다이얼로그"""
+
+    def test_save_as_dialog_exists(self):
+        """SaveAsDialog 클래스가 존재해야 한다"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+        assert SaveAsDialog is not None
+
+    def test_dialog_default_name(self, app):
+        """기본 이름이 '{원본이름}_복사본'이어야 한다"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+        dialog = SaveAsDialog(
+            original_name="RULA",
+            categories=[{"id": "ergonomic", "name": "인체공학 평가"}],
+            default_category="ergonomic",
+        )
+        assert dialog.get_name() == "RULA_복사본"
+
+    def test_dialog_default_category(self, app):
+        """기본 카테고리가 원본 카테고리여야 한다"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+        dialog = SaveAsDialog(
+            original_name="RULA",
+            categories=[
+                {"id": "ergonomic", "name": "인체공학 평가"},
+                {"id": "inspection", "name": "점검"},
+            ],
+            default_category="ergonomic",
+        )
+        assert dialog.get_category() == "ergonomic"
+
+    def test_dialog_duplicate_name_check(self, app):
+        """중복 이름이면 is_valid()가 False여야 한다"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+        dialog = SaveAsDialog(
+            original_name="RULA",
+            categories=[{"id": "ergonomic", "name": "인체공학 평가"}],
+            default_category="ergonomic",
+            existing_names=["RULA_TEST"],
+        )
+        dialog._name_input.setText("RULA_TEST")
+        assert dialog.is_valid() is False
+
+    def test_dialog_valid_name(self, app):
+        """유효한 이름이면 is_valid()가 True여야 한다"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+        dialog = SaveAsDialog(
+            original_name="RULA",
+            categories=[{"id": "ergonomic", "name": "인체공학 평가"}],
+            default_category="ergonomic",
+            existing_names=["RULA_TEST"],
+        )
+        assert dialog.is_valid() is True  # 기본 이름 "RULA_복사본"은 유효

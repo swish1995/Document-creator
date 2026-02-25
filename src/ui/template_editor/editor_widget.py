@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QTreeWidgetItem,
     QHeaderView,
     QComboBox,
+    QPushButton,
 )
 
 try:
@@ -66,6 +67,8 @@ class EditorWidget(QWidget):
     scroll_changed = pyqtSignal(int, int)  # 스크롤 위치 변경 (x, y)
     page_loaded = pyqtSignal()  # 페이지 로드 완료
     column_highlight_requested = pyqtSignal(int)  # 데이터 시트 컬럼 하이라이트 요청
+    mapping_save_requested = pyqtSignal()  # 매핑 저장 요청
+    mapping_save_as_requested = pyqtSignal(str, str)  # 다른 이름으로 저장 (이름, 카테고리 ID)
 
     # 모드 상수
     MODE_PREVIEW = 0
@@ -86,6 +89,7 @@ class EditorWidget(QWidget):
         self._last_scroll_pos: tuple = (0, 0)  # 마지막 스크롤 위치
         self._excel_headers: List[str] = []  # 엑셀 헤더 목록
         self._dirty: bool = False  # 매핑 변경 여부
+        self._is_builtin: bool = True  # 현재 템플릿이 빌트인인지
 
         # 스크롤 위치 추적 타이머 (500ms마다 체크)
         self._scroll_timer = QTimer(self)
@@ -259,6 +263,44 @@ class EditorWidget(QWidget):
 
         layout.addWidget(self._field_tree, 1)
 
+        # 저장 버튼
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(4)
+
+        self._btn_save = QPushButton("저장")
+        self._btn_save.setFixedHeight(28)
+        self._btn_save.setEnabled(False)
+        self._btn_save.setStyleSheet("""
+            QPushButton {
+                background-color: #5ab87a; color: white;
+                border: none; padding: 5px 12px; border-radius: 4px;
+                font-size: 11px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #6ac88a; }
+            QPushButton:disabled { background-color: #444444; color: #666666; }
+        """)
+        btn_layout.addWidget(self._btn_save)
+
+        self._btn_save_as = QPushButton("다른 이름으로 저장")
+        self._btn_save_as.setFixedHeight(28)
+        self._btn_save_as.setEnabled(False)
+        self._btn_save_as.setStyleSheet("""
+            QPushButton {
+                background-color: #5a7ab8; color: white;
+                border: none; padding: 5px 12px; border-radius: 4px;
+                font-size: 11px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #6a8ac8; }
+            QPushButton:disabled { background-color: #444444; color: #666666; }
+        """)
+        self._btn_save.clicked.connect(self._on_save_clicked)
+        self._btn_save_as.clicked.connect(self._on_save_as_clicked)
+
+        btn_layout.addWidget(self._btn_save_as)
+        btn_layout.addStretch()
+
+        layout.addLayout(btn_layout)
+
         return panel
 
     def _on_field_clicked(self, item: QTreeWidgetItem, column: int):
@@ -372,6 +414,7 @@ class EditorWidget(QWidget):
         self._fields = fields or []
         self._modified = False
         self._dirty = False
+        self._update_save_buttons()
 
         # 자동 저장 경로 설정
         self._auto_save.set_file_path(template_path)
@@ -435,6 +478,16 @@ class EditorWidget(QWidget):
             field["excel_index"] = new_index
             item.setText(0, str(new_index))
             self.column_highlight_requested.emit(new_index)
+        self._update_save_buttons()
+
+    def _update_save_buttons(self):
+        """dirty 및 is_builtin 상태에 따라 저장 버튼 활성화/비활성화"""
+        if self._dirty:
+            self._btn_save_as.setEnabled(True)
+            self._btn_save.setEnabled(not self._is_builtin)
+        else:
+            self._btn_save.setEnabled(False)
+            self._btn_save_as.setEnabled(False)
 
     def load_template_from_path(self, template_path: Path):
         """파일에서 템플릿 로드
@@ -449,6 +502,34 @@ class EditorWidget(QWidget):
         except Exception as e:
             self._html_content = f"<!-- 파일 로드 실패: {e} -->"
             self._update_preview()
+
+    def _on_save_clicked(self):
+        """저장 버튼 클릭"""
+        self.mapping_save_requested.emit()
+        self._dirty = False
+        self._update_save_buttons()
+
+    def _on_save_as_clicked(self):
+        """다른 이름으로 저장 버튼 클릭"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+
+        dialog = SaveAsDialog(
+            original_name=self._template_id or "",
+            categories=self._categories if hasattr(self, '_categories') else [],
+            default_category=self._category or "" if hasattr(self, '_category') else "",
+            existing_names=self._existing_names if hasattr(self, '_existing_names') else [],
+            parent=self,
+        )
+        if dialog.exec() == SaveAsDialog.DialogCode.Accepted:
+            self.mapping_save_as_requested.emit(dialog.get_name(), dialog.get_category())
+            self._dirty = False
+            self._update_save_buttons()
+
+    def set_save_as_context(self, categories: list, default_category: str, existing_names: list):
+        """다른 이름으로 저장 다이얼로그에 필요한 컨텍스트 설정"""
+        self._categories = categories
+        self._category = default_category
+        self._existing_names = existing_names
 
     def set_mode(self, mode: int):
         """모드 설정
