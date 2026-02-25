@@ -665,6 +665,15 @@ class MainWindow(QMainWindow):
         except Exception:
             self._template_scroll_positions = {}
 
+        # 카테고리 필터 복구
+        saved_category = self._settings.value("categoryFilter", "")
+        if saved_category:
+            combo = self._toolbar.combo_category_filter
+            for i in range(combo.count()):
+                if combo.itemData(i) == saved_category:
+                    combo.setCurrentIndex(i)
+                    break
+
         # 확대/축소 복구
         zoom = self._settings.value("zoomLevel", 100, type=int)
         self._toolbar.set_zoom(zoom)
@@ -711,6 +720,12 @@ class MainWindow(QMainWindow):
             # 모드 상태 저장
             self._settings.setValue("viewMode", self._toolbar.get_current_mode())
             self._settings.setValue("zoomLevel", self._toolbar.get_current_zoom())
+
+            # 카테고리 필터 저장
+            cat_index = self._toolbar.combo_category_filter.currentIndex()
+            cat_id = self._toolbar.combo_category_filter.itemData(cat_index)
+            if cat_id:
+                self._settings.setValue("categoryFilter", cat_id)
 
             # 템플릿별 스크롤 위치 저장
             import json

@@ -111,8 +111,8 @@ class TestCategoryFilter:
         """카테고리 필터 콤보박스 존재"""
         assert hasattr(toolbar, "combo_category_filter")
 
-    def test_filter_has_all_option(self, toolbar):
-        """'전체' 옵션 존재"""
+    def test_filter_has_no_all_option(self, toolbar):
+        """'전체' 옵션이 없어야 함"""
         templates = [
             ("rula", "RULA", "ergonomic"),
         ]
@@ -123,7 +123,7 @@ class TestCategoryFilter:
 
         combo = toolbar.combo_category_filter
         texts = [combo.itemText(i) for i in range(combo.count())]
-        assert "전체" in texts
+        assert "전체" not in texts
 
     def test_filter_has_category_options(self, toolbar):
         """카테고리 옵션들이 있음"""

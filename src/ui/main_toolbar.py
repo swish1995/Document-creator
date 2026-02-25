@@ -226,7 +226,6 @@ class MainToolbar(QToolBar):
         self.combo_category_filter.setToolTip("카테고리 필터")
         self.combo_category_filter.setMinimumWidth(90)
         self.combo_category_filter.setFixedHeight(28)
-        self.combo_category_filter.addItem("전체", "")
         self.addWidget(self.combo_category_filter)
 
         # 템플릿 설정 버튼
@@ -383,7 +382,7 @@ class MainToolbar(QToolBar):
 
     def _on_category_filter_changed(self, index: int):
         """카테고리 필터 변경"""
-        category_id = self.combo_category_filter.itemData(index) or ""
+        category_id = self.combo_category_filter.itemData(index)
         self.category_filter_changed.emit(category_id)
 
     def _on_zoom_changed(self, text: str):
@@ -423,7 +422,6 @@ class MainToolbar(QToolBar):
         # 카테고리 필터 업데이트
         self.combo_category_filter.blockSignals(True)
         self.combo_category_filter.clear()
-        self.combo_category_filter.addItem("전체", "")
         for cat in categories:
             self.combo_category_filter.addItem(cat["name"], cat["id"])
         self.combo_category_filter.blockSignals(False)
