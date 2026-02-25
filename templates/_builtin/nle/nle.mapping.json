@@ -3,6 +3,7 @@
   "version": "1.0",
   "type": "html",
   "safety_indicator": "NLE",
+  "category": "ergonomic",
   "description": "NIOSH Lifting Equation",
   "_meta": {
     "field_schema": {

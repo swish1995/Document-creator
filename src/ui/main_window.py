@@ -288,6 +288,7 @@ class MainWindow(QMainWindow):
         self._toolbar.data_sheet_toggled.connect(self._on_data_sheet_toggled)
         self._toolbar.template_selected.connect(self._on_toolbar_template_selected)
         self._toolbar.template_manage_requested.connect(self._on_manage_templates)
+        self._toolbar.category_filter_changed.connect(self._on_category_filter_changed)
         self._toolbar.mode_changed.connect(self._on_mode_changed)
         self._toolbar.zoom_changed.connect(self._on_zoom_changed)
         self._toolbar.generate_requested.connect(self._on_export_clicked)
@@ -297,35 +298,51 @@ class MainWindow(QMainWindow):
         self._update_toolbar_templates()
         self._load_initial_template()
 
-    # 안전지표 정렬 순서
-    SAFETY_INDICATOR_ORDER = ["RULA", "REBA", "OWAS", "NLE", "SI"]
-
     def _get_template_sort_key(self, template) -> tuple:
-        """템플릿 정렬 키 반환 (안전지표 순서)"""
-        indicator = template.safety_indicator
-        if indicator and indicator in self.SAFETY_INDICATOR_ORDER:
-            order_index = self.SAFETY_INDICATOR_ORDER.index(indicator)
-        else:
-            order_index = len(self.SAFETY_INDICATOR_ORDER)  # 안전지표 없으면 맨 뒤
-        return (not template.is_builtin, order_index, template.name.upper())
+        """템플릿 정렬 키 반환 (카테고리 → 안전지표 순서 → 이름순)"""
+        from src.core.template_manager import SAFETY_INDICATORS
+
+        category = getattr(template, 'category', None)
+        # 카테고리 순서 조회
+        cat_order = 999
+        if category and hasattr(self, '_template_manager') and self._template_manager:
+            for cat in self._template_manager.categories:
+                if cat["id"] == category:
+                    cat_order = cat.get("sort_order", 999)
+                    break
+        # 안전지표 순서 (RULA=0, REBA=1, OWAS=2, NLE=3, SI=4)
+        si = getattr(template, 'safety_indicator', None)
+        si_order = len(SAFETY_INDICATORS)
+        if si and si in SAFETY_INDICATORS:
+            si_order = SAFETY_INDICATORS.index(si)
+        return (not template.is_builtin, cat_order, si_order, template.name.upper())
 
     def _update_toolbar_templates(self):
-        """툴바의 템플릿 드롭다운 업데이트"""
+        """툴바의 템플릿 드롭다운 업데이트 (카테고리 그룹핑)"""
         if self._template_storage:
-            # 템플릿 목록을 safety_indicator 순서로 정렬 (RULA→REBA→OWAS→NLE→SI)
             all_templates = self._template_storage.get_all_templates()
             sorted_templates = sorted(all_templates, key=self._get_template_sort_key)
 
-            # 활성화된 템플릿만 표시
+            # 활성화된 템플릿만 표시 (카테고리 정보 포함)
             templates = []
             for t in sorted_templates:
                 is_active = True
                 if t.metadata and hasattr(t.metadata, 'is_active'):
                     is_active = t.metadata.is_active
                 if is_active:
-                    templates.append((t.id, t.name))
+                    category = getattr(t, 'category', None)
+                    templates.append((t.id, t.name, category))
 
-            self._toolbar.set_templates(templates)
+            # 카테고리 목록 가져오기
+            categories = []
+            if hasattr(self, '_template_manager') and self._template_manager:
+                categories = self._template_manager.categories
+
+            if categories:
+                self._toolbar.set_templates_grouped(templates, categories)
+            else:
+                # 카테고리 없으면 기존 방식
+                self._toolbar.set_templates([(t[0], t[1]) for t in templates])
 
     def _load_initial_template(self):
         """앱 시작 시 첫 번째 활성화된 템플릿 로드"""
@@ -344,6 +361,15 @@ class MainWindow(QMainWindow):
                         self._toolbar.set_current_template(template.id)
                         self._on_toolbar_template_selected(template.id)
                         break
+
+    def _on_category_filter_changed(self, category_id: str):
+        """카테고리 필터 변경"""
+        self._toolbar._update_template_combo(filter_category=category_id)
+        # 콤보 재구성 후 선택된 첫 번째 템플릿으로 에디터 갱신
+        index = self._toolbar.combo_template.currentIndex()
+        template_id = self._toolbar.combo_template.itemData(index)
+        if template_id:
+            self._on_toolbar_template_selected(template_id)
 
     def _on_data_sheet_toggled(self, visible: bool):
         """데이터 시트 표시/숨김 토글"""
@@ -795,26 +821,20 @@ class MainWindow(QMainWindow):
         self._update_previews(preview_row)
 
     def _get_active_template_names(self) -> List[str]:
-        """활성화된 모든 템플릿 이름 목록 반환 (SAFETY_INDICATORS 순서)"""
+        """활성화된 모든 템플릿 이름 목록 반환 (카테고리 순서)"""
         if not self._template_storage:
             return []
 
-        names = []
+        active_templates = []
         for template in self._template_storage.get_all_templates():
             is_active = True
             if template.metadata and hasattr(template.metadata, 'is_active'):
                 is_active = template.metadata.is_active
             if is_active:
-                names.append(template.name)
+                active_templates.append(template)
 
-        # SAFETY_INDICATORS 순서로 정렬: RULA → REBA → OWAS → NLE → SI
-        from src.core.template_manager import SAFETY_INDICATORS
-        def sort_key(name: str) -> int:
-            try:
-                return SAFETY_INDICATORS.index(name)
-            except ValueError:
-                return len(SAFETY_INDICATORS)
-        return sorted(names, key=sort_key)
+        sorted_templates = sorted(active_templates, key=self._get_template_sort_key)
+        return [t.name for t in sorted_templates]
 
     def _on_export_clicked(self):
         """내보내기 버튼 클릭"""

@@ -3,6 +3,7 @@
   "version": "1.0",
   "type": "html",
   "safety_indicator": "SI",
+  "category": "ergonomic",
   "description": "Strain Index",
   "_meta": {
     "field_schema": {

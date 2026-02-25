@@ -3,6 +3,7 @@
   "version": "2.0",
   "type": "html",
   "safety_indicator": "OWAS",
+  "category": "ergonomic",
   "description": "Ovako Working Posture Analysis System",
   "_meta": {
     "field_schema": {

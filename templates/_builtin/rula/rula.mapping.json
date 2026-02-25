@@ -3,6 +3,7 @@
   "version": "2.0",
   "type": "html",
   "safety_indicator": "RULA",
+  "category": "ergonomic",
   "description": "Rapid Upper Limb Assessment",
   "page_height_mm": 450,
   "_meta": {

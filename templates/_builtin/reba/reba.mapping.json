@@ -3,6 +3,7 @@
   "version": "2.0",
   "type": "html",
   "safety_indicator": "REBA",
+  "category": "ergonomic",
   "description": "Rapid Entire Body Assessment",
   "_meta": {
     "field_schema": {

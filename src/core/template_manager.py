@@ -32,6 +32,7 @@ class Template:
     mapping_path: Path
     fields: List[Dict[str, Any]] = field(default_factory=list)
     safety_indicator: Optional[str] = None  # RULA, REBA, OWAS, NLE, SI
+    category: Optional[str] = None  # 프리셋 카테고리 (ergonomic, inspection, ...)
     description: str = ""
     page_height_mm: float = 1000.0  # PDF 페이지 높이 (기본값: 충분히 큰 값)
 
@@ -68,6 +69,12 @@ class Template:
         if safety_indicator and safety_indicator not in SAFETY_INDICATORS:
             safety_indicator = None
 
+        # category 필드 처리 (하위 호환: safety_indicator → category 자동 매핑)
+        category = data.get("category")
+        if category is None and safety_indicator:
+            if safety_indicator in SAFETY_INDICATORS:
+                category = "ergonomic"
+
         # 템플릿 파일 경로 찾기
         template_dir = mapping_path.parent
         if template_type == "html":
@@ -86,6 +93,7 @@ class Template:
             mapping_path=mapping_path,
             fields=fields,
             safety_indicator=safety_indicator,
+            category=category,
             description=description,
             page_height_mm=page_height_mm,
         )
@@ -112,6 +120,8 @@ class TemplateManager:
     BUILTIN_DIR = "_builtin"
     USER_DIR = "user"
 
+    CATEGORIES_FILE = "_categories.json"
+
     def __init__(self, templates_dir: Path):
         """
         Args:
@@ -122,7 +132,27 @@ class TemplateManager:
         """
         self._templates_dir = Path(templates_dir)
         self._templates: Dict[str, Template] = {}
+        self._categories: List[Dict[str, Any]] = []
+        self._load_categories()
         self._scan_templates()
+
+    def _load_categories(self) -> None:
+        """카테고리 설정 파일 로드"""
+        categories_path = self._templates_dir / self.BUILTIN_DIR / self.CATEGORIES_FILE
+        if categories_path.exists():
+            try:
+                with open(categories_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                self._categories = data.get("categories", [])
+            except (json.JSONDecodeError, Exception):
+                self._categories = []
+        else:
+            self._categories = []
+
+    @property
+    def categories(self) -> List[Dict[str, Any]]:
+        """카테고리 목록 반환"""
+        return self._categories.copy()
 
     def _scan_templates(self) -> None:
         """템플릿 디렉토리 스캔 (새 구조 + 레거시 구조 지원)"""
@@ -201,15 +231,40 @@ class TemplateManager:
 
     @property
     def template_names(self) -> List[str]:
-        """템플릿 이름 목록 (SAFETY_INDICATORS 순서로 정렬)"""
+        """템플릿 이름 목록 (카테고리 순서 → 이름순 정렬)
+
+        카테고리 설정이 있으면 sort_order 기반으로, 없으면 SAFETY_INDICATORS 순서로 정렬.
+        """
         names = list(self._templates.keys())
-        # SAFETY_INDICATORS 순서대로 정렬, 목록에 없는 템플릿은 뒤로
-        def sort_key(name: str) -> int:
-            try:
-                return SAFETY_INDICATORS.index(name)
-            except ValueError:
-                return len(SAFETY_INDICATORS)
-        return sorted(names, key=sort_key)
+
+        if self._categories:
+            # 카테고리 sort_order 맵 생성
+            category_order = {
+                cat["id"]: cat.get("sort_order", 999)
+                for cat in self._categories
+            }
+            max_order = max(category_order.values(), default=0) + 1
+
+            def sort_key(name: str) -> tuple:
+                template = self._templates.get(name)
+                cat = template.category if template else None
+                order = category_order.get(cat, max_order) if cat else max_order
+                # 안전지표 순서 (RULA=0, REBA=1, OWAS=2, NLE=3, SI=4)
+                si = template.safety_indicator if template else None
+                si_order = len(SAFETY_INDICATORS)
+                if si and si in SAFETY_INDICATORS:
+                    si_order = SAFETY_INDICATORS.index(si)
+                return (order, si_order, name)
+
+            return sorted(names, key=sort_key)
+        else:
+            # 하위 호환: _categories.json 없으면 기존 SAFETY_INDICATORS 순서
+            def sort_key_legacy(name: str) -> int:
+                try:
+                    return SAFETY_INDICATORS.index(name)
+                except ValueError:
+                    return len(SAFETY_INDICATORS)
+            return sorted(names, key=sort_key_legacy)
 
     def refresh(self) -> None:
         """템플릿 목록 새로고침"""

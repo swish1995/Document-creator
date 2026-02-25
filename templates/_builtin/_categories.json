@@ -1,0 +1,10 @@
+{
+  "categories": [
+    {
+      "id": "ergonomic",
+      "name": "인체공학 평가",
+      "description": "RULA, REBA, OWAS 등 근골격계 유해요인 평가",
+      "sort_order": 1
+    }
+  ]
+}

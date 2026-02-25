@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, QPoint
-from PyQt6.QtGui import QAction, QIcon, QKeySequence
+from PyQt6.QtGui import QAction, QIcon, QKeySequence, QStandardItem
 from PyQt6.QtWidgets import (
     QToolBar,
     QToolButton,
@@ -52,6 +52,7 @@ class MainToolbar(QToolBar):
     data_sheet_toggled = pyqtSignal(bool)  # True=표시, False=숨김
     template_selected = pyqtSignal(str)  # 템플릿 ID
     template_manage_requested = pyqtSignal()
+    category_filter_changed = pyqtSignal(str)  # 카테고리 ID ("" = 전체)
     mode_changed = pyqtSignal(int)  # 0=미리보기, 1=매핑
     zoom_changed = pyqtSignal(int)  # 줌 퍼센트
     generate_requested = pyqtSignal()  # 문서 생성 요청
@@ -220,6 +221,14 @@ class MainToolbar(QToolBar):
         template_label.setStyleSheet("color: #999999; font-size: 12px; margin-right: 4px; background-color: transparent;")
         self.addWidget(template_label)
 
+        # 카테고리 필터 드롭다운
+        self.combo_category_filter = ToolbarComboBox()
+        self.combo_category_filter.setToolTip("카테고리 필터")
+        self.combo_category_filter.setMinimumWidth(90)
+        self.combo_category_filter.setFixedHeight(28)
+        self.combo_category_filter.addItem("전체", "")
+        self.addWidget(self.combo_category_filter)
+
         # 템플릿 설정 버튼
         self.btn_manage_template = QPushButton(" 설정")
         self.btn_manage_template.setIcon(QIcon(self._get_icon_path("settings")))
@@ -352,6 +361,7 @@ class MainToolbar(QToolBar):
         # 템플릿 그룹
         self.combo_template.currentTextChanged.connect(self._on_template_changed)
         self.btn_manage_template.clicked.connect(self.template_manage_requested.emit)
+        self.combo_category_filter.currentIndexChanged.connect(self._on_category_filter_changed)
 
         # 출력 그룹
         self.btn_generate.clicked.connect(self.generate_requested.emit)
@@ -367,8 +377,14 @@ class MainToolbar(QToolBar):
             template_id = self.combo_template.itemData(index)
             if template_id:
                 self.template_selected.emit(template_id)
-            else:
+            elif not text.startswith("──"):
+                # 카테고리 헤더가 아닌 경우에만 emit
                 self.template_selected.emit(text)
+
+    def _on_category_filter_changed(self, index: int):
+        """카테고리 필터 변경"""
+        category_id = self.combo_category_filter.itemData(index) or ""
+        self.category_filter_changed.emit(category_id)
 
     def _on_zoom_changed(self, text: str):
         """줌 변경"""
@@ -391,6 +407,99 @@ class MainToolbar(QToolBar):
 
         for template_id, template_name in templates:
             self.combo_template.addItem(template_name, template_id)
+
+        self.combo_template.blockSignals(False)
+
+    def set_templates_grouped(self, templates: List[tuple], categories: List[dict]):
+        """카테고리별 그룹핑된 템플릿 드롭다운 업데이트
+
+        Args:
+            templates: (id, name, category_id) 튜플 목록
+            categories: 카테고리 정보 딕셔너리 목록
+        """
+        self._all_grouped_templates = templates
+        self._all_categories = categories
+
+        # 카테고리 필터 업데이트
+        self.combo_category_filter.blockSignals(True)
+        self.combo_category_filter.clear()
+        self.combo_category_filter.addItem("전체", "")
+        for cat in categories:
+            self.combo_category_filter.addItem(cat["name"], cat["id"])
+        self.combo_category_filter.blockSignals(False)
+
+        # 템플릿 드롭다운 업데이트
+        self._update_template_combo()
+
+    def _update_template_combo(self, filter_category: str = ""):
+        """템플릿 콤보박스를 카테고리 그룹핑으로 업데이트
+
+        Args:
+            filter_category: 필터할 카테고리 ID ("" = 전체)
+        """
+        if not hasattr(self, "_all_grouped_templates"):
+            return
+
+        self.combo_template.blockSignals(True)
+        self.combo_template.clear()
+
+        # 카테고리 순서 맵
+        cat_order = {cat["id"]: cat for cat in self._all_categories}
+        cat_names = {cat["id"]: cat["name"] for cat in self._all_categories}
+
+        # 카테고리별 그룹핑
+        grouped: dict = {}
+        for tpl_id, tpl_name, tpl_cat in self._all_grouped_templates:
+            cat_key = tpl_cat or ""
+            if cat_key not in grouped:
+                grouped[cat_key] = []
+            grouped[cat_key].append((tpl_id, tpl_name))
+
+        # 정렬된 카테고리 순서로 추가
+        sorted_cats = sorted(
+            self._all_categories,
+            key=lambda c: c.get("sort_order", 999)
+        )
+
+        model = self.combo_template.model()
+
+        for cat in sorted_cats:
+            cat_id = cat["id"]
+            if filter_category and cat_id != filter_category:
+                continue
+            if cat_id not in grouped:
+                continue
+
+            # 카테고리 헤더 추가 (비활성)
+            header_text = f"── {cat['name']} ──"
+            self.combo_template.addItem(header_text)
+            header_idx = self.combo_template.count() - 1
+            item = model.item(header_idx)
+            if item:
+                item.setEnabled(False)
+
+            # 해당 카테고리의 템플릿 추가
+            for tpl_id, tpl_name in grouped[cat_id]:
+                self.combo_template.addItem(f"  {tpl_name}", tpl_id)
+
+        # 카테고리 없는 템플릿 (기타)
+        if "" in grouped:
+            if not filter_category:
+                header_text = "── 기타 ──"
+                self.combo_template.addItem(header_text)
+                header_idx = self.combo_template.count() - 1
+                item = model.item(header_idx)
+                if item:
+                    item.setEnabled(False)
+
+                for tpl_id, tpl_name in grouped[""]:
+                    self.combo_template.addItem(f"  {tpl_name}", tpl_id)
+
+        # 첫 번째 선택 가능한 아이템으로 설정 (카테고리 헤더 스킵)
+        for i in range(self.combo_template.count()):
+            if self.combo_template.itemData(i):
+                self.combo_template.setCurrentIndex(i)
+                break
 
         self.combo_template.blockSignals(False)
 

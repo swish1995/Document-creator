@@ -1,6 +1,6 @@
 """엑셀 파일 로더 모듈
 
-Skeleton Analyzer에서 생성된 엑셀 파일을 로드하고 데이터를 제공합니다.
+엑셀 파일(.xlsx)을 로드하고 데이터를 제공합니다.
 수식이 포함된 셀은 내장 수식 평가기를 사용하여 계산합니다.
 이미지가 포함된 셀은 임시 디렉토리에 추출하여 경로를 제공합니다.
 """
@@ -53,7 +53,9 @@ class ExcelLoaderError(Exception):
 class ExcelLoader:
     """엑셀 파일 로더
 
-    Skeleton Analyzer 출력 엑셀 파일의 Capture Data 시트를 로드합니다.
+    엑셀 파일을 로드하고 지정된 시트의 데이터를 제공합니다.
+    시트명은 프리셋(mapping.json)의 data_source.sheet_name으로 지정하거나,
+    기본값("Capture Data") 또는 첫 번째 시트로 폴백합니다.
     """
 
     DEFAULT_SHEET_NAME = "Capture Data"
@@ -72,6 +74,7 @@ class ExcelLoader:
         self._use_data_only: bool = False  # data_only 폴백 모드 여부
         self._image_map: dict[str, Path] = {}  # 셀 주소 → 이미지 경로 매핑
         self._thumbnail_map: dict[str, Path] = {}  # 셀 주소 → 썸네일 경로 매핑
+        self._target_sheet_name: str | None = None  # 사용자 지정 시트명
 
         # 이미지 디렉토리 설정
         if base_dir is None:
@@ -138,7 +141,8 @@ class ExcelLoader:
         self._ensure_loaded()
         return len(self._data)
 
-    def load(self, file_path: Path | str, progress_callback: callable = None) -> None:
+    def load(self, file_path: Path | str, progress_callback: callable = None,
+             sheet_name: str | None = None) -> None:
         """엑셀 파일 로드
 
         Args:
@@ -149,11 +153,13 @@ class ExcelLoader:
                 - step 3: 값 변환 중
                 - step 4: 이미지 추출 중
                 - step 5: 데이터 로드 중
+            sheet_name: 로드할 시트명 (None이면 기본값 사용)
 
         Raises:
             ExcelLoaderError: 파일을 찾을 수 없거나 형식이 잘못된 경우
         """
         file_path = Path(file_path)
+        self._target_sheet_name = sheet_name
 
         if not file_path.exists():
             raise ExcelLoaderError(f"파일을 찾을 수 없습니다: {file_path}")
@@ -188,6 +194,8 @@ class ExcelLoader:
                 file_path, read_only=True, data_only=use_data_only
             )
             self._use_data_only = use_data_only
+        except ExcelLoaderError:
+            raise
         except InvalidFileException as e:
             raise ExcelLoaderError(f"잘못된 엑셀 파일 형식입니다: {e}")
         except Exception as e:
@@ -236,9 +244,9 @@ class ExcelLoader:
             self._logger.info(f"이미지용 워크북 열기: {time.time() - t_open:.2f}초")
 
             # 대상 시트 선택
-            if self.DEFAULT_SHEET_NAME in wb.sheetnames:
-                sheet = wb[self.DEFAULT_SHEET_NAME]
-            else:
+            try:
+                sheet = self._resolve_sheet(wb)
+            except ExcelLoaderError:
                 sheet = wb.active
 
             images = sheet._images
@@ -308,12 +316,11 @@ class ExcelLoader:
             wb = openpyxl.load_workbook(file_path, read_only=False, data_only=False)
 
             # 대상 시트 선택
-            if self.DEFAULT_SHEET_NAME in wb.sheetnames:
-                ws = wb[self.DEFAULT_SHEET_NAME]
-                sheet_name = self.DEFAULT_SHEET_NAME
-            else:
+            try:
+                ws = self._resolve_sheet(wb)
+            except ExcelLoaderError:
                 ws = wb.active
-                sheet_name = ws.title
+            sheet_name = ws.title
 
             self._logger.info(f"엑셀 파일 읽기 완료 ({time.time() - t0:.1f}초)")
 
@@ -351,6 +358,10 @@ class ExcelLoader:
 
             self._logger.info(f"비수식 셀 {len(cell_values)}개, 수식 셀 {len(formulas)}개")
             wb.close()
+
+            # Named Range와 수식이 모두 없으면 수식 평가 스킵
+            if len(tables) == 0 and len(formulas) == 0:
+                self._logger.info("Named Range/수식 없음 → 수식 평가 스킵, data_only 폴백 사용")
 
             # 수식 반복 계산 (의존성 순서 자동 해결)
             eval_namespace: Dict[str, Any] = {
@@ -435,15 +446,35 @@ class ExcelLoader:
         except Exception:
             return None
 
+    def _resolve_sheet(self, wb) -> Any:
+        """시트 선택 로직 (우선순위: 사용자 지정 → DEFAULT → 첫 번째 시트)
+
+        Args:
+            wb: openpyxl Workbook
+
+        Returns:
+            선택된 시트
+
+        Raises:
+            ExcelLoaderError: 지정한 시트를 찾을 수 없는 경우
+        """
+        if self._target_sheet_name:
+            if self._target_sheet_name in wb.sheetnames:
+                return wb[self._target_sheet_name]
+            raise ExcelLoaderError(
+                f"시트를 찾을 수 없습니다: '{self._target_sheet_name}' "
+                f"(사용 가능: {wb.sheetnames})"
+            )
+
+        if self.DEFAULT_SHEET_NAME in wb.sheetnames:
+            return wb[self.DEFAULT_SHEET_NAME]
+
+        return wb.active
+
     def _load_sheet(self) -> None:
         """시트 데이터 로드"""
-        # Capture Data 시트 또는 첫 번째 시트 선택
-        if self.DEFAULT_SHEET_NAME in self._workbook.sheetnames:
-            self._sheet = self._workbook[self.DEFAULT_SHEET_NAME]
-            sheet_name = self.DEFAULT_SHEET_NAME
-        else:
-            self._sheet = self._workbook.active
-            sheet_name = self._sheet.title
+        self._sheet = self._resolve_sheet(self._workbook)
+        sheet_name = self._sheet.title
 
         # 헤더 읽기 (첫 번째 행)
         rows = list(self._sheet.iter_rows(values_only=False))
