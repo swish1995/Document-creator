@@ -429,6 +429,8 @@ class MainWindow(QMainWindow):
                 )
                 # 다른 이름으로 저장 다이얼로그 컨텍스트 설정
                 self._update_save_as_context(template)
+                # 엑셀 하이라이트 초기화
+                self._excel_viewer.clear_highlight()
                 self.statusBar().showMessage(f"템플릿 로드됨: {template.name}")
             except Exception as e:
                 self._logger.error(f"템플릿 로드 실패: {e}")
