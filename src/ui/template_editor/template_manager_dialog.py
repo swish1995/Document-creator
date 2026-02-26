@@ -1,12 +1,14 @@
 """템플릿 설정 다이얼로그 모듈
 
 템플릿의 이름, 설명, 활성화 상태를 관리하는 다이얼로그입니다.
+카테고리별 탭으로 구분하고, 각 탭 안에서 빌트인/사용자를 소제목으로 구분합니다.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, List, Optional, Any
 
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, QRectF
 from PyQt6.QtGui import QIcon, QPainter, QColor, QPen
@@ -26,6 +28,7 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QSplitter,
     QSpinBox,
+    QTabWidget,
 )
 
 from src.core.template_storage import TemplateStorage, ExtendedTemplate
@@ -145,6 +148,7 @@ class TemplateManagerDialog(QDialog):
     """템플릿 설정 다이얼로그
 
     템플릿의 이름, 설명, 활성화 상태를 관리합니다.
+    카테고리별 탭으로 구분하고, 각 탭 안에서 빌트인/사용자를 소제목으로 구분합니다.
     """
 
     # 시그널
@@ -160,6 +164,7 @@ class TemplateManagerDialog(QDialog):
         self._pending_changes: Dict[str, Dict[str, Any]] = {}  # 템플릿별 변경사항
         self._original_values: Dict[str, Dict[str, Any]] = {}  # 템플릿별 원본 값
         self._skip_save_prompt = False  # 취소 시 저장 확인 건너뛰기
+        self._tab_lists: Dict[str, QListWidget] = {}  # category_id -> QListWidget
 
         self.setWindowTitle("템플릿 설정")
         self.setMinimumSize(700, 500)
@@ -212,6 +217,29 @@ class TemplateManagerDialog(QDialog):
             QLabel {
                 color: #ffffff;
             }
+            QTabWidget::pane {
+                border: 1px solid #444444;
+                background-color: #333333;
+                top: -1px;
+            }
+            QTabBar::tab {
+                background-color: #3a3a3a;
+                color: #aaaaaa;
+                padding: 6px 12px;
+                border: 1px solid #444444;
+                border-bottom: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                margin-right: 2px;
+            }
+            QTabBar::tab:selected {
+                background-color: #333333;
+                color: #ffffff;
+                border-bottom: 1px solid #333333;
+            }
+            QTabBar::tab:hover:!selected {
+                background-color: #444444;
+            }
         """)
 
         layout = QVBoxLayout(self)
@@ -222,14 +250,14 @@ class TemplateManagerDialog(QDialog):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         layout.addWidget(splitter, 1)
 
-        # 왼쪽: 템플릿 목록
+        # 왼쪽: 카테고리 탭 + 템플릿 목록
         left_group = QGroupBox("템플릿")
         left_layout = QVBoxLayout(left_group)
         left_layout.setContentsMargins(8, 12, 8, 8)
 
-        self._template_list = QListWidget()
-        self._template_list.itemSelectionChanged.connect(self._on_template_selected)
-        left_layout.addWidget(self._template_list)
+        self._tab_widget = QTabWidget()
+        self._tab_widget.currentChanged.connect(self._on_tab_changed)
+        left_layout.addWidget(self._tab_widget)
 
         splitter.addWidget(left_group)
 
@@ -332,6 +360,20 @@ class TemplateManagerDialog(QDialog):
 
         return panel
 
+    def _load_categories(self) -> List[Dict[str, Any]]:
+        """_categories.json에서 카테고리 목록 로드"""
+        categories_path = self._storage._builtin_dir / "_categories.json"
+        if categories_path.exists():
+            try:
+                with open(categories_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                categories = data.get("categories", [])
+                categories.sort(key=lambda c: c.get("sort_order", 999))
+                return categories
+            except Exception:
+                pass
+        return []
+
     def _get_template_sort_key(self, template: ExtendedTemplate) -> tuple:
         """템플릿 정렬 키 (안전지표 순서: RULA → REBA → OWAS → NLE → SI)"""
         indicator = template.safety_indicator
@@ -353,9 +395,33 @@ class TemplateManagerDialog(QDialog):
             return template.metadata.is_active
         return True
 
+    def _get_current_list(self) -> Optional[QListWidget]:
+        """현재 활성 탭의 QListWidget 반환"""
+        current_widget = self._tab_widget.currentWidget()
+        if isinstance(current_widget, QListWidget):
+            return current_widget
+        return None
+
+    def _select_first_selectable_item(self, list_widget: Optional[QListWidget]):
+        """리스트의 첫 번째 선택 가능한 아이템 선택"""
+        if not list_widget:
+            return
+        for i in range(list_widget.count()):
+            item = list_widget.item(i)
+            if item.flags() & Qt.ItemFlag.ItemIsSelectable:
+                list_widget.setCurrentItem(item)
+                return
+
     def _load_templates(self):
-        """템플릿 목록 로드 (안전지표 순서로 정렬)"""
-        self._template_list.clear()
+        """템플릿 목록 로드 (카테고리별 탭, 빌트인/사용자 구분)"""
+        # 기존 탭 제거
+        self._tab_widget.blockSignals(True)
+        self._tab_widget.clear()
+        self._tab_lists.clear()
+
+        # 카테고리 로드
+        categories = self._load_categories()
+        category_ids = [cat['id'] for cat in categories]
 
         # 모든 템플릿 가져와서 정렬
         all_templates = sorted(
@@ -363,23 +429,92 @@ class TemplateManagerDialog(QDialog):
             key=self._get_template_sort_key
         )
 
+        # 카테고리별로 그룹핑
+        grouped: Dict[str, Dict[str, list]] = {}
+        for cat_id in category_ids:
+            grouped[cat_id] = {'builtin': [], 'user': []}
+        grouped['_other'] = {'builtin': [], 'user': []}
+
+        has_other = False
         for template in all_templates:
-            # 활성화 상태 확인 (pending 포함)
-            is_active = self._get_template_active_state(template)
+            cat = template.category if template.category in category_ids else '_other'
+            if cat == '_other':
+                has_other = True
+            key = 'builtin' if template.is_builtin else 'user'
+            grouped[cat][key].append(template)
 
-            # 비활성화된 템플릿은 회색으로 표시
-            if is_active:
-                item = QListWidgetItem(f"  {template.name}")
-            else:
-                item = QListWidgetItem(f"  {template.name} (비활성)")
-                item.setForeground(Qt.GlobalColor.gray)
+        # 카테고리별 탭 생성
+        for cat in categories:
+            list_widget = QListWidget()
+            list_widget.itemSelectionChanged.connect(self._on_template_selected)
+            self._tab_lists[cat['id']] = list_widget
+            self._tab_widget.addTab(list_widget, cat['name'])
+            self._populate_list(list_widget, grouped.get(cat['id'], {'builtin': [], 'user': []}))
 
-            item.setData(Qt.ItemDataRole.UserRole, template.id)
-            self._template_list.addItem(item)
+        # "기타" 탭 (미분류 템플릿이 있을 때만)
+        if has_other:
+            other_list = QListWidget()
+            other_list.itemSelectionChanged.connect(self._on_template_selected)
+            self._tab_lists['_other'] = other_list
+            self._tab_widget.addTab(other_list, "기타")
+            self._populate_list(other_list, grouped['_other'])
 
-        # 첫 번째 템플릿 자동 선택
-        if self._template_list.count() > 0:
-            self._template_list.setCurrentRow(0)
+        self._tab_widget.blockSignals(False)
+
+        # 첫 번째 탭의 첫 번째 선택 가능한 아이템 자동 선택
+        self._select_first_selectable_item(self._get_current_list())
+
+    def _populate_list(self, list_widget: QListWidget, group: Dict[str, list]):
+        """리스트 위젯에 빌트인/사용자 구분하여 템플릿 추가"""
+        if group['builtin']:
+            header = QListWidgetItem("── 빌트인 ──")
+            header.setFlags(Qt.ItemFlag.NoItemFlags)
+            header.setForeground(QColor("#888888"))
+            list_widget.addItem(header)
+
+            for template in group['builtin']:
+                self._add_template_item(list_widget, template)
+
+        if group['user']:
+            header = QListWidgetItem("── 사용자 ──")
+            header.setFlags(Qt.ItemFlag.NoItemFlags)
+            header.setForeground(QColor("#888888"))
+            list_widget.addItem(header)
+
+            for template in group['user']:
+                self._add_template_item(list_widget, template)
+
+    def _add_template_item(self, list_widget: QListWidget, template: ExtendedTemplate):
+        """리스트에 템플릿 아이템 추가"""
+        is_active = self._get_template_active_state(template)
+
+        if is_active:
+            item = QListWidgetItem(f"  {template.name}")
+        else:
+            item = QListWidgetItem(f"  {template.name} (비활성)")
+            item.setForeground(Qt.GlobalColor.gray)
+
+        item.setData(Qt.ItemDataRole.UserRole, template.id)
+        list_widget.addItem(item)
+
+    def _on_tab_changed(self, index: int):
+        """탭 전환 시 처리"""
+        # 현재 템플릿의 변경사항을 pending에 저장
+        self._save_current_to_pending()
+
+        current_list = self._get_current_list()
+        if not current_list:
+            return
+
+        if current_list.selectedItems():
+            # 이미 선택된 아이템이 있으면 상세 패널 업데이트
+            template_id = current_list.selectedItems()[0].data(Qt.ItemDataRole.UserRole)
+            if template_id:
+                self._selected_template = self._storage.get_template(template_id)
+                self._update_detail_panel(self._selected_template)
+        else:
+            # 선택된 아이템이 없으면 첫 번째 선택 가능한 아이템 선택
+            self._select_first_selectable_item(current_list)
 
     def _save_current_to_pending(self):
         """현재 템플릿의 변경사항을 pending에 저장 (원본과 다른 경우에만)"""
@@ -568,7 +703,11 @@ class TemplateManagerDialog(QDialog):
         if not self._selected_template:
             return
 
-        items = self._template_list.selectedItems()
+        current_list = self._get_current_list()
+        if not current_list:
+            return
+
+        items = current_list.selectedItems()
         if not items:
             return
 
@@ -588,13 +727,23 @@ class TemplateManagerDialog(QDialog):
         # 현재 템플릿의 변경사항을 pending에 저장
         self._save_current_to_pending()
 
-        items = self._template_list.selectedItems()
+        current_list = self._get_current_list()
+        if not current_list:
+            self._selected_template = None
+            self._update_detail_panel(None)
+            return
+
+        items = current_list.selectedItems()
         if not items:
             self._selected_template = None
             self._update_detail_panel(None)
             return
 
         template_id = items[0].data(Qt.ItemDataRole.UserRole)
+        if template_id is None:
+            # 헤더 아이템 (disabled이므로 일반적으로 선택 불가)
+            return
+
         self._selected_template = self._storage.get_template(template_id)
         self._update_detail_panel(self._selected_template)
 
