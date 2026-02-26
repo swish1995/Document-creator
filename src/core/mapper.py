@@ -118,13 +118,25 @@ class Mapper:
             else:
                 value = None
 
-            # 이미지 타입인 경우 img 태그로 변환
-            if field_type == "image" and value is not None:
-                value = self._convert_image_to_img_tag(value)
+            # 이미지 처리: type="image" 이거나 값이 이미지 파일 경로인 경우
+            if value is not None:
+                if field_type == "image" or self._is_image_path(value):
+                    value = self._convert_image_to_img_tag(value)
 
             result[field_id] = value
 
         return result
+
+    @staticmethod
+    def _is_image_path(value) -> bool:
+        """값이 이미지 파일 경로인지 판별"""
+        if not isinstance(value, (str, Path)):
+            return False
+        try:
+            path = Path(value)
+            return path.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif", ".webp")
+        except Exception:
+            return False
 
     def _convert_image_to_img_tag(self, image_path) -> str:
         """이미지 경로를 완전한 img 태그로 변환

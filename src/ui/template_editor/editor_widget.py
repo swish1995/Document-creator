@@ -748,11 +748,14 @@ class EditorWidget(QWidget):
                     if excel_column and excel_column in self._preview_data:
                         value = self._preview_data[excel_column]
 
-                # 이미지 필드는 Base64 img 태그로 변환
-                if field_id in image_fields and value:
+                # 이미지 처리: type="image" 이거나 값이 이미지 파일 경로인 경우
+                is_image = field_id in image_fields or self._is_image_path(value)
+                if is_image and value:
                     img_tag = self._convert_image_to_img_tag(value)
                     if img_tag:
                         mapped_data[field_id] = img_tag
+                        if field_id not in image_fields:
+                            image_fields.append(field_id)
                     # 변환 실패하면 저장 안 함 (빈 상태)
                 elif value is not None:
                     mapped_data[field_id] = str(value)
@@ -805,6 +808,17 @@ class EditorWidget(QWidget):
         }})();
         </script>
         """
+
+    @staticmethod
+    def _is_image_path(value) -> bool:
+        """값이 이미지 파일 경로인지 판별"""
+        if not isinstance(value, (str, Path)):
+            return False
+        try:
+            path = Path(value)
+            return path.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif", ".webp")
+        except Exception:
+            return False
 
     def _convert_image_to_img_tag(self, image_path) -> str:
         """이미지 경로를 Base64 img 태그로 변환"""
