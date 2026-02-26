@@ -105,6 +105,7 @@ class ToggleSwitch(QWidget):
 BUTTON_COLORS = {
     'save': ('#5ab87a', '#4aa86a', '#6ac88a'),      # 초록색 (저장)
     'cancel': ('#7a7a7a', '#6a6a6a', '#8a8a8a'),    # 회색 (취소)
+    'delete': ('#d64545', '#c03535', '#e65555'),     # 빨간색 (삭제)
 }
 
 
@@ -258,6 +259,16 @@ class TemplateManagerDialog(QDialog):
         self._tab_widget = QTabWidget()
         self._tab_widget.currentChanged.connect(self._on_tab_changed)
         left_layout.addWidget(self._tab_widget)
+
+        # 삭제 버튼 (사용자 템플릿만)
+        self._delete_btn = QPushButton(" 삭제")
+        self._delete_btn.setIcon(QIcon(_get_icon_path("cancel")))
+        self._delete_btn.setIconSize(QSize(12, 12))
+        self._delete_btn.setFixedHeight(26)
+        self._delete_btn.setStyleSheet(_get_button_style('delete'))
+        self._delete_btn.clicked.connect(self._on_delete_template)
+        self._delete_btn.setEnabled(False)
+        left_layout.addWidget(self._delete_btn)
 
         splitter.addWidget(left_group)
 
@@ -581,6 +592,7 @@ class TemplateManagerDialog(QDialog):
             self._active_toggle.setEnabled(False)
             self._page_height_spin.setValue(1000)
             self._page_height_spin.setEnabled(False)
+            self._delete_btn.setEnabled(False)
         else:
             # 원본 값 저장 (아직 저장되지 않은 경우에만)
             if template.id not in self._original_values:
@@ -637,6 +649,9 @@ class TemplateManagerDialog(QDialog):
             self._page_height_spin.setValue(int(page_height))
             self._page_height_spin.setEnabled(True)
             self._page_height_spin.blockSignals(False)
+
+            # 삭제 버튼: 사용자 템플릿만 활성화
+            self._delete_btn.setEnabled(not template.is_builtin)
 
         # 변경 감지 재개
         self._name_edit.blockSignals(False)
@@ -796,6 +811,49 @@ class TemplateManagerDialog(QDialog):
         # "예" 또는 "아니오" 모두 닫기
         self._skip_save_prompt = True
         self.close()
+
+    def _on_delete_template(self):
+        """사용자 템플릿 삭제"""
+        if not self._selected_template or self._selected_template.is_builtin:
+            return
+
+        template_name = self._name_edit.text().strip() or self._selected_template.name
+        template_id = self._selected_template.id
+
+        # 삭제 확인
+        if not StyledMessageBox.question(
+            self,
+            "템플릿 삭제",
+            f"'{template_name}' 템플릿을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
+        ):
+            return
+
+        try:
+            # pending 변경사항에서 제거
+            self._pending_changes.pop(template_id, None)
+            self._original_values.pop(template_id, None)
+
+            # 스토리지에서 삭제
+            self._storage.delete_template(template_id)
+
+            # 선택 초기화
+            self._selected_template = None
+            self._update_detail_panel(None)
+
+            # 목록 새로고침
+            self._load_templates()
+
+            # 삭제 완료 알림
+            StyledMessageBox.warning(
+                self,
+                "삭제 완료",
+                f"'{template_name}' 템플릿이 삭제되었습니다.",
+            )
+
+            self.templates_changed.emit()
+
+        except Exception as e:
+            StyledMessageBox.warning(self, "오류", f"삭제 실패:\n{e}")
 
     def _on_cancel(self):
         """취소 버튼 클릭 - 저장 확인 없이 바로 닫기"""
