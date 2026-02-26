@@ -462,10 +462,12 @@ class EditorWidget(QWidget):
 
                 combo = QComboBox()
                 combo.addItems(self._excel_headers)
-                if excel_column in self._excel_headers:
+                if excel_index is not None and 0 <= excel_index < len(self._excel_headers):
+                    combo.setCurrentIndex(excel_index)
+                elif excel_column in self._excel_headers:
                     combo.setCurrentText(excel_column)
-                combo.currentTextChanged.connect(
-                    lambda text, f=field, it=item: self._on_combo_changed(text, f, it)
+                combo.currentIndexChanged.connect(
+                    lambda idx, f=field, it=item: self._on_combo_index_changed(idx, f, it)
                 )
                 self._field_tree.setItemWidget(item, 2, combo)
             else:
@@ -475,19 +477,17 @@ class EditorWidget(QWidget):
                 item.setToolTip(1, f"클릭하여 위치 확인: {field_id}")
                 self._field_tree.addTopLevelItem(item)
 
-    def _on_combo_changed(self, text: str, field: Dict[str, Any], item: QTreeWidgetItem):
-        """ComboBox 변경 시 호출"""
+    def _on_combo_index_changed(self, idx: int, field: Dict[str, Any], item: QTreeWidgetItem):
+        """ComboBox 인덱스 변경 시 호출"""
         if self._restoring:
             return
-        self._dirty = True
-        field["excel_column"] = text
-        # 새 컬럼의 인덱스 계산
-        if text in self._excel_headers:
-            new_index = self._excel_headers.index(text)
-            field["excel_index"] = new_index
-            item.setText(0, str(new_index))
-            self.column_highlight_requested.emit(new_index)
-        self._update_save_buttons()
+        if 0 <= idx < len(self._excel_headers):
+            self._dirty = True
+            field["excel_column"] = self._excel_headers[idx]
+            field["excel_index"] = idx
+            item.setText(0, str(idx))
+            self.column_highlight_requested.emit(idx)
+            self._update_save_buttons()
 
     def _update_save_buttons(self):
         """dirty 및 is_builtin 상태에 따라 저장 버튼 활성화/비활성화"""
