@@ -416,8 +416,8 @@ class EditorWidget(QWidget):
         self._template_path = template_path
         self._html_content = html_content
         import copy
-        self._fields = fields or []
-        self._original_fields = copy.deepcopy(self._fields)  # 원본 백업
+        self._fields = copy.deepcopy(fields) if fields else []  # 원본과 분리
+        self._original_fields = copy.deepcopy(self._fields)  # 원복용 백업
         self._is_builtin = is_builtin
         self._modified = False
         self._dirty = False
