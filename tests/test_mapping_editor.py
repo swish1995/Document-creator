@@ -2,9 +2,13 @@
 
 Phase 1: 필드 목록 인덱스 표시
 Phase 2: 인라인 매핑 편집 + 데이터 시트 컬럼 하이라이트
+Phase 3: 저장 UI 및 다이얼로그
+Phase 4: 사용자 템플릿 생성/저장 로직
 """
 
+import json
 import pytest
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -12,6 +16,7 @@ from PyQt6.QtWidgets import QApplication, QHeaderView, QComboBox
 from PyQt6.QtCore import Qt
 
 from src.ui.template_editor.editor_widget import EditorWidget
+from src.core.template_storage import TemplateStorage, TemplateError
 
 
 @pytest.fixture(scope="module")
@@ -310,7 +315,7 @@ class TestSaveButtonBar:
 
 
 class TestSaveAsDialog:
-    """T3.4~T3.5: 다른 이름으로 저장 다이얼로그"""
+    """T3.4~T3.5: 다른 이름으로 저장 다이얼로그 (중복 확인 플로우)"""
 
     def test_save_as_dialog_exists(self):
         """SaveAsDialog 클래스가 존재해야 한다"""
@@ -362,3 +367,289 @@ class TestSaveAsDialog:
             existing_names=["RULA_TEST"],
         )
         assert dialog.is_valid() is True  # 기본 이름 "RULA_복사본"은 유효
+
+    def test_save_button_disabled_before_check(self, app):
+        """중복 확인 전에는 저장 버튼이 비활성화되어야 한다"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+        dialog = SaveAsDialog(
+            original_name="RULA",
+            categories=[{"id": "ergonomic", "name": "인체공학 평가"}],
+            default_category="ergonomic",
+        )
+        assert dialog._btn_ok.isEnabled() is False
+
+    def test_check_button_confirms_name(self, app):
+        """중복 확인 통과 시 이름 잠금 + 저장 활성화"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+        dialog = SaveAsDialog(
+            original_name="RULA",
+            categories=[{"id": "ergonomic", "name": "인체공학 평가"}],
+            default_category="ergonomic",
+            existing_names=[],
+        )
+        dialog._on_check_clicked()
+        assert dialog._name_confirmed is True
+        assert dialog._name_input.isReadOnly() is True
+        assert dialog._btn_ok.isEnabled() is True
+
+    def test_name_change_resets_confirmation(self, app):
+        """이름 변경 시 중복 확인 리셋"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+        dialog = SaveAsDialog(
+            original_name="RULA",
+            categories=[{"id": "ergonomic", "name": "인체공학 평가"}],
+            default_category="ergonomic",
+            existing_names=[],
+        )
+        dialog._on_check_clicked()
+        assert dialog._name_confirmed is True
+        # 이름 변경
+        dialog._name_input.setReadOnly(False)
+        dialog._name_input.setText("NEW_NAME")
+        assert dialog._name_confirmed is False
+        assert dialog._btn_ok.isEnabled() is False
+
+    def test_check_duplicate_name_rejected(self, app):
+        """중복 이름으로 확인 시 거부"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+        dialog = SaveAsDialog(
+            original_name="RULA",
+            categories=[{"id": "ergonomic", "name": "인체공학 평가"}],
+            default_category="ergonomic",
+            existing_names=["RULA_복사본"],
+        )
+        dialog._on_check_clicked()
+        assert dialog._name_confirmed is False
+        assert dialog._btn_ok.isEnabled() is False
+
+    def test_case_insensitive_duplicate_check(self, app):
+        """대소문자 무시 중복 검사 (RULA = rula)"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+        dialog = SaveAsDialog(
+            original_name="test",
+            categories=[{"id": "ergonomic", "name": "인체공학 평가"}],
+            default_category="ergonomic",
+            existing_names=["MY_TEMPLATE"],
+        )
+        dialog._name_input.setText("my_template")
+        dialog._on_check_clicked()
+        assert dialog._name_confirmed is False
+        assert dialog.is_valid() is False
+
+    def test_edit_button_unlocks_name(self, app):
+        """확인 후 수정 버튼 클릭 시 이름 잠금 해제"""
+        from src.ui.template_editor.save_as_dialog import SaveAsDialog
+        dialog = SaveAsDialog(
+            original_name="RULA",
+            categories=[{"id": "ergonomic", "name": "인체공학 평가"}],
+            default_category="ergonomic",
+            existing_names=[],
+        )
+        # 중복 확인 통과
+        dialog._on_check_clicked()
+        assert dialog._name_confirmed is True
+        assert dialog._btn_check.text() == "수정"
+
+        # 수정 버튼 클릭 → 잠금 해제
+        dialog._on_check_clicked()
+        assert dialog._name_confirmed is False
+        assert dialog._name_input.isReadOnly() is False
+        assert dialog._btn_check.text() == "중복 확인"
+        assert dialog._btn_ok.isEnabled() is False
+
+
+class TestFieldRestoration:
+    """원본 필드 백업 및 원복"""
+
+    def test_original_fields_backup(self, editor):
+        """set_template 시 원본 필드가 백업되어야 한다"""
+        fields = [
+            {"id": "f1", "label": "이름", "excel_column": "Name", "excel_index": 0}
+        ]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+        assert editor._original_fields[0]["excel_column"] == "Name"
+
+    def test_restore_original_fields(self, editor):
+        """restore_original_fields 호출 시 원본으로 원복되어야 한다"""
+        editor.set_excel_headers(["Name", "Age"])
+        fields = [
+            {"id": "f1", "label": "이름", "excel_column": "Name", "excel_index": 0}
+        ]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+
+        # 매핑 변경
+        item = editor._field_tree.topLevelItem(0)
+        combo = editor._field_tree.itemWidget(item, 2)
+        combo.setCurrentText("Age")
+        assert editor._fields[0]["excel_column"] == "Age"
+        assert editor._dirty is True
+
+        # 원복
+        editor.restore_original_fields()
+        assert editor._fields[0]["excel_column"] == "Name"
+        assert editor._dirty is False
+
+    def test_is_dirty_property(self, editor):
+        """is_dirty 프로퍼티가 _dirty 상태를 반영해야 한다"""
+        fields = [{"id": "f1", "label": "이름", "excel_column": "Name", "excel_index": 0}]
+        editor.set_template("t", Path("/tmp/t.html"), "<html></html>", fields=fields)
+        assert editor.is_dirty is False
+        editor._dirty = True
+        assert editor.is_dirty is True
+
+
+# ============================================================
+# Phase 4: 사용자 템플릿 생성/저장 로직
+# ============================================================
+
+
+@pytest.fixture
+def storage(tmp_path):
+    """임시 디렉토리 기반 TemplateStorage"""
+    templates_dir = tmp_path / "templates"
+    builtin_dir = templates_dir / "_builtin" / "rula"
+    builtin_dir.mkdir(parents=True)
+
+    # 빌트인 HTML
+    (builtin_dir / "rula.html").write_text("<html>RULA</html>", encoding="utf-8")
+
+    # 빌트인 mapping.json
+    mapping = {
+        "name": "RULA",
+        "version": "2.0",
+        "type": "html",
+        "safety_indicator": "RULA",
+        "category": "ergonomic",
+        "description": "Rapid Upper Limb Assessment",
+        "page_height_mm": 450,
+        "fields": [
+            {"id": "upper_arm", "label": "상박 점수", "excel_column": "Base", "excel_index": 5, "type": "text"},
+            {"id": "lower_arm", "label": "하박 점수", "excel_column": "Score", "excel_index": 6, "type": "text"},
+        ],
+    }
+    (builtin_dir / "rula.mapping.json").write_text(
+        json.dumps(mapping, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    return TemplateStorage(templates_dir)
+
+
+class TestCreateUserTemplateFrom:
+    """T4.1: 빌트인에서 사용자 템플릿 생성"""
+
+    def test_create_from_builtin(self, storage):
+        """빌트인 템플릿 기반으로 사용자 템플릿이 생성되어야 한다"""
+        modified_fields = [
+            {"id": "upper_arm", "label": "상박 점수", "excel_column": "ColA", "excel_index": 0, "type": "text"},
+            {"id": "lower_arm", "label": "하박 점수", "excel_column": "ColB", "excel_index": 1, "type": "text"},
+        ]
+        result = storage.create_user_template_from(
+            src_id="rula",
+            name="RULA_TEST",
+            category="ergonomic",
+            modified_fields=modified_fields,
+        )
+
+        assert result.name == "RULA_TEST"
+        assert result.is_builtin is False
+        assert result.is_readonly is False
+        assert result.fields[0]["excel_column"] == "ColA"
+        assert result.fields[1]["excel_column"] == "ColB"
+
+    def test_created_files_exist(self, storage, tmp_path):
+        """생성된 디렉토리에 template.html, mapping.json, meta.json이 존재해야 한다"""
+        result = storage.create_user_template_from(
+            src_id="rula", name="RULA_FILE", category="ergonomic"
+        )
+        user_dir = tmp_path / "templates" / "user" / result.id
+        assert (user_dir / "template.html").exists()
+        assert (user_dir / "mapping.json").exists()
+        assert (user_dir / "meta.json").exists()
+
+    def test_meta_json_has_category(self, storage, tmp_path):
+        """meta.json에 category 필드가 포함되어야 한다"""
+        result = storage.create_user_template_from(
+            src_id="rula", name="RULA_CAT", category="ergonomic"
+        )
+        meta_path = tmp_path / "templates" / "user" / result.id / "meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        assert meta["category"] == "ergonomic"
+        assert meta["based_on"] == "rula"
+
+    def test_mapping_json_preserves_source_attrs(self, storage, tmp_path):
+        """mapping.json에 원본의 safety_indicator, page_height_mm이 보존되어야 한다"""
+        result = storage.create_user_template_from(
+            src_id="rula", name="RULA_ATTR", category="ergonomic"
+        )
+        mapping_path = tmp_path / "templates" / "user" / result.id / "mapping.json"
+        mapping = json.loads(mapping_path.read_text(encoding="utf-8"))
+        assert mapping["safety_indicator"] == "RULA"
+        assert mapping["page_height_mm"] == 450
+        assert mapping["category"] == "ergonomic"
+
+    def test_invalid_source_raises_error(self, storage):
+        """존재하지 않는 원본 ID로 생성 시 예외가 발생해야 한다"""
+        with pytest.raises(TemplateError):
+            storage.create_user_template_from(
+                src_id="nonexistent", name="TEST", category="ergonomic"
+            )
+
+
+class TestUpdateUserMapping:
+    """T4.2: 사용자 템플릿 매핑 업데이트"""
+
+    def test_update_mapping_fields(self, storage):
+        """사용자 템플릿의 매핑 필드를 업데이트할 수 있어야 한다"""
+        user_template = storage.create_user_template_from(
+            src_id="rula", name="RULA_UPD", category="ergonomic"
+        )
+        new_fields = [
+            {"id": "upper_arm", "label": "상박 점수", "excel_column": "NewCol", "excel_index": 10, "type": "text"},
+            {"id": "lower_arm", "label": "하박 점수", "excel_column": "NewCol2", "excel_index": 11, "type": "text"},
+        ]
+        updated = storage.update_user_mapping(user_template.id, new_fields)
+        assert updated.fields[0]["excel_column"] == "NewCol"
+        assert updated.fields[1]["excel_column"] == "NewCol2"
+
+    def test_update_builtin_raises_error(self, storage):
+        """빌트인 템플릿 매핑 업데이트 시 예외가 발생해야 한다"""
+        with pytest.raises(TemplateError):
+            storage.update_user_mapping("rula", [])
+
+
+class TestBuiltinProtection:
+    """T4.3: 빌트인 보호"""
+
+    def test_builtin_is_readonly(self, storage):
+        """빌트인 템플릿은 is_readonly=True여야 한다"""
+        rula = storage.get_template("rula")
+        assert rula.is_readonly is True
+
+    def test_builtin_not_modified_after_save_as(self, storage):
+        """다른 이름으로 저장 후 빌트인 원본이 변경되지 않아야 한다"""
+        original_fields = storage.get_template("rula").fields.copy()
+
+        storage.create_user_template_from(
+            src_id="rula",
+            name="RULA_COPY",
+            category="ergonomic",
+            modified_fields=[
+                {"id": "upper_arm", "label": "상박 점수", "excel_column": "CHANGED", "excel_index": 99, "type": "text"},
+            ],
+        )
+
+        # 빌트인 원본 확인
+        rula = storage.get_template("rula")
+        assert rula.fields[0]["excel_column"] == original_fields[0]["excel_column"]
+
+
+class TestCategoryPersistence:
+    """T4.4: 카테고리 종속"""
+
+    def test_user_template_has_category(self, storage):
+        """생성된 사용자 템플릿이 카테고리 속성을 가져야 한다"""
+        result = storage.create_user_template_from(
+            src_id="rula", name="RULA_CAT2", category="ergonomic"
+        )
+        template = storage.get_template(result.id)
+        assert template.category == "ergonomic"

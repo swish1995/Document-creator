@@ -352,6 +352,99 @@ class TemplateStorage:
             based_on=src_id,
         )
 
+    def create_user_template_from(
+        self,
+        src_id: str,
+        name: str,
+        category: str = "",
+        modified_fields: Optional[List[Dict[str, Any]]] = None,
+    ) -> ExtendedTemplate:
+        """빌트인 템플릿 기반으로 사용자 템플릿 생성 (매핑 편집기용)
+
+        Args:
+            src_id: 원본 템플릿 ID
+            name: 새 템플릿 이름
+            category: 카테고리 ID
+            modified_fields: 수정된 필드 목록 (None이면 원본 필드 사용)
+
+        Returns:
+            생성된 사용자 템플릿
+
+        Raises:
+            TemplateError: 생성 실패 시
+        """
+        src_template = self.get_template(src_id)
+        if src_template is None:
+            raise TemplateError(f"템플릿을 찾을 수 없습니다: {src_id}")
+
+        # HTML 내용 읽기
+        with open(src_template.template_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+
+        # 원본 mapping.json에서 추가 속성 읽기
+        with open(src_template.mapping_path, "r", encoding="utf-8") as f:
+            src_mapping = json.load(f)
+
+        fields = modified_fields if modified_fields is not None else src_template.fields.copy()
+
+        # 새 템플릿 디렉토리 생성
+        template_id = str(uuid.uuid4())[:8]
+        template_dir = self._user_dir / template_id
+        template_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            # HTML 파일 복사
+            html_path = template_dir / "template.html"
+            with open(html_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+
+            # mapping.json 저장 (원본 속성 유지 + 필드 교체)
+            mapping_data = {
+                "name": name,
+                "version": src_mapping.get("version", "1.0"),
+                "type": src_mapping.get("type", "html"),
+                "safety_indicator": src_mapping.get("safety_indicator"),
+                "category": category or src_mapping.get("category"),
+                "description": src_mapping.get("description", ""),
+                "page_height_mm": src_mapping.get("page_height_mm", 1000.0),
+                "fields": fields,
+            }
+            mapping_path = template_dir / "mapping.json"
+            with open(mapping_path, "w", encoding="utf-8") as f:
+                json.dump(mapping_data, f, ensure_ascii=False, indent=2)
+
+            # meta.json 저장
+            now = datetime.now()
+            meta_data = {
+                "id": template_id,
+                "name": name,
+                "version": "1.0",
+                "based_on": src_id,
+                "category": category or src_mapping.get("category"),
+                "is_active": True,
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+            }
+            meta_path = template_dir / "meta.json"
+            with open(meta_path, "w", encoding="utf-8") as f:
+                json.dump(meta_data, f, ensure_ascii=False, indent=2)
+
+            # 캐시에 추가
+            template = Template.from_mapping_file(mapping_path)
+            metadata = TemplateMetadata.from_dict(meta_data)
+            extended = ExtendedTemplate.from_template(
+                template, template_id, is_builtin=False, metadata=metadata
+            )
+            extended.is_readonly = False
+            self._templates[template_id] = extended
+
+            return extended
+
+        except Exception as e:
+            if template_dir.exists():
+                shutil.rmtree(template_dir)
+            raise TemplateError(f"사용자 템플릿 생성 실패: {e}")
+
     # ========== Update Operations ==========
 
     def update_template(
@@ -430,6 +523,29 @@ class TemplateStorage:
 
         except Exception as e:
             raise TemplateError(f"템플릿 업데이트 실패: {e}")
+
+    def update_user_mapping(
+        self, template_id: str, modified_fields: List[Dict[str, Any]]
+    ) -> ExtendedTemplate:
+        """사용자 템플릿의 매핑(필드) 업데이트 (매핑 편집기용)
+
+        Args:
+            template_id: 템플릿 ID
+            modified_fields: 수정된 필드 목록
+
+        Returns:
+            업데이트된 템플릿
+
+        Raises:
+            TemplateError: 빌트인 템플릿이거나 업데이트 실패 시
+        """
+        template = self.get_template(template_id)
+        if template is None:
+            raise TemplateError(f"템플릿을 찾을 수 없습니다: {template_id}")
+        if template.is_readonly:
+            raise TemplateError("빌트인 템플릿의 매핑은 수정할 수 없습니다.")
+
+        return self.update_template(template_id, fields=modified_fields)
 
     def update_template_name(self, template_id: str, name: str) -> None:
         """템플릿 이름 업데이트

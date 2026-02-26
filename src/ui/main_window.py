@@ -257,6 +257,8 @@ class MainWindow(QMainWindow):
         self._editor_widget.scroll_changed.connect(self._on_scroll_changed)
         self._editor_widget.page_loaded.connect(self._on_page_loaded)
         self._editor_widget.column_highlight_requested.connect(self._on_column_highlight_requested)
+        self._editor_widget.mapping_save_requested.connect(self._on_mapping_save)
+        self._editor_widget.mapping_save_as_requested.connect(self._on_mapping_save_as)
         self._pending_scroll_restore: Optional[str] = None  # 페이지 로드 후 복구할 템플릿 ID
         self._splitter.addWidget(self._editor_widget)
 
@@ -319,12 +321,12 @@ class MainWindow(QMainWindow):
         return (not template.is_builtin, cat_order, si_order, template.name.upper())
 
     def _update_toolbar_templates(self):
-        """툴바의 템플릿 드롭다운 업데이트 (카테고리 그룹핑)"""
+        """툴바의 템플릿 드롭다운 업데이트 (카테고리 그룹핑 + 빌트인/사용자 구분)"""
         if self._template_storage:
             all_templates = self._template_storage.get_all_templates()
             sorted_templates = sorted(all_templates, key=self._get_template_sort_key)
 
-            # 활성화된 템플릿만 표시 (카테고리 정보 포함)
+            # 활성화된 템플릿만 표시 (카테고리 + 빌트인 정보 포함)
             templates = []
             for t in sorted_templates:
                 is_active = True
@@ -332,7 +334,7 @@ class MainWindow(QMainWindow):
                     is_active = t.metadata.is_active
                 if is_active:
                     category = getattr(t, 'category', None)
-                    templates.append((t.id, t.name, category))
+                    templates.append((t.id, t.name, category, t.is_builtin))
 
             # 카테고리 목록 가져오기
             categories = []
@@ -394,6 +396,21 @@ class MainWindow(QMainWindow):
         if not self._template_storage:
             return
 
+        # 매핑 변경 중 다른 템플릿 선택 시 경고
+        if self._editor_widget.is_dirty:
+            from src.ui.utils.styled_message_box import StyledMessageBox
+            result = StyledMessageBox.question(
+                self,
+                "매핑 변경 확인",
+                "저장되지 않은 매핑 정보는 사라집니다.\n다른 템플릿으로 전환하시겠습니까?"
+            )
+            if not result:
+                # 취소 → 현재 템플릿 유지
+                if self._current_template_id:
+                    self._toolbar.set_current_template(self._current_template_id)
+                return
+            self._editor_widget.restore_original_fields()
+
         # 스크롤 위치는 scroll_changed 시그널로 실시간 저장됨
 
         template = self._template_storage.get_template(template_id)
@@ -427,9 +444,55 @@ class MainWindow(QMainWindow):
 
         existing_names = []
         if self._template_storage:
-            existing_names = [t.name for t in self._template_storage.get_user_templates()]
+            # 빌트인 + 사용자 템플릿 이름 모두 포함 (대소문자 무시 중복 방지)
+            existing_names = [t.name for t in self._template_storage.get_all_templates()]
 
         self._editor_widget.set_save_as_context(categories, default_category, existing_names)
+
+    def _on_mapping_save(self):
+        """매핑 저장 요청 처리 (사용자 템플릿 덮어쓰기)"""
+        if not self._template_storage or not self._current_template_id:
+            return
+
+        template = self._template_storage.get_template(self._current_template_id)
+        if not template or template.is_readonly:
+            return
+
+        try:
+            modified_fields = self._editor_widget._fields
+            self._template_storage.update_user_mapping(
+                self._current_template_id, modified_fields
+            )
+            self.statusBar().showMessage("매핑이 저장되었습니다.")
+        except Exception as e:
+            self._logger.error(f"매핑 저장 실패: {e}")
+            QMessageBox.warning(self, "경고", f"매핑 저장에 실패했습니다:\n{e}")
+
+    def _on_mapping_save_as(self, name: str, category: str):
+        """다른 이름으로 저장 요청 처리 (새 사용자 템플릿 생성)"""
+        if not self._template_storage or not self._current_template_id:
+            return
+
+        try:
+            modified_fields = self._editor_widget._fields
+            new_template = self._template_storage.create_user_template_from(
+                src_id=self._current_template_id,
+                name=name,
+                category=category,
+                modified_fields=modified_fields,
+            )
+
+            # 툴바 템플릿 목록 갱신
+            self._update_toolbar_templates()
+
+            # 새로 생성된 템플릿으로 전환
+            self._toolbar.set_current_template(new_template.id)
+            self._on_toolbar_template_selected(new_template.id)
+
+            self.statusBar().showMessage(f"새 템플릿 '{name}'이(가) 생성되었습니다.")
+        except Exception as e:
+            self._logger.error(f"템플릿 생성 실패: {e}")
+            QMessageBox.warning(self, "경고", f"템플릿 생성에 실패했습니다:\n{e}")
 
     def _on_page_loaded(self):
         """페이지 로드 완료 시 스크롤 위치 복구"""
@@ -514,6 +577,22 @@ class MainWindow(QMainWindow):
     def _on_mode_changed(self, mode: int):
         """모드 변경"""
         mode_names = {0: "미리보기", 1: "매핑"}
+
+        # 매핑 모드 → 미리보기 모드 전환 시 미저장 경고
+        if mode == EditorWidget.MODE_PREVIEW and self._editor_widget.is_dirty:
+            from src.ui.utils.styled_message_box import StyledMessageBox
+            result = StyledMessageBox.question(
+                self,
+                "매핑 변경 확인",
+                "저장되지 않은 매핑 정보는 사라집니다.\n모드를 전환하시겠습니까?"
+            )
+            if not result:
+                # 취소 → 매핑 모드 유지
+                self._toolbar.set_mode(EditorWidget.MODE_MAPPING)
+                return
+            # 원복
+            self._editor_widget.restore_original_fields()
+
         self._editor_widget.set_mode(mode)
         # 매핑 모드가 아니면 컬럼 하이라이트 해제
         if mode != EditorWidget.MODE_MAPPING:

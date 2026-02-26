@@ -90,6 +90,8 @@ class EditorWidget(QWidget):
         self._excel_headers: List[str] = []  # 엑셀 헤더 목록
         self._dirty: bool = False  # 매핑 변경 여부
         self._is_builtin: bool = True  # 현재 템플릿이 빌트인인지
+        self._original_fields: List[Dict[str, Any]] = []  # 원본 필드 백업 (원복용)
+        self._restoring: bool = False  # 원복 진행 중 플래그
 
         # 스크롤 위치 추적 타이머 (500ms마다 체크)
         self._scroll_timer = QTimer(self)
@@ -413,7 +415,9 @@ class EditorWidget(QWidget):
         self._template_id = template_id
         self._template_path = template_path
         self._html_content = html_content
+        import copy
         self._fields = fields or []
+        self._original_fields = copy.deepcopy(self._fields)  # 원본 백업
         self._is_builtin = is_builtin
         self._modified = False
         self._dirty = False
@@ -473,6 +477,8 @@ class EditorWidget(QWidget):
 
     def _on_combo_changed(self, text: str, field: Dict[str, Any], item: QTreeWidgetItem):
         """ComboBox 변경 시 호출"""
+        if self._restoring:
+            return
         self._dirty = True
         field["excel_column"] = text
         # 새 컬럼의 인덱스 계산
@@ -533,6 +539,24 @@ class EditorWidget(QWidget):
         self._categories = categories
         self._category = default_category
         self._existing_names = existing_names
+
+    def restore_original_fields(self):
+        """매핑을 원본 상태로 원복"""
+        import copy
+        self._restoring = True
+        try:
+            self._fields = copy.deepcopy(self._original_fields)
+            self._update_field_list()
+        finally:
+            self._restoring = False
+        self._dirty = False
+        self._update_save_buttons()
+        self._update_preview()
+
+    @property
+    def is_dirty(self) -> bool:
+        """매핑 변경 여부"""
+        return self._dirty
 
     def set_mode(self, mode: int):
         """모드 설정

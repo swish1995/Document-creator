@@ -17,6 +17,9 @@ from PyQt6.QtWidgets import (
 class SaveAsDialog(QDialog):
     """다른 이름으로 저장 다이얼로그
 
+    플로우: 이름 입력 → 중복 확인 → 통과 시 이름 잠금 + 저장 활성화
+    이름 변경 시 중복 확인 리셋
+
     Args:
         original_name: 원본 템플릿 이름
         categories: 카테고리 목록 [{"id": ..., "name": ...}, ...]
@@ -33,37 +36,44 @@ class SaveAsDialog(QDialog):
         parent=None,
     ):
         super().__init__(parent)
-        self._existing_names = existing_names or []
+        self._existing_names = [n.lower() for n in (existing_names or [])]
         self._categories = categories or []
+        self._name_confirmed = False
 
         self.setWindowTitle("다른 이름으로 저장")
-        self.setMinimumWidth(350)
+        self.setMinimumWidth(380)
         self._setup_style()
 
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        # 이름 입력
+        # 이름 입력 + 중복 확인 버튼
         layout.addWidget(QLabel("템플릿 이름:"))
+        name_row = QHBoxLayout()
         self._name_input = QLineEdit()
         self._name_input.setText(f"{original_name}_복사본")
         self._name_input.selectAll()
-        self._name_input.textChanged.connect(self._validate)
-        layout.addWidget(self._name_input)
+        self._name_input.textChanged.connect(self._on_name_changed)
+        name_row.addWidget(self._name_input)
 
-        # 경고 라벨
-        self._warning_label = QLabel()
-        self._warning_label.setObjectName("warningLabel")
-        self._warning_label.setVisible(False)
-        layout.addWidget(self._warning_label)
+        self._btn_check = QPushButton("중복 확인")
+        self._btn_check.setObjectName("checkButton")
+        self._btn_check.clicked.connect(self._on_check_clicked)
+        name_row.addWidget(self._btn_check)
+        layout.addLayout(name_row)
+
+        # 상태 라벨
+        self._status_label = QLabel()
+        self._status_label.setObjectName("statusLabel")
+        self._status_label.setVisible(False)
+        layout.addWidget(self._status_label)
 
         # 카테고리 선택
         layout.addWidget(QLabel("카테고리:"))
         self._category_combo = QComboBox()
         for cat in self._categories:
             self._category_combo.addItem(cat.get("name", ""), cat.get("id", ""))
-        # 기본 카테고리 선택
         for i in range(self._category_combo.count()):
             if self._category_combo.itemData(i) == default_category:
                 self._category_combo.setCurrentIndex(i)
@@ -82,6 +92,7 @@ class SaveAsDialog(QDialog):
         self._btn_ok = QPushButton("저장")
         self._btn_ok.setObjectName("okButton")
         self._btn_ok.setDefault(True)
+        self._btn_ok.setEnabled(False)
         self._btn_ok.clicked.connect(self._on_ok)
         btn_layout.addWidget(self._btn_ok)
 
@@ -97,8 +108,7 @@ class SaveAsDialog(QDialog):
                 color: #cccccc;
                 font-size: 12px;
             }
-            QLabel#warningLabel {
-                color: #ff6b6b;
+            QLabel#statusLabel {
                 font-size: 11px;
             }
             QLineEdit {
@@ -111,6 +121,11 @@ class SaveAsDialog(QDialog):
             }
             QLineEdit:focus {
                 border: 1px solid #0d47a1;
+            }
+            QLineEdit:read-only {
+                background-color: #333333;
+                color: #aaaaaa;
+                border: 1px solid #444444;
             }
             QComboBox {
                 background-color: #3a3a3a;
@@ -134,6 +149,25 @@ class SaveAsDialog(QDialog):
                 selection-background-color: #0d47a1;
                 color: #ffffff;
             }
+            QPushButton#checkButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5a8ab8, stop:1 #4a7aa8);
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: bold;
+                min-width: 70px;
+            }
+            QPushButton#checkButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #6a9ac8, stop:1 #5a8ab8);
+            }
+            QPushButton#checkButton:disabled {
+                background: #3a3a3a;
+                color: #666666;
+            }
             QPushButton#cancelButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #7a7a7a, stop:1 #6a6a6a);
@@ -148,10 +182,6 @@ class SaveAsDialog(QDialog):
             QPushButton#cancelButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #8a8a8a, stop:1 #7a7a7a);
-            }
-            QPushButton#cancelButton:pressed {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #6a6a6a, stop:1 #7a7a7a);
             }
             QPushButton#okButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -168,10 +198,6 @@ class SaveAsDialog(QDialog):
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #6ac88a, stop:1 #5ab87a);
             }
-            QPushButton#okButton:pressed {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #4aa86a, stop:1 #5ab87a);
-            }
             QPushButton#okButton:disabled {
                 background: #3a3a3a;
                 color: #666666;
@@ -187,30 +213,63 @@ class SaveAsDialog(QDialog):
         return self._category_combo.currentData() or ""
 
     def is_valid(self) -> bool:
-        """입력값 유효성 검사"""
+        """입력값 유효성 검사 (대소문자 무시)"""
         name = self.get_name()
         if not name:
             return False
-        if name in self._existing_names:
+        if name.lower() in self._existing_names:
             return False
         return True
 
-    def _validate(self):
-        """입력값 실시간 검증"""
+    def _on_name_changed(self):
+        """이름 변경 시 중복 확인 리셋 (수정 모드에서만 호출됨)"""
+        if self._name_confirmed:
+            self._name_confirmed = False
+            self._name_input.setReadOnly(False)
+            self._btn_check.setText("중복 확인")
+            self._btn_ok.setEnabled(False)
+            self._status_label.setText("이름이 변경되었습니다. 중복 확인을 다시 해주세요.")
+            self._status_label.setStyleSheet("color: #ffaa44; font-size: 11px;")
+            self._status_label.setVisible(True)
+
+    def _on_check_clicked(self):
+        """중복 확인 / 수정 버튼 클릭"""
+        # 확정 상태에서 클릭 → 수정 모드로 전환
+        if self._name_confirmed:
+            self._name_confirmed = False
+            self._name_input.setReadOnly(False)
+            self._name_input.setFocus()
+            self._name_input.selectAll()
+            self._btn_check.setText("중복 확인")
+            self._btn_ok.setEnabled(False)
+            self._status_label.setText("이름을 수정 후 중복 확인을 해주세요.")
+            self._status_label.setStyleSheet("color: #ffaa44; font-size: 11px;")
+            self._status_label.setVisible(True)
+            return
+
         name = self.get_name()
         if not name:
-            self._warning_label.setText("이름을 입력해주세요.")
-            self._warning_label.setVisible(True)
-            self._btn_ok.setEnabled(False)
-        elif name in self._existing_names:
-            self._warning_label.setText(f"'{name}'은(는) 이미 존재하는 이름입니다.")
-            self._warning_label.setVisible(True)
-            self._btn_ok.setEnabled(False)
-        else:
-            self._warning_label.setVisible(False)
-            self._btn_ok.setEnabled(True)
+            self._status_label.setText("이름을 입력해주세요.")
+            self._status_label.setStyleSheet("color: #ff6b6b; font-size: 11px;")
+            self._status_label.setVisible(True)
+            return
+
+        if name.lower() in self._existing_names:
+            self._status_label.setText(f"'{name}'은(는) 이미 존재하는 이름입니다.")
+            self._status_label.setStyleSheet("color: #ff6b6b; font-size: 11px;")
+            self._status_label.setVisible(True)
+            return
+
+        # 중복 없음 → 이름 확정
+        self._name_confirmed = True
+        self._name_input.setReadOnly(True)
+        self._btn_check.setText("수정")
+        self._btn_ok.setEnabled(True)
+        self._status_label.setText("사용 가능한 이름입니다.")
+        self._status_label.setStyleSheet("color: #5ab87a; font-size: 11px;")
+        self._status_label.setVisible(True)
 
     def _on_ok(self):
         """확인 버튼 클릭"""
-        if self.is_valid():
+        if self._name_confirmed and self.is_valid():
             self.accept()

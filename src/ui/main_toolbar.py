@@ -413,7 +413,7 @@ class MainToolbar(QToolBar):
         """카테고리별 그룹핑된 템플릿 드롭다운 업데이트
 
         Args:
-            templates: (id, name, category_id) 튜플 목록
+            templates: (id, name, category_id[, is_builtin]) 튜플 목록
             categories: 카테고리 정보 딕셔너리 목록
         """
         self._all_grouped_templates = templates
@@ -430,7 +430,7 @@ class MainToolbar(QToolBar):
         self._update_template_combo()
 
     def _update_template_combo(self, filter_category: str = ""):
-        """템플릿 콤보박스를 카테고리 그룹핑으로 업데이트
+        """템플릿 콤보박스를 카테고리 그룹핑으로 업데이트 (빌트인/사용자 구분)
 
         Args:
             filter_category: 필터할 카테고리 ID ("" = 전체)
@@ -441,19 +441,20 @@ class MainToolbar(QToolBar):
         self.combo_template.blockSignals(True)
         self.combo_template.clear()
 
-        # 카테고리 순서 맵
-        cat_order = {cat["id"]: cat for cat in self._all_categories}
-        cat_names = {cat["id"]: cat["name"] for cat in self._all_categories}
-
-        # 카테고리별 그룹핑
-        grouped: dict = {}
-        for tpl_id, tpl_name, tpl_cat in self._all_grouped_templates:
+        # 빌트인/사용자 분리 + 카테고리별 그룹핑
+        builtin_grouped: dict = {}
+        user_grouped: dict = {}
+        for tpl_data in self._all_grouped_templates:
+            tpl_id, tpl_name = tpl_data[0], tpl_data[1]
+            tpl_cat = tpl_data[2] if len(tpl_data) > 2 else ""
+            is_builtin = tpl_data[3] if len(tpl_data) > 3 else True
             cat_key = tpl_cat or ""
-            if cat_key not in grouped:
-                grouped[cat_key] = []
-            grouped[cat_key].append((tpl_id, tpl_name))
 
-        # 정렬된 카테고리 순서로 추가
+            target = builtin_grouped if is_builtin else user_grouped
+            if cat_key not in target:
+                target[cat_key] = []
+            target[cat_key].append((tpl_id, tpl_name))
+
         sorted_cats = sorted(
             self._all_categories,
             key=lambda c: c.get("sort_order", 999)
@@ -461,14 +462,14 @@ class MainToolbar(QToolBar):
 
         model = self.combo_template.model()
 
+        # 빌트인 템플릿
         for cat in sorted_cats:
             cat_id = cat["id"]
             if filter_category and cat_id != filter_category:
                 continue
-            if cat_id not in grouped:
+            if cat_id not in builtin_grouped:
                 continue
 
-            # 카테고리 헤더 추가 (비활성)
             header_text = f"── {cat['name']} ──"
             self.combo_template.addItem(header_text)
             header_idx = self.combo_template.count() - 1
@@ -476,24 +477,50 @@ class MainToolbar(QToolBar):
             if item:
                 item.setEnabled(False)
 
-            # 해당 카테고리의 템플릿 추가
-            for tpl_id, tpl_name in grouped[cat_id]:
+            for tpl_id, tpl_name in builtin_grouped[cat_id]:
                 self.combo_template.addItem(f"  {tpl_name}", tpl_id)
 
-        # 카테고리 없는 템플릿 (기타)
-        if "" in grouped:
-            if not filter_category:
-                header_text = "── 기타 ──"
-                self.combo_template.addItem(header_text)
-                header_idx = self.combo_template.count() - 1
-                item = model.item(header_idx)
-                if item:
-                    item.setEnabled(False)
+        # 사용자 템플릿 (있을 때만)
+        has_user = any(
+            (not filter_category or cat_id == filter_category)
+            for cat_id in user_grouped
+        )
+        if has_user:
+            # 구분선
+            separator_text = "─────────────"
+            self.combo_template.addItem(separator_text)
+            sep_idx = self.combo_template.count() - 1
+            item = model.item(sep_idx)
+            if item:
+                item.setEnabled(False)
 
-                for tpl_id, tpl_name in grouped[""]:
+            # 사용자 헤더
+            header_text = "── 사용자 템플릿 ──"
+            self.combo_template.addItem(header_text)
+            header_idx = self.combo_template.count() - 1
+            item = model.item(header_idx)
+            if item:
+                item.setEnabled(False)
+
+            for cat_id, templates in user_grouped.items():
+                if filter_category and cat_id != filter_category:
+                    continue
+                for tpl_id, tpl_name in templates:
                     self.combo_template.addItem(f"  {tpl_name}", tpl_id)
 
-        # 첫 번째 선택 가능한 아이템으로 설정 (카테고리 헤더 스킵)
+        # 카테고리 없는 빌트인 (기타)
+        if "" in builtin_grouped and not filter_category:
+            header_text = "── 기타 ──"
+            self.combo_template.addItem(header_text)
+            header_idx = self.combo_template.count() - 1
+            item = model.item(header_idx)
+            if item:
+                item.setEnabled(False)
+
+            for tpl_id, tpl_name in builtin_grouped[""]:
+                self.combo_template.addItem(f"  {tpl_name}", tpl_id)
+
+        # 첫 번째 선택 가능한 아이템으로 설정 (헤더 스킵)
         for i in range(self.combo_template.count()):
             if self.combo_template.itemData(i):
                 self.combo_template.setCurrentIndex(i)
