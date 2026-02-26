@@ -514,9 +514,9 @@ class EditorWidget(QWidget):
 
     def _on_save_clicked(self):
         """저장 버튼 클릭"""
-        self.mapping_save_requested.emit()
         self._dirty = False
         self._update_save_buttons()
+        self.mapping_save_requested.emit()
 
     def _on_save_as_clicked(self):
         """다른 이름으로 저장 버튼 클릭"""
@@ -530,9 +530,9 @@ class EditorWidget(QWidget):
             parent=self,
         )
         if dialog.exec() == SaveAsDialog.DialogCode.Accepted:
-            self.mapping_save_as_requested.emit(dialog.get_name(), dialog.get_category())
             self._dirty = False
             self._update_save_buttons()
+            self.mapping_save_as_requested.emit(dialog.get_name(), dialog.get_category())
 
     def set_save_as_context(self, categories: list, default_category: str, existing_names: list):
         """다른 이름으로 저장 다이얼로그에 필요한 컨텍스트 설정"""

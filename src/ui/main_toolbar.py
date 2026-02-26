@@ -486,14 +486,6 @@ class MainToolbar(QToolBar):
             for cat_id in user_grouped
         )
         if has_user:
-            # 구분선
-            separator_text = "─────────────"
-            self.combo_template.addItem(separator_text)
-            sep_idx = self.combo_template.count() - 1
-            item = model.item(sep_idx)
-            if item:
-                item.setEnabled(False)
-
             # 사용자 헤더
             header_text = "── 사용자 템플릿 ──"
             self.combo_template.addItem(header_text)
