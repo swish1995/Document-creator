@@ -624,10 +624,10 @@ class TemplateManagerDialog(QDialog):
             pending = self._pending_changes.get(template.id, {})
             original = self._original_values[template.id]
 
-            # 이름
+            # 이름 (빌트인 템플릿은 이름 변경 불가)
             name = pending.get('name', original['name'])
             self._name_edit.setText(name)
-            self._name_edit.setReadOnly(False)
+            self._name_edit.setReadOnly(template.is_builtin)
 
             self._type_label.setText(template.template_type.upper())
             self._indicator_label.setText(template.safety_indicator or "-")
@@ -643,11 +643,12 @@ class TemplateManagerDialog(QDialog):
             self._active_toggle.setChecked(is_active)
             self._active_toggle.setEnabled(True)
 
-            # 페이지 높이
+            # 페이지 높이 (빌트인 템플릿은 수정 불가)
+            # TODO: 개발 모드일 경우 빌트인도 수정 가능하도록 변경
             page_height = pending.get('page_height_mm', original.get('page_height_mm', 1000))
             self._page_height_spin.blockSignals(True)
             self._page_height_spin.setValue(int(page_height))
-            self._page_height_spin.setEnabled(True)
+            self._page_height_spin.setEnabled(not template.is_builtin)
             self._page_height_spin.blockSignals(False)
 
             # 삭제 버튼: 사용자 템플릿만 활성화
