@@ -408,11 +408,28 @@ class MainWindow(QMainWindow):
                     template.template_path,
                     html_content,
                     fields=template.fields,
+                    is_builtin=template.is_builtin,
                 )
+                # 다른 이름으로 저장 다이얼로그 컨텍스트 설정
+                self._update_save_as_context(template)
                 self.statusBar().showMessage(f"템플릿 로드됨: {template.name}")
             except Exception as e:
                 self._logger.error(f"템플릿 로드 실패: {e}")
                 QMessageBox.warning(self, "경고", f"템플릿을 로드할 수 없습니다:\n{e}")
+
+    def _update_save_as_context(self, template):
+        """다른 이름으로 저장 다이얼로그에 필요한 컨텍스트를 EditorWidget에 전달"""
+        categories = []
+        if hasattr(self, '_template_manager') and self._template_manager:
+            categories = self._template_manager.categories
+
+        default_category = getattr(template, 'category', '') or ''
+
+        existing_names = []
+        if self._template_storage:
+            existing_names = [t.name for t in self._template_storage.get_user_templates()]
+
+        self._editor_widget.set_save_as_context(categories, default_category, existing_names)
 
     def _on_page_loaded(self):
         """페이지 로드 완료 시 스크롤 위치 복구"""

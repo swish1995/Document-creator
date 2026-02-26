@@ -399,6 +399,7 @@ class EditorWidget(QWidget):
         template_path: Path,
         html_content: str,
         fields: Optional[List[Dict[str, Any]]] = None,
+        is_builtin: bool = True,
     ):
         """템플릿 설정
 
@@ -407,11 +408,13 @@ class EditorWidget(QWidget):
             template_path: 템플릿 파일 경로
             html_content: HTML 내용
             fields: 필드 정의 목록 (선택)
+            is_builtin: 빌트인 템플릿 여부
         """
         self._template_id = template_id
         self._template_path = template_path
         self._html_content = html_content
         self._fields = fields or []
+        self._is_builtin = is_builtin
         self._modified = False
         self._dirty = False
         self._update_save_buttons()
