@@ -1,6 +1,6 @@
 """스타일이 적용된 메시지 박스 모듈
 
-스켈레톤 분석기와 동일한 스타일의 메시지 박스를 제공합니다.
+IMAS와 동일한 스타일의 메시지 박스를 제공합니다.
 """
 
 from __future__ import annotations
@@ -9,9 +9,9 @@ from PyQt6.QtWidgets import QMessageBox, QWidget, QStyle
 
 
 class StyledMessageBox:
-    """스타일이 적용된 메시지 박스 (스켈레톤 분석기와 동일)"""
+    """스타일이 적용된 메시지 박스 (IMAS와 동일)"""
 
-    # 버튼 색상 정의 (스켈레톤 분석기와 동일)
+    # 버튼 색상 정의 (IMAS와 동일)
     BUTTON_COLORS = {
         'primary': ('#5a7ab8', '#4a6aa8', '#6a8ac8'),    # 파란색 (아니오/기본)
         'secondary': ('#555555', '#444444', '#666666'),   # 어두운 회색 (예)
@@ -72,7 +72,7 @@ class StyledMessageBox:
         msg_box.setWindowTitle(title)
         msg_box.setText(text)
 
-        # 물음표 아이콘 사용 (스켈레톤 분석기와 동일)
+        # 물음표 아이콘 사용 (IMAS와 동일)
         icon = parent.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxQuestion)
         msg_box.setIconPixmap(icon.pixmap(64, 64))
 
@@ -80,7 +80,7 @@ class StyledMessageBox:
         no_btn = msg_box.addButton(no_text, QMessageBox.ButtonRole.NoRole)
         yes_btn = msg_box.addButton(yes_text, QMessageBox.ButtonRole.YesRole)
 
-        # 버튼 스타일 적용 (스켈레톤 분석기와 동일: 아니오=파란색, 예=회색)
+        # 버튼 스타일 적용 (IMAS와 동일: 아니오=파란색, 예=회색)
         no_btn.setStyleSheet(cls._get_button_style('primary'))
         yes_btn.setStyleSheet(cls._get_button_style('secondary'))
 

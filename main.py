@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Document Creator - Entry Point
 
-Skeleton Analyzer 출력 데이터를 인체공학적 평가 문서로 변환하는 도구
+IMAS 출력 데이터를 인체공학적 평가 문서로 변환하는 도구
 """
 
 import sys

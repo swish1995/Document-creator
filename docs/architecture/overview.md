@@ -5,7 +5,7 @@
 
 ## 개요
 
-Document Creator는 Skeleton Analyzer에서 분석한 인체공학 평가 결과를 바탕으로 전문적인 안전문서를 자동으로 생성하는 PyQt6 기반 데스크톱 애플리케이션입니다.
+Document Creator는 IMAS에서 분석한 인체공학 평가 결과를 바탕으로 전문적인 안전문서를 자동으로 생성하는 PyQt6 기반 데스크톱 애플리케이션입니다.
 
 ## 기술 스택
 
@@ -150,7 +150,7 @@ document-creator/
 - **기능**:
   - 라이센스 등록/검증
   - 기능 제한 관리
-  - Skeleton Analyzer와 라이센스 공유
+  - IMAS와 라이센스 공유
 
 ## 데이터 흐름
 
@@ -169,8 +169,8 @@ document-creator/
 ## 라이센스 시스템
 
 ### 공유 라이센스
-- Skeleton Analyzer와 동일한 라이센스 파일 사용
-- 경로: `~/.config/SkeletonAnalyzer/license.json`
+- IMAS와 동일한 라이센스 파일 사용
+- 경로: `~/.config/IMAS/license.json`
 - 한 번 등록으로 두 앱 모두 활성화
 
 ### 기능 제한

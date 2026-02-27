@@ -1,7 +1,7 @@
 """메인 툴바 모듈
 
 상단 메인 툴바 - 기능별 버튼 그룹
-스켈레톤 분석기 스타일 (SVG 아이콘 + 색상별 그라데이션)
+IMAS 스타일 (SVG 아이콘 + 색상별 그라데이션)
 """
 
 from __future__ import annotations
@@ -151,7 +151,7 @@ class MainToolbar(QToolBar):
         return style
 
     def _setup_style(self):
-        """툴바 스타일 설정 (스켈레톤 분석기와 동일)"""
+        """툴바 스타일 설정 (IMAS와 동일)"""
         arrow_icon_path = self._get_icon_path("dropdown-arrow").replace("\\", "/")
 
         self.setStyleSheet(f"""

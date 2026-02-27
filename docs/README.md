@@ -18,7 +18,7 @@ docs/
 
 ## 관련 프로젝트
 
-- **Skeleton Analyzer**: 영상 기반 인체공학 자세 분석 도구
+- **IMAS**: 영상 기반 인체공학 자세 분석 도구
   - 동일한 라이센스 시스템 공유
   - Document Creator의 입력 데이터 생성
 

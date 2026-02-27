@@ -1,7 +1,7 @@
 """라이센스 키 검증 모듈
 
 라이센스 키 형식, 체크섬, 하드웨어 매칭을 검증합니다.
-스켈레톤 분석기와 동일한 키 형식을 사용합니다.
+IMAS와 동일한 키 형식을 사용합니다.
 
 키 형식: XXXX-XXXX-XXXX-XXXX (19자리)
 - 첫 8자리 (XXXX-XXXX): 하드웨어 ID 해시
@@ -29,7 +29,7 @@ class LicenseValidator:
     # 키 형식 정규식: XXXX-XXXX-XXXX-XXXX (영숫자)
     KEY_PATTERN = re.compile(r'^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$')
 
-    # 제품 코드 (스켈레톤 분석기와 동일)
+    # 제품 코드 (IMAS와 동일)
     PRODUCT_CODE = "SA25"
 
     def normalize_key(self, key: Optional[str]) -> str:
@@ -173,8 +173,8 @@ class LicenseValidator:
         Returns:
             4자리 체크섬
         """
-        # 스켈레톤 분석기와 동일한 시크릿 사용
-        secret = "SKELETON_ANALYZER_LICENSE"
+        # IMAS와 동일한 시크릿 사용
+        secret = "IMAS_LICENSE"
         data = f"{key_without_checksum}:{secret}"
         hash_obj = hashlib.sha256(data.encode())
         return hash_obj.hexdigest()[:4].upper()

@@ -42,7 +42,7 @@
 - **선택 이유**:
   - 크로스 플랫폼 지원 (Windows, macOS)
   - 풍부한 위젯 라이브러리
-  - Skeleton Analyzer와 동일한 UI 스택 유지
+  - IMAS와 동일한 UI 스택 유지
 - **대안**: PySide6, Tkinter, wxPython
 
 ### PyQt6-WebEngine
@@ -57,7 +57,7 @@
   - 순수 Python 구현 (외부 의존성 없음)
   - Named Range + INDEX/IF/MIN/MAX 수식 지원
   - PyInstaller 완벽 호환 (동적 import 없음)
-  - Skeleton Analyzer 출력 파일 호환
+  - IMAS 출력 파일 호환
 - **대안**: formulas (PyInstaller 비호환), xlcalculator (Named Range 미지원)
 
 ### PyMuPDF

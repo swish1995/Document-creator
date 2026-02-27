@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
 
     MAX_TEMPLATE_PANELS = 5
 
-    # 버튼 색상 정의 (스켈레톤 분석기와 동일)
+    # 버튼 색상 정의 (IMAS와 동일)
     BUTTON_COLORS = {
         'export': ('#5ab87a', '#4aa86a', '#6ac88a'),    # 초록색
         'add': ('#5a7ab8', '#4a6aa8', '#6a8ac8'),       # 파란색
@@ -93,7 +93,7 @@ class MainWindow(QMainWindow):
         self._restore_geometry()
 
     def _get_button_style(self, color_key: str) -> str:
-        """버튼 스타일 생성 (스켈레톤 분석기와 동일)"""
+        """버튼 스타일 생성 (IMAS와 동일)"""
         colors = self.BUTTON_COLORS.get(color_key, self.BUTTON_COLORS['export'])
         base, dark, light = colors
 
@@ -127,7 +127,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Document Creator")
         self.setMinimumSize(1200, 800)
 
-        # 전체 앱 다크 테마 스타일 (스켈레톤 분석기와 동일)
+        # 전체 앱 다크 테마 스타일 (IMAS와 동일)
         self.setStyleSheet("""
             QMainWindow {
                 background-color: #2b2b2b;

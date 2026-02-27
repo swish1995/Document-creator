@@ -381,7 +381,7 @@ class ExcelViewer(QWidget):
     selection_changed = pyqtSignal(list)   # 선택 변경 (행 인덱스 리스트)
     file_loaded = pyqtSignal(str, int)     # 파일 로드 완료 (파일명, 행 수)
 
-    # 버튼 색상 정의 (스켈레톤 분석기와 동일)
+    # 버튼 색상 정의 (IMAS와 동일)
     BUTTON_COLORS = {
         'open': ('#b8a25a', '#a8924a', '#c8b26a'),      # 골드/노란색
         'select': ('#5a7ab8', '#4a6aa8', '#6a8ac8'),    # 파란색
@@ -396,7 +396,7 @@ class ExcelViewer(QWidget):
         self._setup_ui()
 
     def _get_button_style(self, color_key: str) -> str:
-        """버튼 스타일 생성 (스켈레톤 분석기와 동일)"""
+        """버튼 스타일 생성 (IMAS와 동일)"""
         colors = self.BUTTON_COLORS.get(color_key, self.BUTTON_COLORS['open'])
         base, dark, light = colors
 
@@ -520,7 +520,7 @@ class ExcelViewer(QWidget):
         # 미리보기 행 변경은 clicked 사용
         self._table_view.clicked.connect(self._on_table_clicked)
 
-        # 테이블 스타일 (스켈레톤 분석기와 동일한 다크 테마)
+        # 테이블 스타일 (IMAS와 동일한 다크 테마)
         self._table_view.setStyleSheet("""
             QTableView {
                 background-color: #2b2b2b;

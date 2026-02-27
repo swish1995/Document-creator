@@ -2,7 +2,7 @@
 
 라이센스 상태 관리 및 기능 권한 검증을 담당합니다.
 싱글톤 패턴으로 구현되어 앱 전체에서 하나의 인스턴스만 사용합니다.
-스켈레톤 분석기와 동일한 라이센스 파일을 공유합니다.
+IMAS와 동일한 라이센스 파일을 공유합니다.
 """
 
 import hashlib
@@ -163,8 +163,8 @@ class LicenseManager(QObject):
 
     def _check_environment_mode(self) -> None:
         """환경변수에서 모드를 확인합니다."""
-        # 스켈레톤 분석기와 동일한 환경변수 사용
-        env_mode = os.environ.get('SKELETON_ANALYZER_LICENSE_MODE', '').lower()
+        # IMAS와 동일한 환경변수 사용
+        env_mode = os.environ.get('IMAS_LICENSE_MODE', '').lower()
 
         if env_mode == 'dev':
             self._mode = LicenseMode.DEV
@@ -176,15 +176,15 @@ class LicenseManager(QObject):
     def _get_config_path(cls) -> Path:
         """설정 파일 경로를 반환합니다.
 
-        스켈레톤 분석기와 동일한 경로를 사용하여 라이센스를 공유합니다.
+        IMAS와 동일한 경로를 사용하여 라이센스를 공유합니다.
         """
         if os.name == 'nt':  # Windows
             base = Path(os.environ.get('APPDATA', Path.home()))
         else:  # macOS, Linux
             base = Path.home() / '.config'
 
-        # 스켈레톤 분석기와 동일한 폴더 사용 (라이센스 공유)
-        config_dir = base / 'SkeletonAnalyzer'
+        # IMAS와 동일한 폴더 사용 (라이센스 공유)
+        config_dir = base / 'IMAS'
         config_dir.mkdir(parents=True, exist_ok=True)
 
         return config_dir / 'license.json'
@@ -223,7 +223,7 @@ class LicenseManager(QObject):
             expected_checksum = self._calculate_config_checksum(data)
 
             if stored_checksum != expected_checksum:
-                # 변조된 파일 - 삭제하지 않고 무시 (스켈레톤 분석기가 사용 중일 수 있음)
+                # 변조된 파일 - 삭제하지 않고 무시 (IMAS가 사용 중일 수 있음)
                 return
 
             # 라이센스 키 검증
@@ -245,7 +245,7 @@ class LicenseManager(QObject):
 
     def _calculate_config_checksum(self, data: Dict[str, Any]) -> str:
         """설정 데이터의 체크섬을 계산합니다."""
-        # 스켈레톤 분석기와 동일한 시크릿 사용
-        secret = "SKELETON_ANALYZER_CONFIG_SECRET"
+        # IMAS와 동일한 시크릿 사용
+        secret = "IMAS_CONFIG_SECRET"
         content = json.dumps(data, sort_keys=True) + secret
         return hashlib.sha256(content.encode()).hexdigest()[:16]

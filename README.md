@@ -1,15 +1,15 @@
 # Document Creator
 
-> Skeleton Analyzer 출력 데이터를 인체공학적 평가 문서로 변환하는 도구
+> IMAS 출력 데이터를 인체공학적 평가 문서로 변환하는 도구
 
 ## 개요
 
-**Document Creator**는 [Skeleton Analyzer](https://github.com/swish1995/Skeleton_analyzer)에서 생성된 엑셀 데이터를 RULA, REBA, OWAS 등의 인체공학적 평가 템플릿에 매핑하여 문서를 생성하는 데스크톱 애플리케이션입니다.
+**Document Creator**는 [IMAS](https://github.com/swish1995/Skeleton_analyzer)에서 생성된 엑셀 데이터를 RULA, REBA, OWAS 등의 인체공학적 평가 템플릿에 매핑하여 문서를 생성하는 데스크톱 애플리케이션입니다.
 
 ## 주요 기능
 
 ### 데이터 입력
-- Skeleton Analyzer에서 내보낸 Excel 파일(`.xlsx`) 열기
+- IMAS에서 내보낸 Excel 파일(`.xlsx`) 열기
 - 첫 번째 시트(`Capture Data`)의 데이터 로드
 - 엑셀 데이터 테이블 형태로 표시
 - **다중 행 선택**: 체크박스, Shift+클릭, Ctrl+클릭 지원
@@ -106,7 +106,7 @@
 
 ## 입력 데이터 형식
 
-Skeleton Analyzer에서 생성되는 엑셀 파일 구조:
+IMAS에서 생성되는 엑셀 파일 구조:
 
 | 시트명 | 설명 |
 |--------|------|
@@ -379,7 +379,7 @@ logger.error("에러 메시지")
 
 ## 관련 프로젝트
 
-- [Skeleton Analyzer](https://github.com/swish1995/Skeleton_analyzer) - 동영상 기반 인체 포즈 분석 및 인체공학적 평가
+- [IMAS](https://github.com/swish1995/Skeleton_analyzer) - 동영상 기반 인체 포즈 분석 및 인체공학적 평가
 
 ## 라이센스
 
